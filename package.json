@@ -1,0 +1,9 @@
+{
+  "name": "behave",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "preact": "^10.18.1",
+    "typescript": "^5.2.2"
+  }
+}

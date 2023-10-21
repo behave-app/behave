@@ -14,30 +14,26 @@ export class NoMatchError extends ParseError {
 }
 
 export class Data {
-  buffer: ArrayBuffer
-  bytePointer: number
-  bitPointer: number
-  moreDataAvailable: boolean
-  constructor(buffer: ArrayBuffer, bytePointer: number, bitPointer: number, moreDataAvailable: boolean) {
-    this.buffer = buffer;
-    this.bytePointer = bytePointer;
-    this.bitPointer = bitPointer;
-    this.moreDataAvailable = moreDataAvailable
-  }
+  constructor(
+    public view: DataView,
+    public bytePointer: number,
+    public bitPointer: number,
+    public moreDataAvailable: boolean,
+  ) {}
 
-  copy(skipBytes: number = 0, skipBits: number = 0): Data {
-    const newdata = new Data(
-      this.buffer, // NOTE: Not copying the buffer
-      this.bytePointer,
-      this.bitPointer,
-      this.moreDataAvailable,
-    )
-    newdata.consume(skipBytes, skipBits)
-    return newdata
+  slice(byteLength: number): Data {
+    this.requireEnoughDataAvailable(byteLength)
+    this.assertOnByteBoundary()
+    return new Data(
+      new DataView(
+        this.view.buffer,
+        this.view.byteOffset + this.bytePointer,
+        byteLength),
+      0, 0, false)
   }
 
   countAvailableBytes(): number {
-    const totalBytes = this.buffer.byteLength
+    const totalBytes = this.view.byteLength
     return totalBytes - this.bytePointer - this.bitPointer / 8;
   }
 
@@ -70,28 +66,62 @@ export class Data {
   parseAscii(length: number): string {
     this.assertOnByteBoundary();
     this.requireEnoughDataAvailable(length)
-    const result = asciiDecoder.decode(this.buffer.slice(
-      this.bytePointer, this.bytePointer + length));
+    const result = asciiDecoder.decode(this.view.buffer.slice(
+      this.view.byteOffset + this.bytePointer,
+      this.view.byteOffset + this.bytePointer + length));
     this.consume(length)
+    return result
+  }
+
+  parseBytes(count: number): readonly number[] {
+    this.assertOnByteBoundary();
+    this.requireEnoughDataAvailable(count);
+    const result = Array(count).map((_, index) => this.view.getUint8(this.bytePointer + index))
+    this.consume(count)
+    return result
+  }
+
+  parseUint8(): number {
+    this.assertOnByteBoundary();
+    this.requireEnoughDataAvailable(1);
+    const result = this.view.getUint8(this.bytePointer)
+    this.consume(1)
+    return result
+  }
+
+  parseUint16(): number {
+    this.assertOnByteBoundary();
+    this.requireEnoughDataAvailable(2);
+    const result = this.view.getUint16(this.bytePointer)
+    this.consume(2)
+    return result
+  }
+
+  parseUint24(): number {
+    this.assertOnByteBoundary();
+    this.requireEnoughDataAvailable(3);
+    const result = this.view.getUint16(this.bytePointer) << 8 | this.view.getUint8(this.bytePointer + 2)
+    this.consume(3)
     return result
   }
 
   parseUint32(): number {
     this.assertOnByteBoundary();
     this.requireEnoughDataAvailable(4);
-    const result = new DataView(this.buffer).getUint32(this.bytePointer)
+    const result = this.view.getUint32(this.bytePointer)
     this.consume(4)
+    return result
+  }
+
+  parseBigUint64(): bigint {
+    this.assertOnByteBoundary();
+    this.requireEnoughDataAvailable(8);
+    const result = this.view.getBigUint64(this.bytePointer)
+    this.consume(8)
     return result
   }
 }
 
-export class Parsable {
-  readonly byteLength: number;
-  constructor(byteLength: number) {
-    this.byteLength = byteLength;
-  }
-}
-
 export interface IParsable {
-  parse(data: Data): Parsable;
+  parse(data: Data): any;
 }

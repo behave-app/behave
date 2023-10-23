@@ -14,6 +14,23 @@ export async function readFile(file: File) {
   console.log({fmt_ctx, streams})
   
   const [, c, pkt, frame] = await libav.ff_init_decoder(streams[0].codec_id, streams[0].codecpar);
+  console.log({c, pkt, frame})
+  let packetcnt = 0
+
+  // const outputfile = await (window as any).showSaveFilePicker({suggestedName: "output.mp4"})
+  // const outputstream = await outputfile.createWritable()
+
+  await libav.mkwriterdev("output.mov");
+  const [oc, fmt, pb] = await libav.ff_init_muxer({filename: "output.mov", open: true, codecpars: true}, [[streams[0].codecpar, streams[0].time_base_num, streams[0].time_base_den]])
+  console.log({oc, fmt, pb})
+  await libav.avformat_write_header(oc, 0)
+
+  libav.onwrite = function(name, pos, data) {
+    console.log(`Writing ${data.length} bytes at ${pos} for ${name}`)
+    // outputstream.seek(pos)
+    // outputstream.write(data)
+};
+
   while (true) {
     const [result,  packets] = await libav.ff_read_multi(fmt_ctx, pkt, "input", {limit: 1024*1024, unify: false})
     if (result === libav.AVERROR_EOF) {
@@ -21,15 +38,23 @@ export async function readFile(file: File) {
       break;
     }
     console.log({result, packets})
+    packetcnt += packets[0].length
+    const pkt2 = await libav.av_packet_alloc()
+    await libav.ff_write_multi(oc, pkt, packets[0] || [])
   }
+  libav.av_write_trailer(oc)
+  console.log(`done, found ${packetcnt} packets`)
   await libav.unlink("input")
+  await libav.unlink("output")
+  await libav.ff_free_muxer(oc, pb)
+  // outputstream.close()
+
 }
 
 export async function do_ffmpeg(file: File) {
   await libav.mkreadaheadfile("input", file)
   await libav.mkwriterdev("output");
-  const directory: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({mode: "readwrite"})
-  const outputfile = await directory.getFileHandle("output.mp4", {create: true})
+  const outputfile = await (window as any).showSaveFilePicker({suggestedName: "output.mp4"})
   const outputstream = await outputfile.createWritable()
 
   libav.onwrite = function(name, pos, data) {
@@ -39,11 +64,13 @@ export async function do_ffmpeg(file: File) {
 };
 
   // NOTE: not sure if libav.ffmpeg is working, seems to be doing nothing....
-  await libav.ffmpeg(
+  const exit_code = await libav.ffmpeg(
     "-i", "input",
-    "-f", "webm",
+    "-f", "mp4",
     "-y", "output"
 );
+  console.log({exit_code})
+
   await libav.unlink("input")
   await libav.unlink("output")
 }

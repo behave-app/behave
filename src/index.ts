@@ -3,9 +3,12 @@ import * as LibAVTypes from '../thirdparty/libav.js-4.5.6.0/dist/libav.types'
 interface WindowWithLibAV {
   LibAV: LibAVTypes.LibAVWrapper
 }
+const DUMP=false
 
 const LibAV = (window as unknown as WindowWithLibAV).LibAV
-const libav = await LibAV.LibAV({noworker: true});
+const libav = await LibAV.LibAV({noworker: false});
+
+console.log({mode: libav.libavjsMode})
 
 export async function readFile(file: File) {
   await libav.mkreadaheadfile("input", file)
@@ -14,23 +17,6 @@ export async function readFile(file: File) {
   console.log({fmt_ctx, streams})
   
   const [, c, pkt, frame] = await libav.ff_init_decoder(streams[0].codec_id, streams[0].codecpar);
-  console.log({c, pkt, frame})
-  let packetcnt = 0
-
-  // const outputfile = await (window as any).showSaveFilePicker({suggestedName: "output.mp4"})
-  // const outputstream = await outputfile.createWritable()
-
-  await libav.mkwriterdev("output.mov");
-  const [oc, fmt, pb] = await libav.ff_init_muxer({filename: "output.mov", open: true, codecpars: true}, [[streams[0].codecpar, streams[0].time_base_num, streams[0].time_base_den]])
-  console.log({oc, fmt, pb})
-  await libav.avformat_write_header(oc, 0)
-
-  libav.onwrite = function(name, pos, data) {
-    console.log(`Writing ${data.length} bytes at ${pos} for ${name}`)
-    // outputstream.seek(pos)
-    // outputstream.write(data)
-};
-
   while (true) {
     const [result,  packets] = await libav.ff_read_multi(fmt_ctx, pkt, "input", {limit: 1024*1024, unify: false})
     if (result === libav.AVERROR_EOF) {
@@ -38,17 +24,175 @@ export async function readFile(file: File) {
       break;
     }
     console.log({result, packets})
-    packetcnt += packets[0].length
-    const pkt2 = await libav.av_packet_alloc()
-    await libav.ff_write_multi(oc, pkt, packets[0] || [])
   }
-  libav.av_write_trailer(oc)
-  console.log(`done, found ${packetcnt} packets`)
   await libav.unlink("input")
-  await libav.unlink("output")
-  await libav.ff_free_muxer(oc, pb)
-  // outputstream.close()
+}
 
+
+
+
+export async function remuxFile(file: File) {
+  await libav.mkreadaheadfile("input", file)
+  await libav.mkwriterdev("output.mp4")
+
+
+  const outputstream = await (await (window as any).showSaveFilePicker({suggestedName: file.name.replace(/\.[^.]*$/, ".mp4")})).createWritable()
+  let writePromises: Promise<any>[] = []
+  libav.onwrite = function(name, pos, data) {
+    // console.log(`Write to ${name} at pos ${pos}, ${data.length} bytes:\n${DUMP && [...new Uint8Array(data)].map(i => i.toString(16).replace(/^(.)$/, "0$1")).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n")}` )
+    writePromises.push(outputstream.write({type: "write", data: data.slice(0), position: pos}))
+  }
+  const in_filename = "input"
+  const out_filename = "output.mp4"
+  let ret;
+
+  const pkt = await libav.av_packet_alloc();
+  if (!pkt) {
+    throw new Error(
+      "Could not allocate AVPacket");
+  }
+
+  const ifmt_ctx = await libav.avformat_open_input_js(in_filename, 0, 0);
+  if (!ifmt_ctx) {
+    throw new Error(
+      "Could not open input file " + in_filename);
+  }
+
+  if ((ret = await libav.avformat_find_stream_info(ifmt_ctx, 0)) < 0) {
+    throw new Error(
+      "Failed to retrieve input stream information");
+  }
+
+  //av_dump_format(ifmt_ctx, 0, in_filename, 0);
+
+  const ofmt_ctx = await
+    libav.avformat_alloc_output_context2_js(
+      0, "mov", out_filename);
+  if (!ofmt_ctx) {
+    throw new Error(
+      "Could not create output context");
+  }
+
+  const stream_mapping_size = await libav.AVFormatContext_nb_streams(ifmt_ctx);
+  const stream_mapping = [];
+
+  const ofmt = await libav.AVFormatContext_oformat(ofmt_ctx);
+
+  let stream_index = 0;
+  for (let i = 0; i < stream_mapping_size; i++) {
+    const in_stream = await libav.AVFormatContext_streams_a(ifmt_ctx, i);
+    const in_codecpar = await libav.AVStream_codecpar(in_stream);
+    const codec_type = await libav.AVCodecParameters_codec_type(in_codecpar);
+
+    if (codec_type != libav.AVMEDIA_TYPE_VIDEO || stream_mapping.indexOf(0) !== -1) {
+      stream_mapping.push(-1);
+      continue;
+    }
+    stream_mapping.push(0);
+
+    const out_stream = await libav.avformat_new_stream(ofmt_ctx, 0);
+    if (!out_stream) {
+      throw new Error("Failed allocating output stream");
+    }
+
+    const out_codecpar = await libav.AVStream_codecpar(out_stream);
+    ret = await libav.avcodec_parameters_copy(out_codecpar, in_codecpar);
+    if (ret < 0) {
+      throw new Error(
+        "Failed to copy codec parameters");
+    }
+    await libav.AVCodecParameters_codec_tag_s(out_codecpar, 0);
+  }
+
+  //av_dump_format(ofmt_ctx, 0, out_filename, 1);
+  //libav
+
+  const opb = await
+    libav.avio_open2_js(out_filename, libav.AVIO_FLAG_WRITE, 0, 0);
+  if (!opb) {
+    throw new Error(
+      "Could not open output file " + out_filename);
+  }
+  await libav.AVFormatContext_pb_s(ofmt_ctx, opb);
+
+  ret = await libav.avformat_write_header(ofmt_ctx, 0);
+  if (ret < 0) {
+    throw new Error(
+      "Error occurred when opening output file");
+  }
+
+  let packetnr = 0;
+  while (true) {
+    ret = await libav.av_read_frame(ifmt_ctx, pkt);
+    if (ret < 0)
+    break;
+
+    let pkt_stream_index = await
+      libav.AVPacket_stream_index(pkt);
+    const in_stream = await
+      libav.AVFormatContext_streams_a(ifmt_ctx, pkt_stream_index);
+    if (pkt_stream_index >= stream_mapping_size ||
+      // dump packets we don't want
+      stream_mapping[pkt_stream_index] < 0) {
+      // console.log("Dumping unwanted packet", pkt)
+      await libav.av_packet_unref(pkt);
+      continue;
+    }
+
+    pkt_stream_index = stream_mapping[pkt_stream_index];
+    await libav.AVPacket_stream_index_s(pkt, pkt_stream_index);
+    const out_stream = await
+      libav.AVFormatContext_streams_a(ofmt_ctx, pkt_stream_index);
+    //log_packet(ifmt_ctx, pkt, "in");
+
+    const pos = await libav.AVPacket_pos(pkt)
+    const size = await libav.AVPacket_size(pkt)
+    const packet = await libav.ff_copyout_packet(pkt)
+    if (packet.dtshi === -0x80000000) {
+      console.log("dropping", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )
+      // libav.av_packet_free(pkt);
+      continue;
+    }
+      // console.log("muxing", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )
+    if ((++packetnr) % 2500 == 0) {
+      console.log(`Did packet ${packetnr} (${packetnr / 25} seconds)`)
+    }
+
+    /* copy packet */
+    const [in_tb_num, in_tb_den, out_tb_num, out_tb_den] = [
+      await libav.AVStream_time_base_num(in_stream),
+      await libav.AVStream_time_base_den(in_stream),
+      await libav.AVStream_time_base_num(out_stream),
+      await libav.AVStream_time_base_den(out_stream)
+    ];
+    await libav.av_packet_rescale_ts_js(
+      pkt, in_tb_num, in_tb_den, out_tb_num, out_tb_den);
+    await libav.AVPacket_pos_s(pkt, -1);
+    await libav.AVPacket_poshi_s(pkt, -1);
+    //log_packet(ofmt_ctx, pkt, "out");
+
+    ret = await libav.av_interleaved_write_frame(ofmt_ctx, pkt);
+    /* pkt is now blank (av_interleaved_write_frame() takes ownership of
+         * its contents and resets pkt), so that no unreferencing is necessary.
+         * This would be different if one used av_write_frame(). */
+    if (ret < 0) {
+      throw new Error(
+        "Error muxing packet");
+    }
+  }
+
+  await libav.av_write_trailer(ofmt_ctx);
+  await libav.av_packet_free_js(pkt);
+
+  await libav.avformat_close_input_js(ifmt_ctx);
+
+  /* close output */
+  await libav.avio_close(opb);
+  await libav.avformat_free_context(ofmt_ctx);
+
+  console.log(`${writePromises.length} promises to wait for`)
+  await Promise.all(writePromises)
+  await outputstream.close()
 }
 
 export async function do_ffmpeg(file: File) {
@@ -61,14 +205,14 @@ export async function do_ffmpeg(file: File) {
     console.log(`Writing ${data.length} bytes at ${pos} for ${name}`)
     outputstream.seek(pos)
     outputstream.write(data)
-};
+  };
 
   // NOTE: not sure if libav.ffmpeg is working, seems to be doing nothing....
   const exit_code = await libav.ffmpeg(
     "-i", "input",
     "-f", "mp4",
     "-y", "output"
-);
+  );
   console.log({exit_code})
 
   await libav.unlink("input")
@@ -88,7 +232,8 @@ function addDropListeners() {
     }
     const file = event.dataTransfer!.items[0].getAsFile()!
     console.log(`found file ${file.name} (${file.size})`)
-    readFile(file)
+    //readFile(file)
+    remuxFile(file)
     // do_ffmpeg(file)
   })
   dropzone.addEventListener("dragover", event => {

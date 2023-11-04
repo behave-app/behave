@@ -12,6 +12,9 @@
 --enable-encoder=libopus
 --enable-demuxer=mov
 --enable-muxer=mov
+--enable-demuxer=mpeg
 --enable-demuxer=mpegts
+--enable-demuxer=mpegtsraw
+--enable-demuxer=mpegvideo
 --enable-ffmpeg --enable-ffprobe
 --enable-filter=aresample

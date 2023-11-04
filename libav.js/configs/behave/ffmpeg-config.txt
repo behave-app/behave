@@ -11,7 +11,7 @@
 --enable-bsf=opus_metadata
 --enable-encoder=libopus
 --enable-demuxer=mov
---enable-muxer=mov
+--enable-muxer=mp4
 --enable-demuxer=mpeg
 --enable-demuxer=mpegts
 --enable-demuxer=mpegtsraw

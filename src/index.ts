@@ -122,6 +122,7 @@ export async function remuxFile(file: File) {
   }
 
   let packetnr = 0;
+  let ts_offset = 0;
   while (true) {
     ret = await libav.av_read_frame(ifmt_ctx, pkt);
     if (ret < 0)
@@ -147,6 +148,15 @@ export async function remuxFile(file: File) {
 
     const pos = await libav.AVPacket_pos(pkt)
     const size = await libav.AVPacket_size(pkt)
+    if (packetnr === 0) {
+      ts_offset = -1 * await libav.AVPacket_pts(pkt)
+    }
+    const new_pts = await libav.AVPacket_pts(pkt) + ts_offset
+    const new_dts = await libav.AVPacket_dts(pkt) + ts_offset
+    await libav.AVPacket_pts_s(pkt, new_pts);
+    await libav.AVPacket_ptshi_s(pkt, new_pts < 0 ? -1 : 0);
+    await libav.AVPacket_dts_s(pkt, new_dts);
+    await libav.AVPacket_dtshi_s(pkt, new_dts < 0 ? -1 : 0);
     const packet = await libav.ff_copyout_packet(pkt)
     if (packet.dtshi === -0x80000000) {
       console.log("dropping", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )

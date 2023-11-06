@@ -3,13 +3,14 @@
         "moduleResolution": "node",
         "module": "ESNext",
         "allowJs": true,
-        "checkJs": true,
+        "checkJs": false,
         "jsx": "react",
         "jsxFactory": "$h",
         "jsxFragmentFactory": "Fragment",
         "target": "esnext",
         "outDir": "public/app",
-        "strict": true
+        "strict": true,
+        "typeRoots": ["./src/@types"]
     },
     "include": [
         "./src/*"

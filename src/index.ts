@@ -1,12 +1,14 @@
-import * as LibAVTypes from '../thirdparty/libav.js-4.5.6.0/dist/libav.types'
+import type * as LibAVTypes from '../thirdparty/libav.js-4.5.6.0/dist/libav.types'
+import * as LibAVWebCodecsBridge from '../thirdparty/libavjs-webcodecs-bridge/dist/libavjs-webcodecs-bridge.js'
 
-interface WindowWithLibAV {
-  LibAV: LibAVTypes.LibAVWrapper
+declare global {
+  interface Window {
+    LibAV: LibAVTypes.LibAVWrapper
+  }
 }
 const DUMP=false
 
-const LibAV = (window as unknown as WindowWithLibAV).LibAV
-const libav = await LibAV.LibAV({noworker: false});
+const libav = await window.LibAV.LibAV({noworker: false});
 
 console.log({mode: libav.libavjsMode})
 
@@ -36,7 +38,7 @@ export async function remuxFile(file: File) {
   await libav.mkwriterdev("output.mp4")
 
 
-  const outputstream = await (await (window as any).showSaveFilePicker({suggestedName: file.name.replace(/\.[^.]*$/, ".mp4")})).createWritable()
+  const outputstream = await (await window.showSaveFilePicker({suggestedName: file.name.replace(/\.[^.]*$/, ".mp4")})).createWritable()
   let writePromises: Promise<any>[] = []
   libav.onwrite = function(name, pos, data) {
     // console.log(`Write to ${name} at pos ${pos}, ${data.length} bytes:\n${DUMP && [...new Uint8Array(data)].map(i => i.toString(16).replace(/^(.)$/, "0$1")).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n")}` )
@@ -67,7 +69,7 @@ export async function remuxFile(file: File) {
 
   const ofmt_ctx = await
     libav.avformat_alloc_output_context2_js(
-      0, "mov", out_filename);
+      0, "mp4", out_filename);
   if (!ofmt_ctx) {
     throw new Error(
       "Could not create output context");
@@ -208,7 +210,7 @@ export async function remuxFile(file: File) {
 export async function do_ffmpeg(file: File) {
   await libav.mkreadaheadfile("input", file)
   await libav.mkwriterdev("output");
-  const outputfile = await (window as any).showSaveFilePicker({suggestedName: "output.mp4"})
+  const outputfile = await window.showSaveFilePicker({suggestedName: "output.mp4"})
   const outputstream = await outputfile.createWritable()
 
   libav.onwrite = function(name, pos, data) {
@@ -229,6 +231,84 @@ export async function do_ffmpeg(file: File) {
   await libav.unlink("output")
 }
 
+export async function do_ai(file: File) {
+  await libav.mkreadaheadfile("input", file)
+  const in_filename = "input"
+  let ret;
+
+  const pkt = await libav.av_packet_alloc();
+  if (!pkt) {
+    throw new Error(
+      "Could not allocate AVPacket");
+  }
+
+  const ifmt_ctx = await libav.avformat_open_input_js(in_filename, 0, 0);
+  if (!ifmt_ctx) {
+    throw new Error(
+      "Could not open input file " + in_filename);
+  }
+
+  if ((ret = await libav.avformat_find_stream_info(ifmt_ctx, 0)) < 0) {
+    throw new Error(
+      "Failed to retrieve input stream information");
+  }
+
+
+  await libav.avformat_find_stream_info(ifmt_ctx, 0);
+  const nb_streams = await libav.AVFormatContext_nb_streams(ifmt_ctx);
+
+  let video_stream = null
+  for (var i = 0; i < nb_streams; i++) {
+    const inStream = await libav.AVFormatContext_streams_a(ifmt_ctx, i);
+    const codecpar = await libav.AVStream_codecpar(inStream);
+    const codec_type = await libav.AVCodecParameters_codec_type(codecpar);
+    if (codec_type !== libav.AVMEDIA_TYPE_VIDEO) {
+      continue
+    }
+    video_stream = {
+      ptr: inStream,
+      index: i,
+      codecpar,
+      codec_type,
+      codec_id: await libav.AVCodecParameters_codec_id(codecpar),
+      time_base_num: await libav.AVStream_time_base_num(inStream),
+      time_base_den: await libav.AVStream_time_base_den(inStream),
+      duration_time_base: await libav.AVStream_duration(inStream) + (await libav.AVStream_durationhi(inStream)*0x100000000),
+      duration: 0,
+    };
+
+    video_stream.duration = video_stream.duration_time_base * video_stream.time_base_num / video_stream.time_base_den;
+    break;
+  }
+  if (!video_stream) {
+    throw new Error("Could not find video stream")
+  }
+
+  const config = await LibAVWebCodecsBridge.videoStreamToConfig(libav, video_stream)
+  console.log(config)
+
+  while (true) {
+    ret = await libav.av_read_frame(ifmt_ctx, pkt);
+    if (ret < 0) break;
+
+    let pkt_stream_index = await
+      libav.AVPacket_stream_index(pkt);
+    if (pkt_stream_index !== video_stream.index) {
+      console.log("Dumping unwanted packet", pkt)
+      await libav.av_packet_unref(pkt);
+      continue;
+    }
+
+    const packet = await libav.ff_copyout_packet(pkt)
+    const encodedVideoChunk = LibAVWebCodecsBridge.packetToEncodedVideoChunk(
+      packet, video_stream, {})
+    console.log(encodedVideoChunk)
+  }
+
+  await libav.unlink("input")
+
+}
+
 
 
 function addDropListeners() {
@@ -242,9 +322,10 @@ function addDropListeners() {
     }
     const file = event.dataTransfer!.items[0].getAsFile()!
     console.log(`found file ${file.name} (${file.size})`)
-    //readFile(file)
-    remuxFile(file)
+    // readFile(file)
+    // remuxFile(file)
     // do_ffmpeg(file)
+    do_ai(file)
   })
   dropzone.addEventListener("dragover", event => {
     event.preventDefault();

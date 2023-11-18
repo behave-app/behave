@@ -10,10 +10,18 @@
         "target": "esnext",
         "outDir": "public/app",
         "strict": true,
+        "baseUrl": "./",
+        "skipLibCheck": true,
+        "rootDir": "./src/",
+        "paths": {
+        },
         "typeRoots": ["./src/@types"]
     },
     "include": [
         "./src/*"
+    ],
+    "exclude": [
+        "*"
     ]
 
 }

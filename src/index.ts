@@ -1,14 +1,24 @@
-import type * as LibAVTypes from '../thirdparty/libav.js-4.5.6.0/dist/libav.types'
-import * as LibAVWebCodecsBridge from '../thirdparty/libavjs-webcodecs-bridge/dist/libavjs-webcodecs-bridge.js'
+import type * as LibAVTypes from '../thirdparty/libav.js/dist/libav.types'
+// import * as LibAVWebCodecsBridge from '../thirdparty/libavjs-webcodecs-bridge/dist/libavjs-webcodecs-bridge'
+import {LibAVWebCodecsBridge} from '../bundled/libavjs-webcodecs-bridge.js'
+;(window as any).LibAVWebCodecsBridge = LibAVWebCodecsBridge
+import {tf, setWasmPaths} from '../bundled/tfjs.js'
+//@ts-ignore
+console.log({LibAVWebCodecsBridge, tf, rank: tf.Rank})
 
 declare global {
   interface Window {
     LibAV: LibAVTypes.LibAVWrapper
   }
 }
+
+setWasmPaths("public/bundled/tfjs-wasm/")
+await tf.setBackend("wasm")
+await tf.ready()
+console.log(tf.backend())
 const DUMP=false
 
-const libav = await window.LibAV.LibAV({noworker: false});
+const libav = await window.LibAV.LibAV({noworker: true});
 
 console.log({mode: libav.libavjsMode})
 
@@ -31,11 +41,13 @@ export async function readFile(file: File) {
 }
 
 
+  console.log("bla")
 
 
 export async function remuxFile(file: File) {
   await libav.mkreadaheadfile("input", file)
   await libav.mkwriterdev("output.mp4")
+  console.log("bla")
 
 
   const outputstream = await (await window.showSaveFilePicker({suggestedName: file.name.replace(/\.[^.]*$/, ".mp4")})).createWritable()
@@ -46,7 +58,7 @@ export async function remuxFile(file: File) {
   }
   const in_filename = "input"
   const out_filename = "output.mp4"
-  let ret;
+  let ret: number;
 
   const pkt = await libav.av_packet_alloc();
   if (!pkt) {
@@ -165,7 +177,7 @@ export async function remuxFile(file: File) {
       // libav.av_packet_free(pkt);
       continue;
     }
-      // console.log("muxing", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )
+      console.log("muxing", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )
     if ((++packetnr) % 2500 == 0) {
       console.log(`Did packet ${packetnr} (${packetnr / 25} seconds)`)
     }
@@ -213,15 +225,17 @@ export async function do_ffmpeg(file: File) {
   const outputfile = await window.showSaveFilePicker({suggestedName: "output.mp4"})
   const outputstream = await outputfile.createWritable()
 
+  let writePromises: Promise<any>[] = []
   libav.onwrite = function(name, pos, data) {
-    console.log(`Writing ${data.length} bytes at ${pos} for ${name}`)
-    outputstream.seek(pos)
-    outputstream.write(data)
-  };
+    writePromises.push(outputstream.write({type: "write", data: data.slice(0), position: pos}))
+  }
 
   // NOTE: not sure if libav.ffmpeg is working, seems to be doing nothing....
   const exit_code = await libav.ffmpeg(
+    "-nostdin",
     "-i", "input",
+    "-an",
+    "-c:v", "copy",
     "-f", "mp4",
     "-y", "output"
   );
@@ -229,10 +243,20 @@ export async function do_ffmpeg(file: File) {
 
   await libav.unlink("input")
   await libav.unlink("output")
+  console.log(`${writePromises.length} promises to wait for`)
+  await Promise.all(writePromises)
+  await outputstream.close()
 }
 
 export async function do_ai(file: File) {
   await libav.mkreadaheadfile("input", file)
+  const modelDirectory = await window.showDirectoryPicker({id: "model"})
+  console.log(modelDirectory)
+  // const modelData = await modelDirectory.getFile(
+  // const model = await tf.loadGraphModel(tf.io.browserFiles([
+  //
+  // ])
+  
   const in_filename = "input"
   let ret;
 
@@ -257,7 +281,7 @@ export async function do_ai(file: File) {
   await libav.avformat_find_stream_info(ifmt_ctx, 0);
   const nb_streams = await libav.AVFormatContext_nb_streams(ifmt_ctx);
 
-  let video_stream = null
+  let video_stream: LibAVTypes.Stream | null = null
   for (var i = 0; i < nb_streams; i++) {
     const inStream = await libav.AVFormatContext_streams_a(ifmt_ctx, i);
     const codecpar = await libav.AVStream_codecpar(inStream);
@@ -300,9 +324,9 @@ export async function do_ai(file: File) {
     }
 
     const packet = await libav.ff_copyout_packet(pkt)
-    const encodedVideoChunk = LibAVWebCodecsBridge.packetToEncodedVideoChunk(
-      packet, video_stream, {})
-    console.log(encodedVideoChunk)
+    // const encodedVideoChunk = LibAVWebCodecsBridge.packetToEncodedVideoChunk(
+    //   packet, video_stream, {})
+    // console.log(encodedVideoChunk)
   }
 
   await libav.unlink("input")

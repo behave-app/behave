@@ -1,4 +1,7 @@
 import type * as LibAVTypes from '../thirdparty/libav.js/dist/libav.types'
+//@ts-ignore
+import {LibAVWebCodecsBridge} from '../bundled/libavjs-webcodecs-bridge.js'
+//@ts-ignore
 import {tf, setWasmPaths} from '../bundled/tfjs.js'
 
 declare global {
@@ -276,112 +279,43 @@ export async function do_ai(file: File) {
     throw new Error(`File with exactly one video stream needed; given file ${filename} has ${video_streams.length} video streams`)
   }
   let video_stream = video_streams[0]
-  const other_streams = streams.filter(s => s !== video_stream)
   const [, ctx, pkt, frame] = await libav.ff_init_decoder(video_stream.codec_id, video_stream.codecpar);
   const start = Date.now()
-  let framenr = 0
-  while (true) {
-    const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 30 * 1024, copyoutPacket: "ptr"}) as unknown as [number, Record<number, number[]>]
-    if (ret !== libav.AVERROR_EOF && ret !== -libav.EAGAIN && ret !== 0)
-            throw new Error("Invalid return from ff_read_multi");
-    const video_packets = packets[video_stream.index]
-    await Promise.all(other_streams.map(s => Promise.all((packets[s.index] ?? []).map(pkt => libav.av_packet_free_js(pkt)))))
-    if (!video_packets) {
-      continue
-    }
-    const is_last_bytes = ret === libav.AVERROR_EOF
-    const frames = await libav.ff_decode_multi(ctx, pkt, frame, packets[video_stream.index], {fin: is_last_bytes, copyoutFrame: "ptr", ignoreErrors: true}) as unknown as number[];
-    //console.log({frames})
-    for (const frameptr of frames) {
-      if (scale_ctx === null) {
-        const frame = await libav.ff_copyout_frame(frameptr)
-        scale_ctx = await libav.sws_getContext(frame.width!, frame.height!, frame.format, 640, 360, libav.AV_PIX_FMT_RGBA, 2, 0, 0, 0)
-      }
-      await libav.sws_scale_frame(scale_ctx, soutFrame, frameptr);
-      const frame = await libav.ff_copyout_frame(soutFrame);
-      await libav.av_frame_free_js(frameptr)
-      const id = ctx2d.createImageData(640, 360);
-    {
-        let idx = 0;
-        const plane = frame.data[0];
-        for (const line of plane) {
-          id.data.set(line, idx);
-          idx += 640 * 4;
-        }
-      }
-      const ib = await createImageBitmap(id);
-      ctx2d.drawImage(ib, 0, 0, 640, 360);
-      //console.log(frame)
-      // await new Promise(resolve => window.setTimeout(resolve, 200))
+  const config = await LibAVWebCodecsBridge.videoStreamToConfig(libav, video_stream) as VideoDecoderConfig
+  console.log({config})
+
+  function newFrame(frame: VideoFrame) {
+    console.log({frame})
       framenr++
       if (framenr % 100 == 0) {
         const time = Date.now() - start
         console.log(`Framenr ${framenr} in ${time}ms; ${(framenr / time * 1000).toFixed(1)}fps`);
       }
+  }
+
+  const videoDecoder = new VideoDecoder({output: newFrame, error: error => console.log({error})})
+  videoDecoder.configure(config)
+  let framenr = 0
+  while (true) {
+    const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 30 * 1024})
+    if (ret !== libav.AVERROR_EOF && ret !== -libav.EAGAIN && ret !== 0)
+            throw new Error("Invalid return from ff_read_multi");
+    const video_packets = packets[video_stream.index]
+    if (!video_packets) {
+      continue
+    }
+    const is_last_bytes = ret === libav.AVERROR_EOF
+    for (const packet of packets[video_stream.index]) {
+      const encodedVideoChunk = LibAVWebCodecsBridge.packetToEncodedVideoChunk(packet, video_stream) as EncodedVideoChunk
+      videoDecoder.decode(encodedVideoChunk)
     }
     if (is_last_bytes) {
+      videoDecoder.flush()
       console.log("done")
       break
     }
   }
 }
-
-async function old_do_ai(file: File) {
-  const in_filename = "input"
-  let ret;
-
-  const pkt = await libav.av_packet_alloc();
-  if (!pkt) {
-    throw new Error(
-      "Could not allocate AVPacket");
-  }
-
-  const ifmt_ctx = await libav.avformat_open_input_js(in_filename, 0, 0);
-  if (!ifmt_ctx) {
-    throw new Error(
-      "Could not open input file " + in_filename);
-  }
-
-  if ((ret = await libav.avformat_find_stream_info(ifmt_ctx, 0)) < 0) {
-    throw new Error(
-      "Failed to retrieve input stream information");
-  }
-
-
-  await libav.avformat_find_stream_info(ifmt_ctx, 0);
-  const nb_streams = await libav.AVFormatContext_nb_streams(ifmt_ctx);
-
-  let video_stream: LibAVTypes.Stream | null = null
-  for (var i = 0; i < nb_streams; i++) {
-    const inStream = await libav.AVFormatContext_streams_a(ifmt_ctx, i);
-    const codecpar = await libav.AVStream_codecpar(inStream);
-    const codec_type = await libav.AVCodecParameters_codec_type(codecpar);
-    if (codec_type !== libav.AVMEDIA_TYPE_VIDEO) {
-      continue
-    }
-    video_stream = {
-      ptr: inStream,
-      index: i,
-      codecpar,
-      codec_type,
-      codec_id: await libav.AVCodecParameters_codec_id(codecpar),
-      time_base_num: await libav.AVStream_time_base_num(inStream),
-      time_base_den: await libav.AVStream_time_base_den(inStream),
-      duration_time_base: await libav.AVStream_duration(inStream) + (await libav.AVStream_durationhi(inStream)*0x100000000),
-      duration: 0,
-    };
-
-    video_stream.duration = video_stream.duration_time_base * video_stream.time_base_num / video_stream.time_base_den;
-    break;
-  }
-  if (!video_stream) {
-    throw new Error("Could not find video stream")
-  }
-
-  await libav.unlink("input")
-
-}
-
 
 
 function addDropListeners() {

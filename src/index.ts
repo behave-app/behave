@@ -1,10 +1,5 @@
 import type * as LibAVTypes from '../thirdparty/libav.js/dist/libav.types'
-// import * as LibAVWebCodecsBridge from '../thirdparty/libavjs-webcodecs-bridge/dist/libavjs-webcodecs-bridge'
-import {LibAVWebCodecsBridge} from '../bundled/libavjs-webcodecs-bridge.js'
-;(window as any).LibAVWebCodecsBridge = LibAVWebCodecsBridge
 import {tf, setWasmPaths} from '../bundled/tfjs.js'
-//@ts-ignore
-console.log({LibAVWebCodecsBridge, tf, rank: tf.Rank})
 
 declare global {
   interface Window {
@@ -27,7 +22,7 @@ export async function readFile(file: File) {
   const [fmt_ctx, streams] = await libav.ff_init_demuxer_file("input");
 
   console.log({fmt_ctx, streams})
-  
+
   const [, c, pkt, frame] = await libav.ff_init_decoder(streams[0].codec_id, streams[0].codecpar);
   while (true) {
     const [result,  packets] = await libav.ff_read_multi(fmt_ctx, pkt, "input", {limit: 1024*1024, unify: false})
@@ -41,7 +36,7 @@ export async function readFile(file: File) {
 }
 
 
-  console.log("bla")
+console.log("bla")
 
 
 export async function remuxFile(file: File) {
@@ -177,7 +172,7 @@ export async function remuxFile(file: File) {
       // libav.av_packet_free(pkt);
       continue;
     }
-      console.log("muxing", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )
+    console.log("muxing", packet, {pos, size}, DUMP && [...packet.data].map(i => (i + 0x100).toString(16).slice(1)).join(" ").replace(/((?:.. ){8})((?:.. ){8})/g, "$1 $2\n") )
     if ((++packetnr) % 2500 == 0) {
       console.log(`Did packet ${packetnr} (${packetnr / 25} seconds)`)
     }
@@ -248,15 +243,83 @@ export async function do_ffmpeg(file: File) {
   await outputstream.close()
 }
 
+interface ModelData {
+  weightsManifest: {paths: string[]}[]
+}
+
+type Model = any; // TODO
+
+async function getModel(modelDirectory: FileSystemDirectoryHandle): Promise<Model> {
+  const modelFile = await modelDirectory.getFileHandle("model.json").then(fh => fh.getFile())
+  const modelData = JSON.parse(await modelFile.text()) as ModelData
+  const weightFiles = await Promise.all(modelData.weightsManifest[0].paths.map(
+    name => modelDirectory.getFileHandle(name).then(fh => fh.getFile())))
+  const model = await tf.loadGraphModel(tf.io.browserFiles([modelFile, ...weightFiles]))
+  return model
+}
+
 export async function do_ai(file: File) {
-  await libav.mkreadaheadfile("input", file)
-  const modelDirectory = await window.showDirectoryPicker({id: "model"})
-  console.log(modelDirectory)
-  // const modelData = await modelDirectory.getFile(
-  // const model = await tf.loadGraphModel(tf.io.browserFiles([
-  //
-  // ])
-  
+  const ctx2d = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!
+  const filename = file.name
+  await libav.mkreadaheadfile(filename, file)
+  // const modelDirectory = await window.showDirectoryPicker({id: "model"})
+  // const model = await getModel(modelDirectory)
+  // console.log(model)
+
+  let scale_ctx: null | number = null
+  const soutFrame = await libav.av_frame_alloc();
+
+  const [fmt_ctx, streams] = await libav.ff_init_demuxer_file(filename)
+  const stream_types = await Promise.all(streams.map(s => libav.AVCodecParameters_codec_type(s.codecpar)))
+  const video_streams = streams.filter((_, i) => stream_types[i] == libav.AVMEDIA_TYPE_VIDEO)
+  if (video_streams.length !== 1) {
+    throw new Error(`File with exactly one video stream needed; given file ${filename} has ${video_streams.length} video streams`)
+  }
+  let video_stream = video_streams[0]
+  const other_streams = streams.filter(s => s !== video_stream)
+  const [, ctx, pkt, frame] = await libav.ff_init_decoder(video_stream.codec_id, video_stream.codecpar);
+  while (true) {
+    const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 30 * 1024, copyoutPacket: "ptr"}) as unknown as [number, Record<number, number[]>]
+    if (ret !== libav.AVERROR_EOF && ret !== -libav.EAGAIN && ret !== 0)
+            throw new Error("Invalid return from ff_read_multi");
+    const video_packets = packets[video_stream.index]
+    await Promise.all(other_streams.map(s => Promise.all((packets[s.index] ?? []).map(pkt => libav.av_packet_free_js(pkt)))))
+    if (!video_packets) {
+      continue
+    }
+    const is_last_bytes = ret === libav.AVERROR_EOF
+    const frames = await libav.ff_decode_multi(ctx, pkt, frame, packets[video_stream.index], {fin: is_last_bytes, copyoutFrame: "ptr", ignoreErrors: true}) as unknown as number[];
+    //console.log({frames})
+    for (const frameptr of frames) {
+      if (scale_ctx === null) {
+        const frame = await libav.ff_copyout_frame(frameptr)
+        scale_ctx = await libav.sws_getContext(frame.width!, frame.height!, frame.format, 640, 480, libav.AV_PIX_FMT_RGBA, 2, 0, 0, 0)
+      }
+      await libav.sws_scale_frame(scale_ctx, soutFrame, frameptr);
+      const frame = await libav.ff_copyout_frame(soutFrame);
+      await libav.av_frame_free_js(frameptr)
+      const id = ctx2d.createImageData(640, 480);
+    {
+        let idx = 0;
+        const plane = frame.data[0];
+        for (const line of plane) {
+          id.data.set(line, idx);
+          idx += 640 * 4;
+        }
+      }
+      const ib = await createImageBitmap(id);
+      ctx2d.drawImage(ib, 0, 0, 640, 360);
+      //console.log(frame)
+      // await new Promise(resolve => window.setTimeout(resolve, 200))
+    }
+    if (is_last_bytes) {
+      console.log("done")
+      break
+    }
+  }
+}
+
+async function old_do_ai(file: File) {
   const in_filename = "input"
   let ret;
 
@@ -306,27 +369,6 @@ export async function do_ai(file: File) {
   }
   if (!video_stream) {
     throw new Error("Could not find video stream")
-  }
-
-  const config = await LibAVWebCodecsBridge.videoStreamToConfig(libav, video_stream)
-  console.log(config)
-
-  while (true) {
-    ret = await libav.av_read_frame(ifmt_ctx, pkt);
-    if (ret < 0) break;
-
-    let pkt_stream_index = await
-      libav.AVPacket_stream_index(pkt);
-    if (pkt_stream_index !== video_stream.index) {
-      console.log("Dumping unwanted packet", pkt)
-      await libav.av_packet_unref(pkt);
-      continue;
-    }
-
-    const packet = await libav.ff_copyout_packet(pkt)
-    // const encodedVideoChunk = LibAVWebCodecsBridge.packetToEncodedVideoChunk(
-    //   packet, video_stream, {})
-    // console.log(encodedVideoChunk)
   }
 
   await libav.unlink("input")

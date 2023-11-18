@@ -14,14 +14,9 @@
         "skipLibCheck": true,
         "rootDir": "./src/",
         "paths": {
-        },
-        "typeRoots": ["./src/@types"]
+        }
     },
     "include": [
         "./src/*"
-    ],
-    "exclude": [
-        "*"
     ]
-
 }

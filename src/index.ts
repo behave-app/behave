@@ -278,6 +278,8 @@ export async function do_ai(file: File) {
   let video_stream = video_streams[0]
   const other_streams = streams.filter(s => s !== video_stream)
   const [, ctx, pkt, frame] = await libav.ff_init_decoder(video_stream.codec_id, video_stream.codecpar);
+  const start = Date.now()
+  let framenr = 0
   while (true) {
     const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 30 * 1024, copyoutPacket: "ptr"}) as unknown as [number, Record<number, number[]>]
     if (ret !== libav.AVERROR_EOF && ret !== -libav.EAGAIN && ret !== 0)
@@ -293,12 +295,12 @@ export async function do_ai(file: File) {
     for (const frameptr of frames) {
       if (scale_ctx === null) {
         const frame = await libav.ff_copyout_frame(frameptr)
-        scale_ctx = await libav.sws_getContext(frame.width!, frame.height!, frame.format, 640, 480, libav.AV_PIX_FMT_RGBA, 2, 0, 0, 0)
+        scale_ctx = await libav.sws_getContext(frame.width!, frame.height!, frame.format, 640, 360, libav.AV_PIX_FMT_RGBA, 2, 0, 0, 0)
       }
       await libav.sws_scale_frame(scale_ctx, soutFrame, frameptr);
       const frame = await libav.ff_copyout_frame(soutFrame);
       await libav.av_frame_free_js(frameptr)
-      const id = ctx2d.createImageData(640, 480);
+      const id = ctx2d.createImageData(640, 360);
     {
         let idx = 0;
         const plane = frame.data[0];
@@ -311,6 +313,11 @@ export async function do_ai(file: File) {
       ctx2d.drawImage(ib, 0, 0, 640, 360);
       //console.log(frame)
       // await new Promise(resolve => window.setTimeout(resolve, 200))
+      framenr++
+      if (framenr % 100 == 0) {
+        const time = Date.now() - start
+        console.log(`Framenr ${framenr} in ${time}ms; ${(framenr / time * 1000).toFixed(1)}fps`);
+      }
     }
     if (is_last_bytes) {
       console.log("done")

@@ -284,8 +284,7 @@ function preprocess(frame: VideoFrame, modelWidth: number, modelHeight: number):
   const input = tf.tidy(() => {
     const img = tf.browser.fromPixels(pixelCanvas);
 
-    return tf.image
-      .resizeBilinear(img, [modelWidth, modelHeight]) // resize frame
+    return img
       .div(255.0) // normalize
       .expandDims(0); // add batch
   });
@@ -385,6 +384,7 @@ export async function do_ai(file: File) {
       ctx2d.strokeRect(x1, y1, width, height);
     }
     frame.close()
+    tf.dispose([boxes_data, scores_data, classes_data, img_tensor])
   }
 
   const videoDecoder = new VideoDecoder({output: newFrame, error: error => console.log({error})})

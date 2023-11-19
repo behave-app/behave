@@ -279,22 +279,29 @@ export async function do_ai(file: File) {
     throw new Error(`File with exactly one video stream needed; given file ${filename} has ${video_streams.length} video streams`)
   }
   let video_stream = video_streams[0]
+  console.log(video_stream)
   const [, ctx, pkt, frame] = await libav.ff_init_decoder(video_stream.codec_id, video_stream.codecpar);
   const start = Date.now()
   const config = await LibAVWebCodecsBridge.videoStreamToConfig(libav, video_stream) as VideoDecoderConfig
+  config.hardwareAcceleration = "prefer-software"
+  config.description = undefined
   console.log({config})
 
   function newFrame(frame: VideoFrame) {
-    console.log({frame})
+    ctx2d.drawImage(frame, 0, 0, 640, 360)
+    //console.log({frame})
       framenr++
       if (framenr % 100 == 0) {
         const time = Date.now() - start
         console.log(`Framenr ${framenr} in ${time}ms; ${(framenr / time * 1000).toFixed(1)}fps`);
       }
+    frame.close()
   }
 
   const videoDecoder = new VideoDecoder({output: newFrame, error: error => console.log({error})})
+  console.log("preconfig")
   videoDecoder.configure(config)
+  console.log("postconfig")
   let framenr = 0
   while (true) {
     const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 30 * 1024})

@@ -10,8 +10,16 @@ declare global {
   }
 }
 
+const COLOURS = {
+  "none": 'hsl(0, 0%, 70%)',
+  0: 'hsl(0, 50%, 70%)',
+  1: 'hsl(120, 50%, 70%)',
+  2: 'hsl(240, 50%, 70%)',
+  3: 'hsl(0, 100%, 70%)',
+  4: 'hsl(120, 100%, 70%)',
+} as const
 setWasmPaths("public/bundled/tfjs-wasm/")
-await tf.setBackend("wasm")
+await tf.setBackend("webgpu")
 await tf.ready()
 console.log(tf.backend())
 const DUMP=false
@@ -261,13 +269,37 @@ async function getModel(modelDirectory: FileSystemDirectoryHandle): Promise<Mode
   return model
 }
 
+const pixelCanvas = document.createElement("canvas")
+pixelCanvas.width = 640
+pixelCanvas.height = 640
+const pixelCanvasCtx = pixelCanvas.getContext("2d")!
+if (!pixelCanvasCtx) {
+  throw new Error("Cannot get pixelCanvas Context")
+}
+
+function preprocess(frame: VideoFrame, modelWidth: number, modelHeight: number): [tf.Tensor<tf.Rank>, number, number] {
+  let xRatio, yRatio; // ratios for boxes
+
+  pixelCanvasCtx.drawImage(frame, 0, (640-360) / 2, 640, 360)
+  const input = tf.tidy(() => {
+    const img = tf.browser.fromPixels(pixelCanvas);
+
+    return tf.image
+      .resizeBilinear(img, [modelWidth, modelHeight]) // resize frame
+      .div(255.0) // normalize
+      .expandDims(0); // add batch
+  });
+
+  return [input, 1, 1];
+};
+
 export async function do_ai(file: File) {
   const ctx2d = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!
   const filename = file.name
   await libav.mkreadaheadfile(filename, file)
-  // const modelDirectory = await window.showDirectoryPicker({id: "model"})
-  // const model = await getModel(modelDirectory)
-  // console.log(model)
+  const modelDirectory = await window.showDirectoryPicker({id: "model"})
+  const model = await getModel(modelDirectory)
+  console.log(model)
 
   let scale_ctx: null | number = null
   const soutFrame = await libav.av_frame_alloc();
@@ -288,13 +320,70 @@ export async function do_ai(file: File) {
   console.log({config})
 
   function newFrame(frame: VideoFrame) {
-    ctx2d.drawImage(frame, 0, 0, 640, 360)
     //console.log({frame})
-      framenr++
-      if (framenr % 100 == 0) {
-        const time = Date.now() - start
-        console.log(`Framenr ${framenr} in ${time}ms; ${(framenr / time * 1000).toFixed(1)}fps`);
-      }
+    const [img_tensor, xRatio, yRatio] = preprocess(frame, 640, 640);
+    let intimerstart = Date.now()
+    const res = model.execute(img_tensor);
+    let transRes = res.transpose([0, 2, 1]); // transpose result [b, det, n] => [b, n, det]
+    const boxes = tf.tidy(() => {
+      const w = transRes.slice([0, 0, 2], [-1, -1, 1]); // get width
+      const h = transRes.slice([0, 0, 3], [-1, -1, 1]); // get height
+      const x1 = tf.sub(
+        transRes.slice([0, 0, 0], [-1, -1, 1]),
+        tf.div(w, 2)
+      ); // x1
+      const y1 = tf.sub(
+        transRes.slice([0, 0, 1], [-1, -1, 1]),
+        tf.div(h, 2)
+      ); // y1
+      return tf
+        .concat(
+          [
+            y1,
+            x1,
+            tf.add(y1, h), //y2
+            tf.add(x1, w), //x2
+          ],
+          2
+        )
+        .squeeze();
+    }); // process boxes [y1, x1, y2, x2]
+
+    const [scores, classes] = tf.tidy(() => {
+      // class scores
+      const rawScores = transRes.slice([0, 0, 4], [-1, -1, 5]).squeeze(0); // #6 only squeeze axis 0 to handle only 1 class models
+      return [rawScores.max(1), rawScores.argMax(1)];
+    }); // get max scores and classes index
+
+    const nms = tf.image.nonMaxSuppression(
+      boxes as tf.Tensor2D,
+      scores,
+      500,
+      0.45,
+      0.5
+    ); // NMS to filter boxes
+
+    const boxes_data = boxes.gather(nms, 0).dataSync(); // indexing boxes by nms index
+    const scores_data = scores.gather(nms, 0).dataSync(); // indexing scores by nms index
+    const classes_data = classes.gather(nms, 0).dataSync(); // indexing classes by nms index
+    tf.dispose([res, transRes, boxes, scores, classes, nms]);
+    framenr++
+    if (framenr % 100 == 0) {
+      const time = Date.now() - start
+      console.log(`Framenr ${framenr} in ${time}ms; ${(framenr / time * 1000).toFixed(1)}fps`);
+    }
+    ctx2d.drawImage(frame, 0, 0, 640, 360)
+    for (let i=0; i < classes_data.length; ++i) {
+      ctx2d.strokeStyle=COLOURS[classes_data[i] as (0|1|2|3|4)] || COLOURS["none"];
+      const score = (scores_data[i] * 100).toFixed(1);
+
+      let [y1, x1, y2, x2] = boxes_data.slice(i * 4, (i + 1) * 4);
+      y1 -= (640-360) / 2
+      y2 -= (640-360) / 2
+      const width = x2 - x1;
+      const height = y2 - y1;
+      ctx2d.strokeRect(x1, y1, width, height);
+    }
     frame.close()
   }
 
@@ -304,9 +393,9 @@ export async function do_ai(file: File) {
   console.log("postconfig")
   let framenr = 0
   while (true) {
-    const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 30 * 1024})
+    const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 1024 * 1024})
     if (ret !== libav.AVERROR_EOF && ret !== -libav.EAGAIN && ret !== 0)
-            throw new Error("Invalid return from ff_read_multi");
+    throw new Error("Invalid return from ff_read_multi");
     const video_packets = packets[video_stream.index]
     if (!video_packets) {
       continue

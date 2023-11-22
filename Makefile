@@ -7,8 +7,6 @@ BUNDLED_JS := $(patsubst src/%.ts, public/app/%.js, $(BUNDLED_SRC))
 .PHONY=all
 
 all: $(TS_JS) $(BUNDLED_JS)
-	echo $(BUNDLED_SRC)
-	echo $(BUNDLED_JS)
 
 
 $(BUNDLED_JS): public/app/bundled/%.js: src/bundled/%.ts

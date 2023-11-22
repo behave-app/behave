@@ -1,6 +1,5 @@
 import type * as LibAVTypes from '../thirdparty/libav.js/dist/libav.types'
-import {tf, setWasmPaths} from '../bundled/tfjs.js'
-import { stream } from 'undici-types'
+import {tf, setWasmPaths} from './bundled/tfjs.js'
 
 declare global {
   interface Window {

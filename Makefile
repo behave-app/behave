@@ -1,12 +1,26 @@
-all: public/app/index.js all-bundled
+TS_SRC :=  $(shell find src -path src/bundled -prune -o -name \*.ts -print)
+TS_JS := $(patsubst src/%.ts, public/app/%.js, $(TS_SRC))
 
-all-bundled: $(patsubst %.ts, public/%.js, $(wildcard bundled/*.ts)) public/bundled/tfjs-wasm
+BUNDLED_SRC := $(shell find src/bundled -name \*.ts -print)
+BUNDLED_JS := $(patsubst src/%.ts, public/app/%.js, $(BUNDLED_SRC))
 
-public/bundled/%.js: bundled/%.ts
+.PHONY=all
+
+all: $(TS_JS) $(BUNDLED_JS)
+	echo $(BUNDLED_SRC)
+	echo $(BUNDLED_JS)
+
+
+$(BUNDLED_JS): public/app/bundled/%.js: src/bundled/%.ts
 	./node_modules/esbuild/bin/esbuild $< --sourcemap --bundle --format=esm --outfile=$@
 
-public/app/%.js: src/%.ts tsconfig.json
-	./node_modules/esbuild/bin/esbuild $< --sourcemap --format=esm --outfile=$@
+$(TS_JS): $(TS_SRC) tsconfig.json
+	$(eval OUTDIR := $(shell mktemp -d))
+	tsc --outDir $(OUTDIR)
+	rm -r $(OUTDIR)/bundled
+	mkdir -p public/app
+	cp -r $(OUTDIR)/* public/app
+	rm -r $(OUTDIR)
 
 public/bundled/tfjs-wasm: $(wildcard node_modules/@tensorflow/tfjs-backend-wasm/wasm-out/*.wasm)
 	mkdir -p $@

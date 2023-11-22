@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "module": "ESNext",
         "allowJs": true,
         "checkJs": false,
@@ -8,7 +8,6 @@
         "jsxFactory": "$h",
         "jsxFragmentFactory": "Fragment",
         "target": "esnext",
-        "outDir": "public/app",
         "strict": true,
         "baseUrl": "./",
         "skipLibCheck": true,

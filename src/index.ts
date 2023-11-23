@@ -1,4 +1,4 @@
-import type * as LibAVTypes from '../thirdparty/libav.js/dist/libav.types'
+import type * as LibAVTypes from '../public/bundled/libavjs/dist/libav.types'
 import {tf, setWasmPaths} from './bundled/tfjs.js'
 
 declare global {
@@ -36,13 +36,10 @@ export async function readFile(file: File) {
 }
 
 
-console.log("bla")
-
 
 export async function remuxFile(file: File) {
   await libav.mkreadaheadfile("input", file)
   await libav.mkwriterdev("output.mp4")
-  console.log("bla")
 
 
   const outputstream = await (await window.showSaveFilePicker({suggestedName: file.name.replace(/\.[^.]*$/, ".mp4")})).createWritable()
@@ -394,8 +391,8 @@ function addDropListeners() {
     console.log(`found file ${file.name} (${file.size})`)
     // readFile(file)
     // remuxFile(file)
-    // do_ffmpeg(file)
-    do_ai(file)
+    do_ffmpeg(file)
+    // do_ai(file)
   })
   dropzone.addEventListener("dragover", event => {
     event.preventDefault();

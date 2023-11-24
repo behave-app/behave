@@ -3,7 +3,9 @@
     "@tensorflow/tfjs": "^4.12.0",
     "@tensorflow/tfjs-backend-wasm": "^4.12.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.12.0",
+    "@types/react": "^18.2.38",
     "@types/wicg-file-system-access": "^2023.10.3",
-    "esbuild": "^0.19.5"
+    "esbuild": "^0.19.5",
+    "preact": "^10.19.2"
   }
 }

@@ -1,4 +1,4 @@
-import type * as LibAVTypes from '../public/bundled/libavjs/dist/libav.types'
+import type * as LibAVTypes from '../public/app/bundled/libavjs/dist/libav.types'
 
 declare global {
   interface Window {

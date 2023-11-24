@@ -1,4 +1,4 @@
-import type * as LibAVTypes from '../public/bundled/libavjs/dist/libav.types'
+import type * as LibAVTypes from '../public/app/bundled/libavjs/dist/libav.types'
 import {tf, setWasmPaths} from './bundled/tfjs.js'
 
 declare global {
@@ -18,7 +18,14 @@ const libav = await window.LibAV.LibAV({noworker: true});
 console.log({mode: libav.libavjsMode})
 
 export async function readFile(file: File) {
-  await libav.mkreadaheadfile("input", file)
+  libav.onblockread = async function(name, pos, length) {
+    if (name != "input") {
+      throw new Error("wrong filename")
+    }
+    const ab = await file.slice(pos, pos + length).arrayBuffer();
+    libav.ff_block_reader_dev_send(name, pos, new Uint8Array(ab));
+  };
+  await libav.mkblockreaderdev("input", file.size);
   const [fmt_ctx, streams] = await libav.ff_init_demuxer_file("input");
 
   console.log({fmt_ctx, streams})
@@ -389,9 +396,9 @@ function addDropListeners() {
     }
     const file = event.dataTransfer!.items[0].getAsFile()!
     console.log(`found file ${file.name} (${file.size})`)
-    // readFile(file)
+    readFile(file)
     // remuxFile(file)
-    do_ffmpeg(file)
+    // do_ffmpeg(file)
     // do_ai(file)
   })
   dropzone.addEventListener("dragover", event => {

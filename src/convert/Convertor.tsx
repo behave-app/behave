@@ -18,7 +18,7 @@ async function readFileSystemHandle(fshs: FileSystemHandle[]): Promise<FileTreeB
     if (fsh instanceof FileSystemFileHandle) {
       const file = await fsh.getFile()
       if (fileFilter(file)) {
-        result.set(fsh.name, {file: await fsh.getFile(), progress: {"converting": .7}})
+        result.set(fsh.name, {file: await fsh.getFile()})
       }
     } else if (fsh instanceof FileSystemDirectoryHandle) {
       result.set(fsh.name, await readFileSystemHandle(

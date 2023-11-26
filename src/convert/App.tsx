@@ -1,9 +1,9 @@
 import { render } from "preact"
 
-import {Upload} from "./Upload.js"
+import {Convertor} from "./Convertor.js"
 
 export function App(_props: {}) {
-  return <div><Upload/></div>
+  return <div><Convertor /></div>
 }
 
 render(<App />, document.body)

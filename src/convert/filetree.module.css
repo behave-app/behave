@@ -1,0 +1,66 @@
+.filetree {
+  text-align: left;
+  list-style-type: none;
+  font-family: Arial, Helvetica, sans-serif
+}
+.filetree > li {
+}
+.directoryname {
+
+}
+.directoryname::after {
+  content: "/";
+}
+.filename.inqueue {}
+.filename.inqueue::before {
+  content: " \1F551";
+}
+.filename.done {
+  color: green;
+}
+.filename.done::before {
+  content: " \2705";
+}
+.filename.converting {
+  width: 100%;
+}
+.filename.converting::before {
+  display: inline-block;
+  text-align: center;
+  content: var(--convert-progress-text);
+  font-variant: tabular-nums;
+  margin-right: 1em;
+  width: 5em;
+  box-sizing: border-box;
+  border: 1px solid black;
+  background-image: linear-gradient(to right,
+    hsl(240, 70%, 50%, 20%) 50%,
+    transparent 50%);
+  background-size: 200%;
+  background-position-x: calc(100% - 100% * var(--convert-progress));
+}
+.filename.error {
+  color: red;
+}
+.filename.error::before {
+  content: " \274C";
+}
+.filename.error::after {
+  content: " \2013  error: " var(--error-message);
+}
+
+.filename.editable {
+  width: 100%
+}
+
+.filename.editable:hover {
+  background-color: hsl(240, 100%, 50%, 10%);
+}
+.filename.editable .delete {
+  position: absolute;
+  right: 1.5em;
+}
+.filename.editable .delete::before {
+  content: "\1F5D1";
+  cursor: pointer;
+}

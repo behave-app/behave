@@ -1,41 +1,64 @@
-import {useState, useEffect} from 'preact/hooks'
+import * as css from './upload.module.css'
+import {useRef, useState, useEffect} from 'preact/hooks'
 import { JSX } from "preact"
 
-export function Upload(_props: {}): JSX.Element {
-  type DragState = "nodrag" | "dragging" | "error"
+type Props = {
+  addFiles: (FileSystemHandles: FileSystemHandle[]) => Promise<void>
+}
+
+function filterNull<T>(arr: T[]): Exclude<T, null | undefined>[] {
+  return arr.filter(x => !(x === null || x === undefined)) as Exclude<T, null | undefined>[]
+}
+
+export function Upload({addFiles}: Props): JSX.Element {
+  type DragState = "nodrag" | "dragging"
   const [dragState, setDragState] = useState<DragState>("nodrag")
-  console.log(dragState)
+  const dragCounter = useRef(0)
+
   useEffect(() => {
-    const dragEnter = () => {
+    const aimedAt = window.document.documentElement
+    const dragEnter = (_event: DragEvent) => {
+      dragCounter.current += 1
       setDragState("dragging")
     }
-    const dragDrop = (event: DragEvent) => {
+    const dragDrop = async (event: DragEvent) => {
+      dragCounter.current -= 1
       event.preventDefault()
-      console.log([...event.dataTransfer!.items])
+      if (event.dataTransfer !== null) {
+        const fileSystemHandles = filterNull(await Promise.all(
+          [...event.dataTransfer.items].map(dti => dti.getAsFileSystemHandle())))
+        addFiles(fileSystemHandles)
+      }
+      setDragState("nodrag")
     }
-    const dragLeave = (event: DragEvent) => {
+    const dragLeave = (_event: DragEvent) => {
+      dragCounter.current -= 1
+      if (dragCounter.current > 0) {
+        return;
+      }
+      console.log("leave")
       setDragState("nodrag")
     }
     const dragOver = (event: DragEvent) => {
       event.preventDefault()
     }
-    window.document.addEventListener("dragenter", dragEnter)
-    window.document.addEventListener("dragleave", dragLeave)
-    window.document.addEventListener("dragover", dragOver)
-    window.document.addEventListener("drop", dragDrop)
+    aimedAt.addEventListener("dragenter", dragEnter)
+    aimedAt.addEventListener("dragleave", dragLeave)
+    aimedAt.addEventListener("dragover", dragOver)
+    aimedAt.addEventListener("drop", dragDrop)
     return () => {
-      window.document.removeEventListener("dragenter", dragEnter)
-      window.document.removeEventListener("dragleave", dragLeave)
-      window.document.removeEventListener("dragover", dragOver)
-      window.document.removeEventListener("drop", dragDrop)
+      aimedAt.removeEventListener("dragenter", dragEnter)
+      aimedAt.removeEventListener("dragleave", dragLeave)
+      aimedAt.removeEventListener("dragover", dragOver)
+      aimedAt.removeEventListener("drop", dragDrop)
     }
   }, [])
-  switch (dragState) {
-    case "nodrag":
-      return <div>Drag one or more video files here to start conversion to mp4.</div>
-    case "dragging":
-      return <div>Drop the video files here</div>
-    case "error":
-      return <div>There was an error with the files, please reload</div>
+  async function selectFilesToAdd() {
+    const files = await window.showOpenFilePicker({multiple: true})
+    addFiles(files)
   }
+  return <>
+    <div className={css.box}><button onClick={selectFilesToAdd}>Add files</button></div> 
+    {dragState === "dragging" && <div className={css.fullScreenDropInfo}>Drop files here</div>}
+  </>
 }

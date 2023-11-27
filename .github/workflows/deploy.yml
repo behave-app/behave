@@ -18,7 +18,7 @@ jobs:
       - name: install packages
         run: npm install .
       - name: Build
-        run: make all
+        run: DOCKER=docker DOCKER_TMPDIR=/tmp make all
       - name: Set version
         run: "echo -n 'export const version = {ref: ${{ toJSON(github.ref) }}, ref_type: ${{ toJSON(github.ref_type) }}, sha: ${{ toJSON(github.sha) }} };' > public/app/version.js"
       - name: Create Hashes

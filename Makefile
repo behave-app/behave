@@ -1,3 +1,5 @@
+DOCKER ?= nerdctl.lima
+DOCKER_TMPDIR ?= /tmp/lima/
 LIBAVJS_VERSION := 4.6.6.0.1
 LIBAVJS_COMMIT := 83ceadd53f92cbdb6048bc0ca4d29591eacdd158
 LIBAVJS_BASE_FILES := \
@@ -17,8 +19,8 @@ public/app/bundled/libavjs/empty:  $(LIBAVJS_TARGET_FILES)
 	@touch $@
 
 $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile
-	$(eval OUTDIR := $(shell mktemp -d --tmpdir=/tmp/lima/))
-	@nerdctl.lima build libav.js \
+	$(eval OUTDIR := $(shell mktemp -d --tmpdir=$(DOCKER_TMPDIR)))
+	@$(DOCKER) build libav.js \
 		--build-arg="LIBAVJS_COMMIT=$(LIBAVJS_COMMIT)" \
 		--build-arg="FILES_TO_BUILD=$(LIBAVJS_MAKE_FILES)" \
 		--target=artifact --output type=local,dest=$(OUTDIR)

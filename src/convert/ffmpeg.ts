@@ -133,7 +133,6 @@ export async function convert(
     if (exit_code != 0) {
       throw new Error(`ffprobe exit code: ${exit_code}`)
     }
-    onProgress("done")
   } finally {
     libav.terminate()
   }

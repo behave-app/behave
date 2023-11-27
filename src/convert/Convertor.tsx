@@ -5,6 +5,8 @@ import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {convert, getOutputFilename} from "./ffmpeg.js"
 
+const NR_WORKERS = 2
+
 async function fromAsync<T>(source: Iterable<T> | AsyncIterable<T>): Promise<T[]> {
   const items:T[] = [];
   for await (const item of source) {
@@ -13,7 +15,7 @@ async function fromAsync<T>(source: Iterable<T> | AsyncIterable<T>): Promise<T[]
   return items
 }
 
-async function readFileSystemHandle(fshs: FileSystemHandle[]): Promise<FileTreeBranch> {
+async function readFileSystemHandle(fshs: FileSystemHandle[], fileFilter: (file: File) => boolean): Promise<FileTreeBranch> {
   const result: FileTreeBranch = new Map()
   for (const fsh of fshs) {
     if (fsh instanceof FileSystemFileHandle) {
@@ -23,7 +25,7 @@ async function readFileSystemHandle(fshs: FileSystemHandle[]): Promise<FileTreeB
       }
     } else if (fsh instanceof FileSystemDirectoryHandle) {
       result.set(fsh.name, await readFileSystemHandle(
-        await fromAsync(fsh.values())))
+        await fromAsync(fsh.values()), fileFilter))
     } else {
       throw new Error(`Unhandled case: ${fsh}`);
     }
@@ -34,8 +36,8 @@ async function readFileSystemHandle(fshs: FileSystemHandle[]): Promise<FileTreeB
       .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true})))
 }
 
-function fileFilter(file: File): boolean {
-  return !file.name.startsWith(".") && file.name.endsWith(".MTS")
+function fileFilter(file: File, extension: string): boolean {
+  return !file.name.startsWith(".") && file.name.endsWith("." + extension)
 }
 
 function pruneDeadBranches(branch: FileTreeBranch) {
@@ -96,6 +98,34 @@ function getAllLeafPaths(files: FileTreeBranch): string[][] {
         : [[name]])
 }
 
+async function nonEmptyFileExists(
+  directory: FileSystemDirectoryHandle,
+  path: string[]
+): Promise<boolean> {
+  let pointer = directory
+  for (const p of path.slice(0, -1)) {
+    try {
+      pointer = await pointer.getDirectoryHandle(p)
+    } catch (e) {
+      if ((e as DOMException).name === "NotFoundError") {
+        return false
+      }
+      throw e
+    }
+  }
+  const filename = path.slice(-1)[0]
+  let file: FileSystemFileHandle
+  try {
+    file = await pointer.getFileHandle(filename)
+  } catch (e) {
+    if ((e as DOMException).name === "NotFoundError") {
+      return false
+    }
+    throw e
+  }
+  return (await file.getFile()).size > 0
+}
+
 async function convertOne(
   files: FileTreeBranch,
   path: string[],
@@ -103,24 +133,18 @@ async function convertOne(
   setFiles: (cb: (files: FileTreeBranch) => FileTreeBranch) => void
 ) {
   const leaf = findLeaf(files, path)
+  const outfilename = getOutputFilename(leaf.file.name)
+  const outpath = [...path.slice(0, -1), outfilename]
+  if (await nonEmptyFileExists(destination, outpath)) {
+    setFiles(files => updateLeaf(files, path, leaf => (
+      {file: leaf.file, progress: {"error": "File aready exists at the destination"}})))
+    return
+  }
+
   let pointer = destination
   for (const p of path.slice(0, -1)) {
     //probably should catch if there is a file with this directoy name //TODO
     pointer = await pointer.getDirectoryHandle(p, {create: true})
-  }
-  const outfilename = getOutputFilename(leaf.file.name)
-  try {
-    // Try to open to catch case that file was created since initial check
-    await pointer.getFileHandle(outfilename)
-    setFiles(files => updateLeaf(files, path, leaf => (
-      {file: leaf.file, progress: {"error": "File aready exists at the destination"}})))
-    return
-  } catch (e) {
-    if ((e as DOMException).name === "NotFoundError") {
-      // expected
-    } else {
-      throw e;
-    }
   }
   const outfile = await pointer.getFileHandle(outfilename, {create: true})
   const outstream = await outfile.createWritable()
@@ -129,40 +153,45 @@ async function convertOne(
       setFiles(files =>
         updateLeaf(files, path, leaf => ({file: leaf.file, progress})))
     })
-    outstream.close()
+    await outstream.close()
+    setFiles(files =>
+      updateLeaf(files, path, leaf => (
+        {file: leaf.file, progress: "done"})))
   } catch (e) {
-    outstream.close()
-    pointer.removeEntry(outfilename)
+    setFiles(files =>
+      updateLeaf(files, path, leaf => (
+        {file: leaf.file, progress: {error: `error while converting: $(e)`}})))
+    await outstream.close()
+    await pointer.removeEntry(outfilename)
   }
 }
 
 async function convertAll(files: FileTreeBranch, setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void) {
   const destination = await window.showDirectoryPicker(
     {id: "mp4save", mode: "readwrite"})
-  const outputFiles = (await readFileSystemHandle([destination])).get(
-    destination.name) as FileTreeBranch
+  const outputFiles = ((await readFileSystemHandle([destination], file => fileFilter(file, "mp4"))).get(destination.name) ?? new Map()) as FileTreeBranch
   
   const paths = getAllLeafPaths(files)
   let newFiles = files
+  const queuedPaths: string[][] = []
   for (const path of paths) {
     const outpath = [...path.slice(0, -1), getOutputFilename(path.slice(-1)[0])]
-    try {
-      findLeaf(outputFiles, outpath)
+    if (await nonEmptyFileExists(destination, outpath)) {
       newFiles = updateLeaf(
         newFiles, path, leaf => ({file: leaf.file, progress: {"error": "File aready exists at the destination"}}))
-    } catch (e) {
-      newFiles = updateLeaf(
-        newFiles, path, leaf => ({file: leaf.file, progress: "queue"}))
+      continue
     }
+    newFiles = updateLeaf(
+      newFiles, path, leaf => ({file: leaf.file, progress: "queue"}))
+    queuedPaths.push(path)
   }
   setFiles(newFiles)
 
   const promises: Set<Promise<any>> = new Set()
   let finished: Promise<any>[] = []
-  for (const path of paths) {
-    while (promises.size >= 4) {
+  for (const path of queuedPaths) {
+    while (promises.size >= NR_WORKERS) {
       await Promise.any(promises)
-      console.log("done promise.any")
       finished.forEach(p => promises.delete(p))
       finished = []
     }
@@ -178,7 +207,7 @@ export function Convertor({}: {}): JSX.Element {
   const [state, setState] = useState<"uploading" | "converting" | "done">("uploading")
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
-    const newFiles = await readFileSystemHandle(fileSystemHandles)
+    const newFiles = await readFileSystemHandle(fileSystemHandles, file => fileFilter(file, "MTS"))
     setFiles(files => new Map([...files, ...newFiles]))
   }
   function removeFile(name: string[]) {

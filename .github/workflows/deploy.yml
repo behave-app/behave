@@ -19,10 +19,6 @@ jobs:
         run: npm install .
       - name: Build
         run: DOCKER=docker DOCKER_TMPDIR=/tmp make all
-      - name: Set version
-        run: "echo -n 'export const version = {ref: ${{ toJSON(github.ref) }}, ref_type: ${{ toJSON(github.ref_type) }}, sha: ${{ toJSON(github.sha) }} };' > public/app/version.js"
-      - name: Create Hashes
-        run: python generate-importmap.py
       - name: Set AWS credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -30,4 +26,4 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - name: Deploy
-        run: aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 dist s3://videtect.claude-apps.com/website/
+        run: aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 public s3://behave.claude-apps.com/website/

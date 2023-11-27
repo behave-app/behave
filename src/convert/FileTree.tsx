@@ -1,7 +1,7 @@
 import * as css from "./filetree.module.css"
 import { JSX } from "preact"
 
-type FileTreeLeaf = {
+export type FileTreeLeaf = {
   file: File
   progress?: "queue" | {"converting": number} | "done" | {error: string}
 }
@@ -41,7 +41,7 @@ return {className: classes.join(" "), style, title}
 
 export function FileTree({files, removeFile}: FileTreeProps): JSX.Element {
   return <ul className={css.filetree}>
-    {[...files.entries()].sort((a, b) => a > b ? 1 : -1).map(([name, entry]) =>
+    {[...files.entries()].map(([name, entry]) =>
       <li>
         {(entry instanceof Map)
         ? <>

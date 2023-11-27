@@ -16,7 +16,7 @@
         }
     },
     "include": [
-        "./src/*",
+        "./src/Globals.d.ts",
         "./src/convert/App.tsx"
     ]
 }

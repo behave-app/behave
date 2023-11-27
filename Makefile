@@ -27,7 +27,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile
 	@mkdir -p public/app/bundled/libavjs
 	@cp -R $(OUTDIR)/ public/app/bundled/libavjs
 
-public/app/tsc: tsconfig.json $(shell find src)
+public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs/empty 
 	@tsc --noEmit
 	@./node_modules/esbuild/bin/esbuild $$(node -p "require('./tsconfig.json').include.join(' ')") --sourcemap --bundle --format=esm --outdir=public/app/
 	touch $@

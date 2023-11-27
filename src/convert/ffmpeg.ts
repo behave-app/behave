@@ -126,6 +126,7 @@ export async function convert(
     )
     await Promise.all(writePromises)
     libav.unlink(input.name)
+    libav.unlink(outputname)
     libav.unlink(PROGRESSFILENAME)
     if (progressController) {
       progressController.close()

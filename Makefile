@@ -29,7 +29,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile
 		--build-arg="FILES_TO_BUILD=$(LIBAVJS_MAKE_FILES)" \
 		--target=artifact --output type=local,dest=$(OUTDIR)
 	@mkdir -p public/app/bundled/libavjs
-	@cp -R $(OUTDIR)/ public/app/bundled/libavjs
+	@cp -Rv $(OUTDIR)/ public/app/bundled/libavjs
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs/empty 
 	@tsc --noEmit

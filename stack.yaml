@@ -8,9 +8,11 @@ Parameters:
   HostedZoneName:
     Description: The HostedZoneName of the zone that you want to host the website on. This has to be in the same account, and has to be active (i.e. used as the DNS server for this domain).
     Type: String
+
   HostedZoneId:
     Description: The ID for the HostedZoneName
     Type: String
+
   Hostname:
     Description: The hostname to host the website on (in the HostedZoneId). This should not exist yet within the HostedZoneId.
     Type: String
@@ -24,6 +26,20 @@ Parameters:
       - 'PriceClass_100'
       - 'PriceClass_200'
       - 'PriceClass_All'
+    Default: 'PriceClass_All'
+
+  GitHubOrg:
+    Description: Name of GitHub organization/user (case sensitive)
+    Type: String
+
+  RepositoryName:
+    Description: Name of GitHub repository (case sensitive)
+    Type: String
+
+  OIDCAudience:
+    Description: Audience supplied to configure-aws-credentials.
+    Default: "sts.amazonaws.com"
+    Type: String
 
 Mappings: {}
 
@@ -134,10 +150,20 @@ Resources:
         HostedZoneId: Z2FDTNDATAQYW2  # hardcoded CloudFront zone id
       HostedZoneName: !Sub "${HostedZoneName}."
 
-  WebsiteUploadUser:
-    Type: AWS::IAM::User
+  UploadRole:
+    Type: AWS::IAM::Role
     Properties:
-      Path: /cf-user/
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: !ImportValue Global-Github-Oid-Ref
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: !Ref OIDCAudience
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${RepositoryName}:*
       Policies:
         - PolicyName: !Sub "WebsiteUploader@${Hostname}.${HostedZoneName}"
           PolicyDocument:
@@ -161,18 +187,44 @@ Resources:
                       - "website/*"
                       - "website/"
 
-  WebsiteUploadUserKey:
-    Type: AWS::IAM::AccessKey
+  BetaUploadRole:
+    Type: AWS::IAM::Role
     Properties:
-      UserName:
-        !Ref WebsiteUploadUser
-
-  WebsiteUploadUserKeyStorage:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub ${WebsiteUploadUser}-key
-      Type: String
-      Value: !GetAtt WebsiteUploadUserKey.SecretAccessKey
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: !ImportValue Global-Github-Oid-Ref
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: !Ref OIDCAudience
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${RepositoryName}:*
+      Policies:
+        - PolicyName: !Sub "WebsiteUploader@${Hostname}.${HostedZoneName}"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub ${Bucket.Arn}/website/beta/*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub ${Bucket.Arn}
+                Condition:
+                  StringLike:
+                    s3:prefix:
+                      - "website/beta/"
+                      - "website/beta"
 
 Outputs:
-  {}
+  UploadRole:
+    Value: !GetAtt UploadRole.Arn 
+  BetaUploadRole:
+    Value: !GetAtt BetaUploadRole.Arn 

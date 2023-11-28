@@ -19,8 +19,15 @@ jobs:
       - name: restore libavjs cache
         uses: actions/cache@v3
         with:
-          key: libavjs-files--${{ hashFiles('libavjs/*') }}
+          key: libavjs-files--${{ hashFiles('libav.js/*') }}
           path: public/app/bundled/libavjs/
+      - name: update cache timestamps
+        # this will update the timestamps on the cache
+        # this is necessary since the Dockerfile will always be newer (gets
+        # checkout timestamp).
+        # However because of the hash, cache only gets restored if the Dockerfile
+        # is unchanged.
+        run: make -t public/app/bundled/libavjs/empty && true
       - name: install packages
         run: npm install .
       - name: Build

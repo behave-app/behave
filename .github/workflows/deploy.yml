@@ -19,7 +19,7 @@ jobs:
       - name: install packages
         run: npm install .
       - name: Build
-        run: DOCKER=docker DOCKER_TMPDIR=/tmp make all
+        run: DOCKER="docker buildx" DOCKER_TMPDIR=/tmp make all
       - name: Set AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

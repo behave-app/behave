@@ -1,5 +1,5 @@
 import type * as LibAVTypes from '../../public/app/bundled/libavjs/dist/libav.types'
-import type {FileTreeLeaf} from "./FileTree.js"
+import type {FileTreeLeaf} from "../lib/FileTree.js"
 
 declare global {
   interface Window {

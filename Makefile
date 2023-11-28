@@ -17,9 +17,7 @@ OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
 .PHONY=all
 
-all:
-	mkdir -p public/app/itworks
-	touch public/app/itworks/yes.txt
+all: public/app/tsc public/app/bundled/libavjs/empty public/app/bundled/tfjs-wasm $(HTML_TARGET_FILES)
 
 public/app/bundled/libavjs/empty:  $(LIBAVJS_TARGET_FILES)
 	@touch $@

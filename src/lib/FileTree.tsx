@@ -176,9 +176,10 @@ async function convertOne(
   } catch (e) {
     setFiles(files =>
       updateLeaf(files, path, leaf => (
-        {file: leaf.file, progress: {error: `error while converting: $(e)`}})))
+        {file: leaf.file, progress: {error: `error while converting: ${e}`}})))
     await outstream.close()
     await pointer.removeEntry(outfilename)
+    console.error(e)
   }
 }
 

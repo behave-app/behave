@@ -17,6 +17,7 @@
     },
     "include": [
         "./src/Globals.d.ts",
-        "./src/convert/App.tsx"
+        "./src/convert/App.tsx",
+        "./src/infer/App.tsx"
     ]
 }

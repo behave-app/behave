@@ -1,7 +1,7 @@
 DOCKER ?= nerdctl.lima
 DOCKER_TMPDIR ?= /tmp/lima/
 LIBAVJS_VERSION := 4.6.6.0.1
-LIBAVJS_COMMIT := 83ceadd53f92cbdb6048bc0ca4d29591eacdd158
+LIBAVJS_COMMIT := $(shell cat libav.js/commit.txt | tr -d '\n')
 LIBAVJS_BASE_FILES := \
 	behave.dbg.js \
 	behave.dbg.simd.js \
@@ -17,12 +17,12 @@ OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
 .PHONY=all
 
-all: public/app/tsc public/app/bundled/libavjs/empty public/app/bundled/tfjs-wasm $(HTML_TARGET_FILES)
+all: public/app/tsc public/app/bundled/libavjs/version.txt public/app/bundled/tfjs-wasm $(HTML_TARGET_FILES)
 
-public/app/bundled/libavjs/empty:  $(LIBAVJS_TARGET_FILES)
-	@touch $@
+public/app/bundled/libavjs/version.txt: $(LIBAVJS_TARGET_FILES)
+	@echo $(LIBAVJS_COMMIT) > $@
 
-$(LIBAVJS_TARGET_FILES): libav.js/Dockerfile
+$(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 	$(eval OUTDIR := $(shell mktemp -d --tmpdir=$(DOCKER_TMPDIR)))
 	@$(DOCKER) build libav.js \
 		--build-arg="LIBAVJS_COMMIT=$(LIBAVJS_COMMIT)" \
@@ -31,7 +31,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile
 	@mkdir -p public/app/bundled/libavjs
 	@cp -R $(OUTDIR)/dist public/app/bundled/libavjs
 
-public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs/empty 
+public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs/version.txt
 	@tsc --noEmit
 	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"))) > $@

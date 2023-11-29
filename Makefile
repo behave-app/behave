@@ -17,7 +17,7 @@ OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
 .PHONY=all
 
-all: public/app/tsc public/app/bundled/libavjs/version.txt public/app/bundled/tfjs-wasm $(HTML_TARGET_FILES)
+all: public/app/tsc public/app/bundled/libavjs/version.txt $(HTML_TARGET_FILES)
 
 public/app/bundled/libavjs/version.txt: $(LIBAVJS_TARGET_FILES)
 	@echo $(LIBAVJS_COMMIT) > $@
@@ -38,10 +38,6 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs/versi
 
 $(HTML_TARGET_FILES): public/%.html: %.html public/app/tsc
 	@sed -f public/app/tsc < $< > $@
-
-public/app/bundled/tfjs-wasm: $(wildcard node_modules/@tensorflow/tfjs-backend-wasm/dist/*.wasm)
-	@mkdir -p $@
-	@cp $^ $@
 
 clean:
 	@if [ -e public ]; then rm -r public; fi

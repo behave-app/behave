@@ -27,7 +27,7 @@ jobs:
         # checkout timestamp).
         # However because of the hash, cache only gets restored if the Dockerfile
         # is unchanged.
-        run: make -t public/app/bundled/libavjs/empty || true
+        run: make -t public/app/bundled/libavjs/version.txt || true
       - name: install packages
         run: npm install .
       - name: Build

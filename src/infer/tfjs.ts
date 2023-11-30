@@ -54,7 +54,8 @@ export async function convert(
       + `# (x, y) is the left top of the detection\n`
       + `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)\n`
   ))
-  for await (const imageData of getFrames(file, 640, 640)) {
+  const MODEL_DIMENSION = 640
+  for await (const imageData of getFrames(file, MODEL_DIMENSION, MODEL_DIMENSION)) {
     const [boxes, scores, classes] = await infer(model, imageData)
     if (ctx) {
       ctx.putImageData(imageData, 0, 0)
@@ -148,7 +149,7 @@ export async function infer(
   model: Model,
   imageData: ImageData,
 ): Promise<[Float32Array, Float32Array, Float32Array]> {
-  const [img_tensor, _xRatio, _yRatio] = tf.tidy(() => preprocess(imageData, 640, 640))
+  const [img_tensor, xRatio, yRatio] = tf.tidy(() => preprocess(imageData, 640, 640))
   const res = tf.tidy(() => model.execute(img_tensor) as tf.Tensor<tf.Rank>)
   const  [boxes, scores, classes] = tf.tidy(() => getBoxesAndScoresAndClassesFromResult(res))
   const nms = await tf.image.nonMaxSuppressionAsync(
@@ -158,7 +159,7 @@ export async function infer(
     0.45,
     0.5
   ); // NMS to filter boxes
-  const boxes_nms = tf.tidy(() => boxes.div(640).gather(nms, 0))
+  const boxes_nms = tf.tidy(() => boxes.div(640).mul([yRatio, xRatio, yRatio, xRatio]).gather(nms, 0))
   const scores_nms = tf.tidy(() => scores.gather(nms, 0))
   const classes_nms = tf.tidy(() => classes.gather(nms, 0))
 

@@ -5,8 +5,6 @@ import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
 import {setBackend, Model, getModel, convert, getOutputFilename} from "./tfjs.js"
 
-const NR_WORKERS = 4
-
 function fileFilter(file: File, extension: string): boolean {
   return !file.name.startsWith(".") && file.name.endsWith("." + extension)
 }
@@ -17,6 +15,7 @@ export function Inferrer({}: {}): JSX.Element {
   const [state, setState] = useState<"uploading" | "converting" | "done">("uploading")
   const [model, setModel] = useState<Model | null>(null)
   const [tfBackend, setTfBackend] = useState<Parameters<typeof setBackend>[0]>("webgpu")
+  const [nrJobs, setNrJobs] = useState<1 | 2 | 4 | 8>(4)
 
   function onBackendChange(event: JSX.TargetedEvent<HTMLSelectElement, Event>) {
     if (state !== "uploading") {
@@ -58,7 +57,7 @@ export function Inferrer({}: {}): JSX.Element {
     setState("converting");
     await convertAll(
       files,
-      NR_WORKERS,
+      nrJobs,
       (input, outputstream, onProgress) => convert(
         model, input, outputstream, onProgress),
       getOutputFilename,
@@ -71,6 +70,10 @@ export function Inferrer({}: {}): JSX.Element {
     <div className={css.explanation}>
     This page allows detection of items on videos, and saving the result as csv. You need to upload a YOLOv8 Web model.
     </div>
+    <select disabled={state !== "uploading"} value={nrJobs} onChange={
+      e => setNrJobs((e.target as unknown as {value: typeof nrJobs}).value)}>
+      {[1, 2, 4, 8].map(i => <option value={i}>{i} concurrent jobs</option>)}
+    </select>
     <select disabled={state !== "uploading"} value={tfBackend} onChange={onBackendChange}>
       <option value="wasm">WASM</option>
       <option value="webgl">WebGL</option>

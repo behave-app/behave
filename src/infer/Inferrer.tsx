@@ -71,6 +71,7 @@ export function Inferrer({}: {}): JSX.Element {
     <div className={css.explanation}>
     This page allows detection of items on videos, and saving the result as csv. You need to upload a YOLOv8 Web model.
     </div>
+    <canvas width="640" height="640" id="canvas" style={{width: "320px", height: "320px"}} />
     <select disabled={state !== "uploading"} value={tfBackend} onChange={onBackendChange}>
       <option value="wasm">WASM</option>
       <option value="webgl">WebGL</option>

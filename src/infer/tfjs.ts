@@ -43,19 +43,26 @@ export async function convert(
   file: File,
   outputstream: FileSystemWritableFileStream,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
+  ctx?: CanvasRenderingContext2D,
 ) {
   const numberOfFrames = await getNumberOfFrames(file)
   let framenr = 0;
   const textEncoder = new TextEncoder()
-    await outputstream.write(textEncoder.encode(
+  await outputstream.write(textEncoder.encode(
     `# Framenumber, Class, x, y, w, h, confidence\n`
-    + `# (x, y) is the left top of the detection\n`
-    + `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)\n`
+      + `# (x, y) is the left top of the detection\n`
+      + `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)\n`
   ))
   for await (const imageData of getFrames(file, 640, 640)) {
     const [boxes, scores, classes] = await infer(model, imageData)
+    if (ctx) {
+      ctx.putImageData(imageData, 0, 0)
+      ctx.strokeStyle = "red"
+      ctx.lineWidth = 5;
+    }
     for (let i = 0; i < scores.length; i++) {
-      const box = boxes.slice(i * 4, (i + 1) * 4)
+      const [y1, x1, y2, x2] = boxes.slice(i * 4, (i + 1) * 4)
+      const box = [(x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1]
       const score = scores.at(i)!
       const klass = classes.at(i)!
       if (!Number.isInteger(klass)) {
@@ -63,6 +70,15 @@ export async function convert(
       }
       const line = `${framenr},${klass.toFixed(0)},${[...box].map(c => c.toFixed(4)).join(",")},${score.toFixed(2)}\n`
       await outputstream.write(textEncoder.encode(line))
+      const [cx, cy, w, h] = box
+      if (ctx) {
+        ctx.strokeRect(
+          (cx - w / 2) * Math.max(imageData.width, imageData.height),
+          (cy - h / 2) * Math.max(imageData.width, imageData.height),
+          w * Math.max(imageData.width, imageData.height),
+          h * Math.max(imageData.width, imageData.height),
+        )
+      }
     }
     onProgress({"converting": Math.min(framenr / numberOfFrames, 1)})
     framenr++

@@ -47,6 +47,11 @@ export async function convert(
   const numberOfFrames = await getNumberOfFrames(file)
   let framenr = 0;
   const textEncoder = new TextEncoder()
+    await outputstream.write(textEncoder.encode(
+    `# Framenumber, Class, x, y, w, h, confidence\n`
+    + `# (x, y) is the left top of the detection\n`
+    + `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)\n`
+  ))
   for await (const imageData of getFrames(file, 640, 640)) {
     const [boxes, scores, classes] = await infer(model, imageData)
     for (let i = 0; i < scores.length; i++) {

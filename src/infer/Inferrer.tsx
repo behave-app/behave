@@ -67,9 +67,9 @@ export function Inferrer({}: {}): JSX.Element {
   }
 
   return <>
-    <h1>Video file convertor</h1>
+    <h1>Detect items on videos</h1>
     <div className={css.explanation}>
-      This files converts video files to be used in BEHAVE. At the moment it can only convert MTS files, but it's easy to add additional types upon request.
+    This page allows detection of items on videos, and saving the result as csv. You need to upload a YOLOv8 Web model.
     </div>
     <select disabled={state !== "uploading"} value={tfBackend} onChange={onBackendChange}>
       <option value="wasm">WASM</option>

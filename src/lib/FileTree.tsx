@@ -1,5 +1,6 @@
 import * as css from "./filetree.module.css"
 import { JSX } from "preact"
+import { formatTime } from "./util.js";
 
 export type ConvertAction = (
   input: File,
@@ -38,7 +39,7 @@ export async function readFileSystemHandle(fshs: FileSystemHandle[], fileFilter:
 
 export type FileTreeLeaf = {
   file: File
-  progress?: "queue" | {"converting": number} | "done" | {error: string}
+  progress?: "queue" | {"converting": number, timing?: {passed: number, expected: number}} | "done" | {error: string}
 }
 export type FileTreeBranch = Map<string, FileTreeLeaf | FileTreeBranch>
 
@@ -164,10 +165,16 @@ async function convertOne(
   }
   const outfile = await pointer.getFileHandle(outfilename, {create: true})
   const outstream = await outfile.createWritable()
+  const start = Date.now()
   try {
     await conversionAction(leaf.file, outstream, (progress: FileTreeLeaf["progress"]) => {
+      const timeLapsed = (Date.now() - start) / 1000
+      const newProgress: FileTreeLeaf["progress"] = (typeof progress === "object" &&"converting" in progress) ? {
+        timing: {passed: timeLapsed, expected: timeLapsed / (progress.converting || 0.0001)},
+        ...progress,
+      } : progress
       setFiles(files =>
-        updateLeaf(files, path, leaf => ({file: leaf.file, progress})))
+        updateLeaf(files, path, leaf => ({file: leaf.file, progress: newProgress})))
     })
     await outstream.close()
     setFiles(files =>
@@ -245,6 +252,12 @@ function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, styl
     classes.push(css.converting)
     style["--convert-progress"] = fileTreeLeaf.progress.converting
     style["--convert-progress-text"] = JSON.stringify(`${(fileTreeLeaf.progress.converting * 100).toFixed(1)}%`)
+    if (fileTreeLeaf.progress.timing !== undefined) {
+      style["--convert-time-text"] = JSON.stringify(
+        [formatTime(fileTreeLeaf.progress.timing.passed),
+          formatTime(fileTreeLeaf.progress.timing.expected),
+        ].join("/"))
+    }
     title = `${(fileTreeLeaf.progress.converting * 100).toFixed(1)}% done`
   } else if ("error" in fileTreeLeaf.progress) {
     classes.push(css.error)
@@ -254,7 +267,7 @@ function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, styl
     const exhaustive: never = fileTreeLeaf.progress
     throw new Error(`Exhaustive check: ${exhaustive}`)
   }
-return {className: classes.join(" "), style, title}
+  return {className: classes.join(" "), style, title}
 }
 
 

@@ -12,8 +12,10 @@ export function getOutputFilename(inputfilename: string) {
   const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
   return [...baseparts, "csv"].join(".")
 }
+export type YoloBackend = "wasm" | "webgl" | "webgpu"
+export type YoloVersion = "v5" | "v8"
 
-export async function setBackend(backend: "wasm" | "webgl" | "webgpu") {
+export async function setBackend(backend: YoloBackend) {
   await tf.setBackend(backend)
   await tf.ready()
   console.log("TF backend is now", tf.backend())
@@ -41,6 +43,7 @@ export async function getModel(
 
 export async function convert(
   model: Model,
+  yoloVersion: YoloVersion,
   file: File,
   outputstream: FileSystemWritableFileStream,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
@@ -56,14 +59,14 @@ export async function convert(
   ))
   const MODEL_DIMENSION = 640
   for await (const imageData of getFrames(file, MODEL_DIMENSION, MODEL_DIMENSION)) {
-    const [boxes, scores, classes] = await infer(model, imageData)
+    const [boxes, scores, classes] = await infer(model, yoloVersion, imageData)
     if (ctx) {
       ctx.putImageData(imageData, 0, 0)
       ctx.strokeStyle = "red"
       ctx.lineWidth = 5;
     }
     for (let i = 0; i < scores.length; i++) {
-      const [y1, x1, y2, x2] = boxes.slice(i * 4, (i + 1) * 4)
+      const [x1, y1, x2, y2] = boxes.slice(i * 4, (i + 1) * 4)
       const box = [(x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1]
       const score = scores.at(i)!
       const klass = classes.at(i)!
@@ -147,26 +150,48 @@ function getBoxesAndScoresAndClassesFromResult(
 
 export async function infer(
   model: Model,
+  yoloVersion: YoloVersion,
   imageData: ImageData,
 ): Promise<[Float32Array, Float32Array, Float32Array]> {
   const [img_tensor, xRatio, yRatio] = tf.tidy(() => preprocess(imageData, 640, 640))
-  const res = tf.tidy(() => model.execute(img_tensor) as tf.Tensor<tf.Rank>)
-  const  [boxes, scores, classes] = tf.tidy(() => getBoxesAndScoresAndClassesFromResult(res))
-  const nms = await tf.image.nonMaxSuppressionAsync(
-    boxes as tf.Tensor2D,
-    scores as tf.Tensor1D,
-    500,
-    0.45,
-    0.5
-  ); // NMS to filter boxes
-  const boxes_nms = tf.tidy(() => boxes.div(640).mul([yRatio, xRatio, yRatio, xRatio]).gather(nms, 0))
-  const scores_nms = tf.tidy(() => scores.gather(nms, 0))
-  const classes_nms = tf.tidy(() => classes.gather(nms, 0))
+  if (yoloVersion === "v5") {
+    const res = await  model.executeAsync(img_tensor)
+    const [boxes, scores, classes] = (res as tf.Tensor<tf.Rank>[]).slice(0, 3)
+    const boxes_scaled = tf.tidy(() => boxes
+      .mul([xRatio, yRatio, xRatio, yRatio]))
+    const boxes_data = await boxes_scaled.data() as Float32Array// indexing boxes by nms index
+    const scores_data = await scores.data() as Float32Array // indexing scores by nms index
+    const classes_data = await classes.data() as Float32Array // indexing classes by nms index
+    tf.dispose([img_tensor, res, boxes, boxes_scaled, scores, classes]);
+    return [boxes_data, scores_data, classes_data]
+  } else if (yoloVersion === "v8") {
+    const res = tf.tidy(() => model.execute(img_tensor))
+    const  [boxes, scores, classes] = tf.tidy(
+      () => getBoxesAndScoresAndClassesFromResult(res as tf.Tensor<tf.Rank>))
+    const nms = await tf.image.nonMaxSuppressionAsync(
+      boxes as tf.Tensor2D,
+      scores as tf.Tensor1D,
+      500,
+      0.45,
+      0.5
+    ); // NMS to filter boxes
+    const boxes_nms = tf.tidy(() => 
+      boxes
+      .gather(nms, 0) // filter by nms columns
+      .gather([1, 0, 3, 2], 1)  // go from [y1, x1, y2, x1] to [x1, y1, x2, y2]
+      .mul([xRatio / 640, yRatio / 640, xRatio / 640, yRatio / 640])  // fix to coordinates (0,0) - (1, 1)
+    )
+    const scores_nms = tf.tidy(() => scores.gather(nms, 0))
+    const classes_nms = tf.tidy(() => classes.gather(nms, 0))
 
-  const boxes_data = await boxes_nms.data() as Float32Array// indexing boxes by nms index
-  const scores_data = await scores_nms.data() as Float32Array // indexing scores by nms index
-  const classes_data = await classes_nms.data() as Float32Array // indexing classes by nms index
-  tf.dispose([img_tensor, res, boxes, scores, classes, nms, boxes_nms,
-    scores_nms, classes_nms]);
-  return [boxes_data, scores_data, classes_data]
+    const boxes_data = await boxes_nms.data() as Float32Array// indexing boxes by nms index
+    const scores_data = await scores_nms.data() as Float32Array // indexing scores by nms index
+    const classes_data = await classes_nms.data() as Float32Array // indexing classes by nms index
+    tf.dispose([img_tensor, res, boxes, scores, classes, nms,
+      scores_nms, classes_nms]);
+    return [boxes_data, scores_data, classes_data]
+  } else {
+    const exhaustiveOption: never = yoloVersion
+    throw new Error(`Exhaustive option: ${exhaustiveOption}`)
+  }
 }

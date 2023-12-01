@@ -22,15 +22,16 @@
   content: " \2705";
 }
 .filename.converting {
+  --convert-time-text: "";
   width: 100%;
 }
 .filename.converting::before {
   display: inline-block;
   text-align: center;
-  content: var(--convert-progress-text);
+  content: var(--convert-progress-text) " " var(--convert-time-text);
   font-variant: tabular-nums;
   margin-right: 1em;
-  width: 5em;
+  width: 15em;
   box-sizing: border-box;
   border: 1px solid black;
   background-image: linear-gradient(to right,

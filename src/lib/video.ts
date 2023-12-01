@@ -67,6 +67,7 @@ export async function* getFrames(
   }
   let scale_ctx: null | number = null
   const libav = await window.LibAV.LibAV({noworker: false, nothreads: true});
+  await libav.av_log_set_level(libav.AV_LOG_ERROR)
   await libav.mkreadaheadfile(input.name, input)
   try {
     const [fmt_ctx, streams] = await libav.ff_init_demuxer_file(input.name);

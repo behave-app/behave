@@ -28,6 +28,7 @@ public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt: $(LIBAVJS_TARGET_FILES
 	@echo $(LIBAVJS_COMMIT) > $@
 
 $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
+	@mkdir -p "$(DOCKER_TMPDIR)"
 	$(eval OUTDIR := $(shell mktemp -d --tmpdir=$(DOCKER_TMPDIR)))
 	@$(DOCKER) build libav.js \
 		--build-arg="LIBAVJS_COMMIT=$(LIBAVJS_COMMIT)" \
@@ -35,6 +36,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 		--target=artifact --output type=local,dest=$(OUTDIR)
 	@mkdir -p public/app/bundled/libavjs
 	@cp -R $(OUTDIR)/dist public/app/bundled/libavjs-$(LIBAVJS_COMMIT)
+	@rm -r "$(OUTDIR)"
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt
 	@tsc --noEmit

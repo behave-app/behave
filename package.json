@@ -6,6 +6,6 @@
     "@types/dom-webcodecs": "^0.1.10",
     "@types/wicg-file-system-access": "^2023.10.3",
     "esbuild": "^0.19.5",
-    "libavjs-webcodecs-bridge": "^0.0.6"
+    "libavjs-webcodecs-bridge": "github:Yahweasel/libavjs-webcodecs-bridge"
   }
 }

@@ -292,6 +292,112 @@ function preprocess(frame: VideoFrame, modelWidth: number, modelHeight: number):
   return [input, 1, 1];
 };
 
+async function createFakeKeyFrameChunk(
+  decoderConfig: VideoDecoderConfig
+): Promise<EncodedVideoChunk> {
+  // next 6 lines could be made in one on platforms that support Promise.withResolvers()
+  let resolve: (value: EncodedVideoChunk) => void
+  let reject: (error: any) => void
+  const promise = new Promise<EncodedVideoChunk>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  const encoderConfig = {...decoderConfig} as VideoEncoderConfig
+  // encoderConfig needs a width and height set; in my tests these dimensions
+  // do not have to match the actual video dimensions, so I'm just using something
+  // random for them
+  encoderConfig.width = 640
+  encoderConfig.height = 360
+  encoderConfig.avc = {format: decoderConfig.description ? "avc" : "annexb"}
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, _metadata) => resolve(chunk),
+    error: e => reject(e)
+    })
+  try {
+    videoEncoder.configure(encoderConfig)
+    const oscanvas = new OffscreenCanvas(encoderConfig.width, encoderConfig.height)
+    // getting context seems to be minimal needed before it can be used as VideoFrame source
+    oscanvas.getContext("2d")
+    const videoFrame = new VideoFrame(
+      oscanvas, {timestamp: Number.MIN_SAFE_INTEGER})
+    try {
+      videoEncoder.encode(videoFrame)
+      await videoEncoder.flush()
+      const chunk =  await promise
+      console.log("done promise")
+      return chunk
+    } finally {
+      videoFrame.close()
+    }
+  } finally {
+    videoEncoder.close()
+  }
+}
+
+export async function play_webcodecs(file: File) {
+  const ctx2d = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!
+  const filename = file.name
+  await libav.mkreadaheadfile(filename, file)
+
+  const [fmt_ctx, streams] = await libav.ff_init_demuxer_file(filename)
+  const stream_types = await Promise.all(streams.map(s => libav.AVCodecParameters_codec_type(s.codecpar)))
+  const video_streams = streams.filter((_, i) => stream_types[i] == libav.AVMEDIA_TYPE_VIDEO)
+  if (video_streams.length !== 1) {
+    throw new Error(`File with exactly one video stream needed; given file ${filename} has ${video_streams.length} video streams`)
+  }
+  let video_stream = video_streams[0]
+  console.log(video_stream)
+  const [, ctx, pkt, frame] = await libav.ff_init_decoder(video_stream.codec_id, video_stream.codecpar);
+  const start = Date.now()
+
+  let framenr = 0
+  function newFrame(frame: VideoFrame) {
+    try {
+      framenr++
+      if (framenr === 1) {
+        // skip the first frame
+        return;
+      }
+      if (framenr % 100 == 0) {
+        const time = Date.now() - start
+        console.log(`Framenr ${framenr} in ${time}ms; ${(framenr / time * 1000).toFixed(1)}fps (${(time / framenr).toFixed(1)}ms per frame)`);
+      }
+      ctx2d.drawImage(frame, 0, 0, 640, 360)
+    } finally {
+      frame.close()
+    }
+  }
+
+  const decoderConfig = await LibAVWebCodecsBridge.videoStreamToConfig(libav, video_stream) as VideoDecoderConfig
+  decoderConfig.hardwareAcceleration = "prefer-software"
+  console.log({decoderConfig})
+  const videoDecoder = new VideoDecoder({output: newFrame, error: error => console.log({error})})
+  videoDecoder.configure(decoderConfig)
+
+
+  videoDecoder.decode(await createFakeKeyFrameChunk(decoderConfig))
+
+  while (true) {
+    const [ret, packets] = await libav.ff_read_multi(fmt_ctx, pkt, undefined, {limit: 1024 * 1024})
+    if (ret !== libav.AVERROR_EOF && ret !== -libav.EAGAIN && ret !== 0)
+    throw new Error("Invalid return from ff_read_multi");
+    const video_packets = packets[video_stream.index]
+    if (!video_packets) {
+      continue
+    }
+    const is_last_bytes = ret === libav.AVERROR_EOF
+    for (const packet of packets[video_stream.index]) {
+      const encodedVideoChunk = LibAVWebCodecsBridge.packetToEncodedVideoChunk(packet, video_stream) as EncodedVideoChunk
+      videoDecoder.decode(encodedVideoChunk)
+    }
+    if (is_last_bytes) {
+      videoDecoder.flush()
+      console.log("done")
+      break
+    }
+  }
+}
+
 export async function do_ai(file: File) {
   const ctx2d = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!
   const filename = file.name
@@ -428,7 +534,7 @@ function addDropListeners() {
     // readFile(file)
     // remuxFile(file)
     // do_ffmpeg(file)
-    do_ai(file)
+    play_webcodecs(file)
   })
   dropzone.addEventListener("dragover", event => {
     event.preventDefault();

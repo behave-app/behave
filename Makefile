@@ -58,4 +58,5 @@ clean:
 
 public/app/bundled/tfjs-wasm: $(wildcard node_modules/@tensorflow/tfjs-backend-wasm/dist/*.wasm)
 	@mkdir -p $@
+	@echo node_modules/@tensorflow/tfjs-backend-wasm/dist/*.wasm $^ 
 	@cp node_modules/@tensorflow/tfjs-backend-wasm/dist/*.wasm $^ 

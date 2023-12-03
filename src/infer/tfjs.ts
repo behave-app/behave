@@ -58,10 +58,10 @@ export async function convert(
       + `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)\n`
   ))
   const MODEL_DIMENSION = 640
-  for await (const imageData of getFrames(file, MODEL_DIMENSION, MODEL_DIMENSION)) {
-    const [boxes, scores, classes] = await infer(model, yoloVersion, imageData)
+  for await (const videoFrame of getFrames(file)) {
+    const [boxes, scores, classes] = await infer(model, yoloVersion, videoFrame)
     if (ctx) {
-      ctx.putImageData(imageData, 0, 0)
+      ctx.drawImage(videoFrame, 0, 0)
       ctx.strokeStyle = "red"
       ctx.lineWidth = 5;
     }
@@ -77,26 +77,28 @@ export async function convert(
       await outputstream.write(textEncoder.encode(line))
       const [cx, cy, w, h] = box
       if (ctx) {
+        const scale = Math.max(videoFrame.displayWidth, videoFrame.displayHeight)
         ctx.strokeRect(
-          (cx - w / 2) * Math.max(imageData.width, imageData.height),
-          (cy - h / 2) * Math.max(imageData.width, imageData.height),
-          w * Math.max(imageData.width, imageData.height),
-          h * Math.max(imageData.width, imageData.height),
+          (cx - w / 2) * scale, (cy - h / 2) * scale, w * scale, h * scale,
         )
       }
     }
+    videoFrame.close()
     onProgress({"converting": Math.min(framenr / numberOfFrames, 1)})
     framenr++
   }
 }
 
 export function preprocess(
-  imageData: ImageData,
+  videoFrame: VideoFrame,
   modelWidth: number,
   modelHeight: number
 ): [tf.Tensor<tf.Rank>, number, number] {
+  const offScreenCanvas = new OffscreenCanvas(videoFrame.displayWidth, videoFrame.displayHeight)
+  const ctx = offScreenCanvas.getContext("2d")!
+  ctx.drawImage(videoFrame, 0, 0)
 
-  const img = tf.browser.fromPixels(imageData);
+  const img = tf.browser.fromPixels(offScreenCanvas.transferToImageBitmap())
 
   const [h, w] = img.shape.slice(0, 2); // get source width and height
   const maxSize = Math.max(w, h); // get max size
@@ -151,9 +153,9 @@ function getBoxesAndScoresAndClassesFromResult(
 export async function infer(
   model: Model,
   yoloVersion: YoloVersion,
-  imageData: ImageData,
+  videoFrame: VideoFrame,
 ): Promise<[Float32Array, Float32Array, Float32Array]> {
-  const [img_tensor, xRatio, yRatio] = tf.tidy(() => preprocess(imageData, 640, 640))
+  const [img_tensor, xRatio, yRatio] = tf.tidy(() => preprocess(videoFrame, 640, 640))
   if (yoloVersion === "v5") {
     const res = await  model.executeAsync(img_tensor)
     const [boxes, scores, classes] = (res as tf.Tensor<tf.Rank>[]).slice(0, 3)

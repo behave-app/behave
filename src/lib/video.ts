@@ -1,4 +1,5 @@
 import type * as LibAVTypes from "../../public/app/bundled/libavjs/dist/libav.types";
+import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge"
 declare global {
   interface Window {
     LibAV: LibAVTypes.LibAVWrapper;
@@ -37,7 +38,6 @@ export async function getNumberOfFrames(input: File): Promise<number> {
     }
     libav.unlink(input.name);
     libav.unlink(FFPROBEOUTPUT);
-    // should we destroy libavjs? // TODO
     const outputjson = new TextDecoder("utf-8").decode(writtenData);
     try {
       const videostreams = JSON.parse(outputjson).streams.filter(
@@ -68,15 +68,143 @@ export async function getNumberOfFrames(input: File): Promise<number> {
   }
 }
 
+function promiseWithResolve<T>(): {
+  promise: Promise<T>,
+  resolve: (value: T) => void,
+  reject: (error: any) => void
+} {
+  // next 6 lines could be made in one on platforms that support Promise.withResolvers()
+  let resolve: (value: T) => void
+  let reject: (error: any) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  // @ts-ignore
+  return {promise, resolve, reject}
+}
+
+/**
+  * See https://github.com/Yahweasel/libavjs-webcodecs-bridge/issues/3#issuecomment-1837189047 for more info
+  */
+async function createFakeKeyFrameChunk(
+  decoderConfig: VideoDecoderConfig
+): Promise<EncodedVideoChunk> {
+  const {promise, resolve, reject} = promiseWithResolve<EncodedVideoChunk>()
+  const encoderConfig = {...decoderConfig} as VideoEncoderConfig
+  // encoderConfig needs a width and height set; in my tests these dimensions
+  // do not have to match the actual video dimensions, so I'm just using something
+  // random for them
+  encoderConfig.width = 640
+  encoderConfig.height = 360
+  encoderConfig.avc = {format: decoderConfig.description ? "avc" : "annexb"}
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, _metadata) => resolve(chunk),
+    error: e => reject(e)
+    })
+  try {
+    videoEncoder.configure(encoderConfig)
+    const oscanvas = new OffscreenCanvas(encoderConfig.width, encoderConfig.height)
+    // getting context seems to be minimal needed before it can be used as VideoFrame source
+    oscanvas.getContext("2d")
+    const videoFrame = new VideoFrame(
+      oscanvas, {timestamp: Number.MIN_SAFE_INTEGER})
+    try {
+      videoEncoder.encode(videoFrame)
+      await videoEncoder.flush()
+      const chunk =  await promise
+      return chunk
+    } finally {
+      videoFrame.close()
+    }
+  } finally {
+    videoEncoder.close()
+  }
+}
+
+class VideoDecoderWrapper {
+  private frames: VideoFrame[]
+  private nextFrameNumber: number
+  private nextIsDummyFrame: boolean
+  private end_of_stream: boolean
+  private videoDecoder: VideoDecoder
+
+  private constructor(
+    startFrameNumber: number,
+    videoDecoderConfig: VideoDecoderConfig,
+    private getMoreEncodedChunks: () => Promise<{chunks: EncodedVideoChunk[], end_of_stream: boolean}>,
+  ) {
+    this.frames = []
+    this.end_of_stream = false
+    this.nextIsDummyFrame = true
+    this.nextFrameNumber = startFrameNumber
+    this.videoDecoder = new VideoDecoder({
+      output: this.addFrames.bind(this),
+      error: error => console.log("Video decoder error", {error})
+    })
+    this.videoDecoder.configure(videoDecoderConfig)
+  }
+
+  public static async getVideoDecoderWrapper(
+    startFrameNumber: number,
+    videoDecoderConfig: VideoDecoderConfig,
+    getMoreEncodedChunks: () => Promise<{chunks: EncodedVideoChunk[], end_of_stream: boolean}>,
+): Promise<VideoDecoderWrapper> {
+    const videoDecoderWrapper = new VideoDecoderWrapper(startFrameNumber, videoDecoderConfig, getMoreEncodedChunks)
+    const chunk = await createFakeKeyFrameChunk(videoDecoderConfig)
+    videoDecoderWrapper.videoDecoder.decode(chunk)
+    return videoDecoderWrapper
+  }
+
+
+  public addFrames(videoFrame: VideoFrame) {
+    this.frames.push(videoFrame)
+  }
+
+  public availableFrames(): number {
+    return this.frames.length
+  }
+
+  public async getNextFrame(): Promise<VideoFrame | null> {
+    while (this.availableFrames() || !this.end_of_stream) {
+      if (this.frames.length) {
+        let frame: VideoFrame = this.frames.splice(0, 1)[0]
+        if (this.nextIsDummyFrame) {
+          frame.close()
+          this.nextIsDummyFrame = false
+        } else {
+          return frame
+        }
+      } else {
+        const {chunks, end_of_stream} = await this.getMoreEncodedChunks()
+        try {
+        chunks.forEach(chunk => this.videoDecoder.decode(chunk))
+        } catch (e) {
+          console.log("my error", e)
+          throw e
+        }
+
+        if (end_of_stream) {
+          console.log("Closing")
+          await this.videoDecoder.flush()
+          this.videoDecoder.close()
+          this.end_of_stream = true
+        }
+        // make sure there is time to run async code (probably not necessary but doesn't hurt)
+        await new Promise(resolve => window.setTimeout(resolve, 0))
+      }
+    }
+    return null
+  }
+}
+
+/**
+  * Gets video frames from a file.
+  * Make sure to call frame.close() when done with a frame
+  */
 export async function* getFrames(
   input: File,
-  width: number,
-  height: number
-): AsyncGenerator<ImageData, void, void> {
-  if (!Number.isInteger(width) || !Number.isInteger(height)) {
-    throw new Error("Not ints");
-  }
-  let scale_ctx: null | number = null;
+): AsyncGenerator<VideoFrame, void, void> {
   const libav = await window.LibAV.LibAV({ noworker: false, nothreads: true });
   await libav.av_log_set_level(libav.AV_LOG_ERROR);
   await libav.mkreadaheadfile(input.name, input);
@@ -91,63 +219,28 @@ export async function* getFrames(
       );
     }
     const [stream] = video_streams;
-    const [, c, pkt, frameptr] = await libav.ff_init_decoder(
-      stream.codec_id,
-      stream.codecpar
-    );
-    while (true) {
+    const pkt = await libav.av_packet_alloc()
+    const decoderConfig = (await LibAVWebcodecsBridge.videoStreamToConfig(libav, stream)) as VideoDecoderConfig
+    decoderConfig.hardwareAcceleration = "prefer-software"
+    const videoDecoderWrapper = await VideoDecoderWrapper.getVideoDecoderWrapper(0, decoderConfig, async () => {
       const [result, packets] = await libav.ff_read_multi(
         fmt_ctx,
         pkt,
         undefined,
-        { limit: 100 * 1024, copyoutPacket: "ptr" }
+        { limit: 100 * 1024}
       );
       const end_of_stream = result === libav.AVERROR_EOF;
-      const framePointers = await libav.ff_decode_multi(
-        c,
-        pkt,
-        frameptr,
-        packets[stream.index],
-        { fin: end_of_stream, copyoutFrame: "ptr" }
-      )
+      const chunks = packets[stream.index].map(p => LibAVWebcodecsBridge.packetToEncodedVideoChunk(p, stream) as EncodedVideoChunk)
+      return {chunks, end_of_stream}
+    })
 
-      for (const fp of framePointers) {
-        if (scale_ctx === null) {
-          const frameWidth = await libav.AVFrame_width(fp);
-          const frameHeight = await libav.AVFrame_height(fp);
-          const frameFormat = await libav.AVFrame_format(fp);
-          const scaleFactor = Math.min(
-            1,
-            width / frameWidth,
-            height / frameHeight
-          );
-          const targetWidth = Math.round(frameWidth * scaleFactor);
-          const targetHeight = Math.round(frameHeight * scaleFactor);
-
-          scale_ctx = await libav.sws_getContext(
-            frameWidth,
-            frameHeight,
-            frameFormat,
-            targetWidth,
-            targetHeight,
-            libav.AV_PIX_FMT_RGBA,
-            2,
-            0,
-            0,
-            0
-          );
-        }
-        await libav.sws_scale_frame(scale_ctx, frameptr, fp);
-        const imageData = await libav.ff_copyout_frame_video_imagedata(
-          frameptr
-        );
-        await libav.av_frame_unref(fp);
-        await libav.av_frame_unref(frameptr);
-        yield imageData;
-      }
-      if (end_of_stream) {
+    while (true) {
+      const frame = await videoDecoderWrapper.getNextFrame()
+      if (frame === null) {
+        console.log("done -- break")
         break;
       }
+      yield frame;
     }
   } finally {
     await libav.unlink(input.name);

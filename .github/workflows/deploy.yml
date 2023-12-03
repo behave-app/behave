@@ -28,8 +28,6 @@ jobs:
         # However because of the hash, cache only gets restored if the Dockerfile
         # is unchanged.
         run: make -t public/app/bundled/libavjs/version.txt || true
-      - name: install packages
-        run: npm install .
       - name: Build
         run: DOCKER="docker buildx" DOCKER_TMPDIR=/tmp make all
       - name: Set AWS credentials

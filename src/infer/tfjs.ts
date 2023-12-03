@@ -189,7 +189,7 @@ export async function infer(
     const boxes_data = await boxes_nms.data() as Float32Array// indexing boxes by nms index
     const scores_data = await scores_nms.data() as Float32Array // indexing scores by nms index
     const classes_data = await classes_nms.data() as Float32Array // indexing classes by nms index
-    tf.dispose([img_tensor, res, boxes, scores, classes, nms,
+    tf.dispose([img_tensor, res, boxes, scores, classes, nms, boxes_nms,
       scores_nms, classes_nms]);
     return [boxes_data, scores_data, classes_data]
   } else {

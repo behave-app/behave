@@ -26,8 +26,31 @@ export async function convert(
   const reportedFramedPerFrame = input.name.endsWith(".MTS") ? 2 : 1  // TODO better check for interlaced
 
   const outputname = getOutputFilename(input.name)
-  const libav = await window.LibAV.LibAV({noworker: false, nothreads: true});
+  const libav = await window.LibAV.LibAV({noworker: true, nothreads: true});
   try {
+    let cache: {
+      start: number,
+      buffer: ArrayBuffer
+    } = {start: 0, buffer: new ArrayBuffer(0)}
+    const READSIZE = 10*1024*1024
+    libav.onblockread = async function(name, pos, length) {
+      if (name !== input.name) {
+        throw new Error("help")
+      }
+      const availableLength = input.size - pos
+      length = Math.min(length, availableLength)
+      if (pos < cache.start || pos + length > cache.start + cache.buffer.byteLength) {
+        cache = {
+          start: pos,
+          buffer: await input.slice(pos, Math.min(pos + READSIZE, input.size)).arrayBuffer()
+        }
+      }
+
+      const readstart = pos - cache.start
+      libav.ff_block_reader_dev_send(
+        name, pos, new Uint8Array(cache.buffer, readstart, length))
+    };
+
     await libav.mkreadaheadfile(input.name, input)
     await libav.mkwriterdev(outputname)
     await libav.mkstreamwriterdev(PROGRESSFILENAME)

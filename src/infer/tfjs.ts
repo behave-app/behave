@@ -1,3 +1,4 @@
+import { createXXHash64 } from 'hash-wasm';
 import * as tf from '@tensorflow/tfjs'
 import {setWasmPaths} from "@tensorflow/tfjs-backend-wasm"
 setWasmPaths("app/bundled/tfjs-wasm/")
@@ -38,7 +39,20 @@ export async function getModel(
       name => modelDirectory.getFileHandle(name).then(fh => fh.getFile())))
   const model = await tf.loadGraphModel(
     tf.io.browserFiles([modelFile, ...weightFiles]))
+  console.log({model})
   return model
+}
+
+async function createHash(file: File): Promise<string> {
+  const READSIZE = 10 *  1024 * 1024
+  // using xxHash64 since it's one of the quickest
+  const hasher = await createXXHash64()
+  hasher.init()
+  for (let start=0; start < file.size; start += READSIZE) {
+    const end = Math.min(file.size, start + READSIZE)
+    hasher.update(new Uint8Array(await file.slice(start, end).arrayBuffer()))
+  }
+  return hasher.digest("hex")
 }
 
 export async function convert(
@@ -50,14 +64,18 @@ export async function convert(
   ctx?: CanvasRenderingContext2D,
 ) {
   const numberOfFrames = await getNumberOfFrames(file)
+  const hash = await createHash(file)
   let framenr = 0;
   const textEncoder = new TextEncoder()
-  await outputstream.write(textEncoder.encode(
-    `# Framenumber, Class, x, y, w, h, confidence\n`
-      + `# (x, y) is the left top of the detection\n`
-      + `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)\n`
+  await outputstream.write(textEncoder.encode([
+    `# Total number of frames: 0000000`,
+    `# Source file name: ${file.name}`,
+    `# Source file xxHash64: ${hash}`,
+    `# Framenumber, Class, x, y, w, h, confidence`,
+    `# (x, y) is the left top of the detection`,
+    `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)`,
+  ].join("\n") + "\n"
   ))
-  const MODEL_DIMENSION = 640
   for await (const videoFrame of getFrames(file)) {
     const [boxes, scores, classes] = await infer(model, yoloVersion, videoFrame)
     if (ctx) {
@@ -87,6 +105,9 @@ export async function convert(
     onProgress({"converting": Math.min(framenr / numberOfFrames, 1)})
     framenr++
   }
+  await outputstream.seek(0)
+  await outputstream.write(textEncoder.encode(
+    `# Total number of frames: ${framenr.toString().padStart(7,"0")}`))
 }
 
 export function preprocess(
@@ -112,11 +133,11 @@ export function preprocess(
   const yRatio = maxSize / h; // update yRatio
 
   const image = tf.image
-    .resizeBilinear(
-      imgPadded,
-      [modelWidth, modelHeight]) // resize frame
-    .div(255.0) // normalize
-    .expandDims(0); // add batch
+  .resizeBilinear(
+    imgPadded,
+    [modelWidth, modelHeight]) // resize frame
+  .div(255.0) // normalize
+  .expandDims(0); // add batch
 
   return [image, xRatio, yRatio]
 };

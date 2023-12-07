@@ -25,11 +25,23 @@ export async function getEntry(
   return await getEntry(entry, restpath)
 }
 
+export async function cp(
+  sourceFile: File,
+  destinationEntry: FileSystemFileHandle,
+) {
+  const BLOCKSIZE = 1024*1024
+  const destinationStream = await destinationEntry.createWritable()
+  for (let start = 0; start < sourceFile.size; start += BLOCKSIZE) {
+    const end = Math.min(start + BLOCKSIZE,sourceFile.size)
+    await destinationStream.write(sourceFile.slice(start, end))
+  }
+  destinationStream.close()
+}
+
 export async function cp_r(
   source: FileSystemDirectoryHandle,
   destination: FileSystemDirectoryHandle
 ) {
-  const BLOCKSIZE = 1024*1024
   for await (const [name, entry] of source.entries()) {
     if (entry instanceof FileSystemDirectoryHandle) {
       const destinationEntry = await destination.getDirectoryHandle(
@@ -38,13 +50,7 @@ export async function cp_r(
     } else {
       const destinationEntry = await destination.getFileHandle(
         name, {create: true})
-      const sourceFile = await entry.getFile()
-      const destinationStream = await destinationEntry.createWritable()
-      for (let start = 0; start < sourceFile.size; start += BLOCKSIZE) {
-        const end = Math.min(start + BLOCKSIZE,sourceFile.size)
-        await destinationStream.write(sourceFile.slice(start, end))
-      }
-      destinationStream.close()
+      cp(await entry.getFile(), destinationEntry)
     }
   }
 }

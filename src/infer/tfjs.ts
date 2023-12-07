@@ -1,4 +1,3 @@
-import { createXXHash64 } from 'hash-wasm';
 import * as tf from '@tensorflow/tfjs'
 import {setWasmPaths} from "@tensorflow/tfjs-backend-wasm"
 setWasmPaths("app/bundled/tfjs-wasm/")
@@ -6,6 +5,7 @@ import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import type {FileTreeLeaf} from "../lib/FileTree.js"
 import {getNumberOfFrames, getFrames} from "../lib/video.js"
+import { xxh64sum } from 'src/lib/fileutil.js'
 
 
 export function getOutputFilename(inputfilename: string) {
@@ -43,18 +43,6 @@ export async function getModel(
   return model
 }
 
-async function createHash(file: File): Promise<string> {
-  const READSIZE = 10 *  1024 * 1024
-  // using xxHash64 since it's one of the quickest
-  const hasher = await createXXHash64()
-  hasher.init()
-  for (let start=0; start < file.size; start += READSIZE) {
-    const end = Math.min(file.size, start + READSIZE)
-    hasher.update(new Uint8Array(await file.slice(start, end).arrayBuffer()))
-  }
-  return hasher.digest("hex")
-}
-
 export async function convert(
   model: Model,
   yoloVersion: YoloVersion,
@@ -64,7 +52,7 @@ export async function convert(
   ctx?: CanvasRenderingContext2D,
 ) {
   const numberOfFrames = await getNumberOfFrames(file)
-  const hash = await createHash(file)
+  const hash = await xxh64sum(file)
   let framenr = 0;
   const textEncoder = new TextEncoder()
   await outputstream.write(textEncoder.encode([

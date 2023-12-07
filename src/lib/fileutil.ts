@@ -1,3 +1,5 @@
+import { createXXHash64 } from 'hash-wasm';
+
 export async function getEntry(
   fsh: FileSystemDirectoryHandle,
   path: string[],
@@ -45,4 +47,28 @@ export async function cp_r(
       destinationStream.close()
     }
   }
+}
+
+export async function xxh64sum(
+  file: File,
+  reportProgress?: (progress: number) => void
+): Promise<string> {
+  const READSIZE = 10 *  1024 * 1024
+  const UPDATE_FREQUENCY_MS = 200
+  let lastUpdate = Date.now()
+  reportProgress && reportProgress(0)
+  const hasher = await createXXHash64()
+  hasher.init()
+  for (let start=0; start < file.size; start += READSIZE) {
+    const end = Math.min(file.size, start + READSIZE)
+    hasher.update(new Uint8Array(await file.slice(start, end).arrayBuffer()))
+    if (reportProgress) {
+      const now = Date.now()
+      if (now - lastUpdate > UPDATE_FREQUENCY_MS) {
+        lastUpdate = Date.now()
+        reportProgress(end / file.size)
+      }
+    }
+  }
+  return hasher.digest("hex")
 }

@@ -1,17 +1,35 @@
-import { JSX } from "preact/jsx-runtime"
+import { FunctionComponent } from "preact"
 import * as css from "./viewer.module.css"
-import { useAppDispatch, } from './store';
+import { useAppDispatch, RootState } from './store';
 import { useSelector } from 'react-redux';
-import { increment, decrement, incrementAsync, selectCount} from './reducer';
+import { selectVideoFileIsReady, selectVideoFile } from "./videoFileSlice.js";
+import { selectMainWindow, MainWindow } from "./appSlice.js";
+import { FileSelector } from "./FileSelector.js"
 
-export const Viewer: preact.FunctionComponent = () => {
+
+const VideoViewer: FunctionComponent = () => {
+  const videoFile = useSelector(selectVideoFile)
+
+  return <div>Video: {videoFile.file.name} ({videoFile.xxh64sum})</div>
+}
+
+const MAIN_WINDOW_MAP: {[key in MainWindow]: FunctionComponent<{}>} = {
+  FileSelector,
+  VideoViewer,
+} as const
+
+export const Viewer: FunctionComponent = () => {
   const dispatch = useAppDispatch();
-  const count = useSelector(selectCount)
+  const windowToShow : MainWindow = useSelector((state: RootState) => {
+    if (!selectVideoFileIsReady(state)) {
+      return "FileSelector"
+    }
+    return selectMainWindow(state)
+  })
+
+  const MainWindowElement = MAIN_WINDOW_MAP[windowToShow]
 
   return <div className={css.test}>
-    <h1>Counter: {count}</h1>
-      <button onClick={() => dispatch(increment())}>Increment</button>
-      <button onClick={() => dispatch(decrement())}>Decrement</button>
-    <button onClick={() => dispatch(incrementAsync(7))}>Add Async</button>
+    <MainWindowElement />
   </div>
 }

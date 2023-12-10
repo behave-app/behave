@@ -12,10 +12,14 @@ LIBAVJS_MAKE_FILES := $(addprefix dist/libav-$(LIBAVJS_VERSION)-, $(LIBAVJS_BASE
 LIBAVJS_TARGET_FILES := $(addprefix public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/, $(LIBAVJS_MAKE_FILES))
 HTML_FILES := $(wildcard *.html)
 HTML_TARGET_FILES := $(addprefix public/, $(HTML_FILES))
-ENTRYPOINTS := $(shell node -p "require('./tsconfig.json').include.filter(x => !x.endsWith('.d.ts')).join(' ')")
+ENTRYPOINTS := \
+    ./src/convert/App.tsx \
+    ./src/infer/App.tsx \
+    ./src/debug/App.tsx \
+    ./src/viewer/index.tsx
 OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
-.PHONY=all public/app/bundled/libavjs
+.PHONY=all public/app/bundled/libavjs lint
 
 all: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(HTML_TARGET_FILES) public/app/bundled/tfjs-wasm
 
@@ -43,8 +47,11 @@ node_modules/tag: package.json
 	@cd node_modules/libavjs-webcodecs-bridge && make all
 	@touch $@
 
-public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
+lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
 	@tsc --noEmit
+	@./node_modules/eslint/bin/eslint.js src
+
+public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
 	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"))) > $@.part
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part

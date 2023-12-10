@@ -16,9 +16,6 @@
     }
   },
   "include": [
-    "./src/Globals.d.ts",
-    "./src/convert/App.tsx",
-    "./src/infer/App.tsx",
-    "./src/viewer/index.tsx"
+    "./src"
   ]
 }

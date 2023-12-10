@@ -33,3 +33,19 @@ export function formatTimeHMMSS(totalseconds: number): string {
   `${seconds}`.padStart(2, "0"),
   ].join(":")
 }
+
+export function getPromiseFromEvent<T extends string>(
+  item: {
+    addEventListener(eventName: T, listener: (event: Event & {type: T}) => void): void,
+    removeEventListener(eventName: T, listener:  (event: Event & {type: T}) => void): void,
+  },
+  eventName: T
+): Promise<Event> {
+  return new Promise((resolve) => {
+    const listener = (event: Event) => {
+      item.removeEventListener(eventName, listener);
+      resolve(event);
+    }
+    item.addEventListener(eventName, listener);
+  })
+}

@@ -1,6 +1,7 @@
 import * as css from "./filetree.module.css"
 import { JSX } from "preact"
 import { formatTime } from "./util.js";
+import { CSSProperties } from "preact/compat";
 
 export type ConvertAction = (
   input: File,
@@ -90,7 +91,7 @@ export function updateLeaf(files: FileTreeBranch, path: string[], update: FileTr
   return newFiles
 }
 
-function findLeaf(files: FileTreeBranch, path: string[]): FileTreeLeaf {
+export function findLeaf(files: FileTreeBranch, path: string[]): FileTreeLeaf {
   const [p, ...restpath] = path
   const item = files.get(p)
   if (restpath.length === 0) {
@@ -105,7 +106,7 @@ function findLeaf(files: FileTreeBranch, path: string[]): FileTreeLeaf {
   return findLeaf(item, restpath)
 }
 
-function getAllLeafPaths(files: FileTreeBranch): string[][] {
+export function getAllLeafPaths(files: FileTreeBranch): string[][] {
   return [...files.entries()]
     .flatMap(([name, entry]) =>
     (entry instanceof Map)
@@ -195,7 +196,7 @@ export async function convertAll(
   concurrency: number,
   conversionAction: ConvertAction,
   getOutputFilename: (name: string) => string,
-  setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void
+  setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void,
 ) {
   const destination = await window.showDirectoryPicker(
     {id: "mp4save", mode: "readwrite"})
@@ -216,8 +217,8 @@ export async function convertAll(
   }
   setFiles(newFiles)
 
-  const promises: Set<Promise<any>> = new Set()
-  let finished: Promise<any>[] = []
+  const promises: Set<Promise<unknown>> = new Set()
+  let finished: Promise<unknown>[] = []
   for (const path of queuedPaths) {
     while (promises.size >= concurrency) {
       await Promise.any(promises)
@@ -233,14 +234,14 @@ export async function convertAll(
       setFiles
     )
     promises.add(promise)
-    promise.then(() => finished.push(promise))
+    void(promise.then(() => finished.push(promise)))
   }
   await Promise.all(promises)
 }
 
-function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, style: any, title?: string} {
+function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, style: CSSProperties, title?: string} {
   const classes = [css.filename]
-  const style: any = {}
+  const style: CSSProperties = {}
   let title: undefined | string = undefined
   if (fileTreeLeaf.progress === undefined) {
     classes.push(css.editable)

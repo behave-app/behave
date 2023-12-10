@@ -18,5 +18,7 @@ export const appSlice = createSlice({
 
 export default appSlice.reducer
 
+export const {mainWindowChanged} = appSlice.actions
+
 export const selectMainWindow = (state: RootState) => state.app.mainWindow
 export const selectOpfsFileCache = (state: RootState) => state.app.opfsFileCache

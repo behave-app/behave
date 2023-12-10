@@ -27,7 +27,7 @@ export function Upload({addFiles}: Props): JSX.Element {
       if (event.dataTransfer !== null) {
         const fileSystemHandles = filterNull(await Promise.all(
           [...event.dataTransfer.items].map(dti => dti.getAsFileSystemHandle())))
-        addFiles(fileSystemHandles)
+        void(addFiles(fileSystemHandles))
       }
       setDragState("nodrag")
     }
@@ -55,7 +55,7 @@ export function Upload({addFiles}: Props): JSX.Element {
   }, [])
   async function selectFilesToAdd() {
     const files = await window.showOpenFilePicker({multiple: true})
-    addFiles(files)
+    void(addFiles(files))
   }
   return <>
     <div className={css.box}><button onClick={selectFilesToAdd}>Add files</button></div> 

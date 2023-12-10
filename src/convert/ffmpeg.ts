@@ -31,9 +31,9 @@ export async function convert(
     await libav.mkreadaheadfile(input.name, input)
     await libav.mkwriterdev(outputname)
     await libav.mkstreamwriterdev(PROGRESSFILENAME)
-    const writePromises: Set<Promise<any>> = new Set()
-    let progressController: ReadableStreamDefaultController<ArrayBuffer> = null as any
-    let progressStream = new ReadableStream({
+    const writePromises: Set<Promise<unknown>> = new Set()
+    let progressController = null as unknown as ReadableStreamDefaultController<ArrayBuffer>
+    const progressStream = new ReadableStream({
       start(controller) {
         progressController = controller
       }
@@ -46,10 +46,10 @@ export async function convert(
       const promise = outputstream.write(
         {type: "write", data: data.slice(0), position: pos})
       writePromises.add(promise)
-      promise.then(() => {writePromises.delete(promise)})
+      void(promise.then(() => {writePromises.delete(promise)}))
     }
     let progressStreamLeftOver = ""
-    progressStream.pipeTo(new WritableStream({
+    void(progressStream.pipeTo(new WritableStream({
       write(chunk: string) {
         const parts = (progressStreamLeftOver + chunk).split("\n")
         progressStreamLeftOver = parts.slice(-1)[0]
@@ -65,7 +65,7 @@ export async function convert(
           }
         }
       }
-    }))
+    })))
 
     const exit_code = await libav.ffmpeg(
       "-i", input.name,
@@ -78,9 +78,9 @@ export async function convert(
       "-y", outputname
     )
     await Promise.all(writePromises)
-    libav.unlink(input.name)
-    libav.unlink(outputname)
-    libav.unlink(PROGRESSFILENAME)
+    await libav.unlink(input.name)
+    await libav.unlink(outputname)
+    await libav.unlink(PROGRESSFILENAME)
     if (progressController) {
       progressController.close()
     }

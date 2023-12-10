@@ -51,14 +51,14 @@ export function YoloSettingsDialog({
       // Technically someone can have removed it since the last load of the site
       // If so, bad luck. This will generate an error, and that's it
       // Reload and you'll start with an empty model
-      navigator.storage.getDirectory()
+      void(navigator.storage.getDirectory()
         .then(opfsRoot => opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY))
         .then(opfsModelDir => {
           setYoloVersion(yoloSettings.yoloVersion)
           setConcurrency(yoloSettings.concurrency)
           setBackend(yoloSettings.backend)
           setModelDir(opfsModelDir)
-        })
+        }))
     }
   }, [yoloSettings])
 
@@ -66,14 +66,14 @@ export function YoloSettingsDialog({
     if (yoloSettings) {
       return;
     }
-    ;(async () => {
+    void((async () => {
       const json = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
       if (!json) {
         setYoloSettings(null)
         return
       }
       try {
-        let ys = JSON.parse(json) as YoloSettingsWithoutModel
+        const ys = JSON.parse(json) as YoloSettingsWithoutModel
         const model = await loadModelFromOPFS(ys.backend)
         setYoloSettings({...ys, model})
       } catch (e) {
@@ -81,7 +81,7 @@ export function YoloSettingsDialog({
         console.error(e)
         setYoloSettings(null)
       }
-    })()
+    })())
   }, [yoloSettings])
 
   async function save() {

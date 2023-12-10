@@ -35,7 +35,7 @@ export async function cp(
     const end = Math.min(start + BLOCKSIZE,sourceFile.size)
     await destinationStream.write(sourceFile.slice(start, end))
   }
-  destinationStream.close()
+  await destinationStream.close()
 }
 
 export async function cp_r(
@@ -50,7 +50,7 @@ export async function cp_r(
     } else {
       const destinationEntry = await destination.getFileHandle(
         name, {create: true})
-      cp(await entry.getFile(), destinationEntry)
+      await cp(await entry.getFile(), destinationEntry)
     }
   }
 }

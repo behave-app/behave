@@ -10,7 +10,7 @@ function fileFilter(file: File, extension: string): boolean {
   return !file.name.startsWith(".") && file.name.endsWith("." + extension)
 }
 
-export function Inferrer({}: {}): JSX.Element {
+export function Inferrer(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
   const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)

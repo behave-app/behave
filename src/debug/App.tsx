@@ -1,9 +1,9 @@
 import { render } from "preact"
 
-import {Inferrer} from "./Inferrer.js"
+import {Debugger} from "./Debugger.js"
 
 export function App() {
-  return <div><Inferrer /></div>
+  return <div><Debugger /></div>
 }
 
 render(<App />, document.body)

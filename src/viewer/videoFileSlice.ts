@@ -1,5 +1,4 @@
-
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { RootState } from './store'
 
 export type VideoFile = {
@@ -11,13 +10,13 @@ export const videoFileSlice = createSlice({
   name: "videoFile",
   initialState: null as null | VideoFile,
   reducers: {
-    videoFileAdded: (state, action: PayloadAction<VideoFile>) => {
+    videoFileSet: (_state, action: PayloadAction<VideoFile>) => {
       return action.payload
     },
   }
 })
 
-export const {videoFileAdded} = videoFileSlice.actions
+export const {videoFileSet} = videoFileSlice.actions
 
 export default videoFileSlice.reducer
 

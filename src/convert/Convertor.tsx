@@ -12,7 +12,7 @@ function fileFilter(file: File, extension: string): boolean {
 }
 
 
-export function Convertor({}: {}): JSX.Element {
+export function Convertor(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
   const [state, setState] = useState<"uploading" | "converting" | "done">("uploading")
 

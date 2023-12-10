@@ -4,8 +4,8 @@ import { useEffect, useState } from "preact/hooks";
 import { useSelector } from 'react-redux';
 import { cp, xxh64sum } from "../lib/fileutil.js";
 import { useAppDispatch } from "./store.js";
-import { selectOpfsFileCache } from "./appSlice.js";
-import { VideoFile, selectVideoFilePotentiallyNull, videoFileAdded } from "./videoFileSlice.js";
+import { selectOpfsFileCache, mainWindowChanged, selectMainWindow } from "./appSlice.js";
+import { VideoFile, selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice.js";
 
 type VideoFileState = {
   state: "none"
@@ -17,14 +17,14 @@ type VideoFileState = {
   {state: "done"} & VideoFile
 )
 
-type FileSelector = FunctionComponent<{
-}>
+type FileSelector = FunctionComponent<Record<string, never>>
 
 const OPFS_VIDEO_FILE_NAME = "video.MTS"
 const OPFS_VIDEO_FILE_HASH_NAME = "video.xxh64sum"
 
 export const FileSelector: FileSelector = () => {
   const dispatch = useAppDispatch()
+  const mainWindow = useSelector(selectMainWindow)
   const doUOPFSFileCache = useSelector(selectOpfsFileCache)
   const [videoFile, setVideoFile] = useState<VideoFileState>(
     useSelector(createSelector(
@@ -40,7 +40,7 @@ export const FileSelector: FileSelector = () => {
     if (videoFile.state !== "none" || !doUOPFSFileCache) {
       return
     }
-    ;(async () => {
+    void((async () => {
       const opfsRoot = await navigator.storage.getDirectory()
       let fsfh;
       let fsfh_hash;
@@ -52,11 +52,12 @@ export const FileSelector: FileSelector = () => {
         return
       }
       const hash = await (await fsfh_hash.getFile()).text()
-      dispatch(videoFileAdded({
-        file: await fsfh.getFile(),
+      const file = await fsfh.getFile()
+      dispatch(videoFileSet({
+        file,
         xxh64sum: hash,
       }))
-    })()
+    })())
   }, [videoFile, doUOPFSFileCache])
 
   const chooseVideoFile = async () => {
@@ -81,12 +82,12 @@ export const FileSelector: FileSelector = () => {
       const opfsRoot = await navigator.storage.getDirectory()
       const destination = await opfsRoot.getFileHandle(
         OPFS_VIDEO_FILE_NAME, {create: true})
-      cp(file, destination)
+      await cp(file, destination)
       const destination_hash = await opfsRoot.getFileHandle(
         OPFS_VIDEO_FILE_HASH_NAME, {create: true})
       const stream = await destination_hash.createWritable()
-      stream.write(new TextEncoder().encode(hash))
-      stream.close()
+      await stream.write(new TextEncoder().encode(hash))
+      await stream.close()
       const end = Date.now()
       console.log(
         `done copying file to OPFS, took ${(end - start) / 1000} seconds, `
@@ -125,8 +126,13 @@ export const FileSelector: FileSelector = () => {
     if (videoFile.state !== "done") {
       throw new Error("Illegal state")
     }
-    dispatch(videoFileAdded(
+    dispatch(videoFileSet(
       {file: videoFile.file, xxh64sum: videoFile.xxh64sum}))
+    dispatch(mainWindowChanged("VideoViewer"))
+  }
+
+  const cancel = () => {
+    dispatch(mainWindowChanged("VideoViewer"))
   }
 
   return <dl>
@@ -141,6 +147,7 @@ export const FileSelector: FileSelector = () => {
       </button>
     </dd>
     <button onClick={save} disabled={!saveButtonEnabled}>Save</button>
+    {mainWindow === "FileSelector" && <button onClick={cancel}>Cancel</button>}
   </dl>
 }
 

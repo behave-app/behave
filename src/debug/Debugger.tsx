@@ -5,17 +5,26 @@ import { JSX } from "preact"
 import {useRef, useEffect, useState} from 'preact/hooks'
 import { Video } from "../lib/video";
 
-function fileFilter(file: File, extension: string): boolean {
-  return !file.name.startsWith(".") && file.name.endsWith("." + extension)
-}
 
 export function Debugger(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
+  const [frameNr, setFrameNr] = useState(0)
+  const [video, setVideo] = useState<Video | null>(null)
+  const [sliderIsClicked, setSliderIsClicked] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const skipRef = useRef<number>(0)
+
+  useEffect(() => {
+    if (!video) return;
+    if (sliderIsClicked) return;
+    const interval = window.setInterval(() => setFrameNr(n => n + 1), 40)
+    return () => window.clearInterval(interval)
+  }, [video, sliderIsClicked])
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
-    const newFiles = await readFileSystemHandle(fileSystemHandles, file => fileFilter(file, "mp4"))
+    const newFiles = await readFileSystemHandle(
+      fileSystemHandles,
+      file => file.name.endsWith(".mp4") || file.name.endsWith(".MTS")
+    )
 
     // only set files if none there
     setFiles(files => files.size ? files : newFiles)
@@ -29,75 +38,42 @@ export function Debugger(): JSX.Element {
       const paths = getAllLeafPaths(files)
       for (const path of paths) {
         const leaf = findLeaf(files, path)
-        const start = Date.now()
-        await debugRun(leaf.file,  (progress: FileTreeLeaf["progress"]) => {
-          const timeLapsed = (Date.now() - start) / 1000
-          const newProgress: FileTreeLeaf["progress"] = (typeof progress === "object" &&"converting" in progress) ? {
-            timing: {passed: timeLapsed, expected: timeLapsed / (progress.converting || 0.0001)},
-            ...progress,
-          } : progress
-          setFiles(files =>
-            updateLeaf(files, path, leaf => ({
-              file: leaf.file, progress: newProgress})))
-        })
+        const video = new Video(leaf.file)
+        await video.init({libavoptions: {noworker: true}})
+        setVideo(video)
+        break
       }
 
     })())
   }, [files.size])
 
-
-  async function debugRun(
-    file: File,
-    onProgress: (progress: FileTreeLeaf["progress"]) => void
-  ) {
-    onProgress({"converting": 0})
-    const ctx = canvasRef.current!.getContext("2d")!
-    const video = new Video(file)
-    await video.init({libavoptions: {noworker: true}})
-    console.log({stream: video.videoStream})
-    let i = 0;
-    let lastFrame: VideoFrame | null = null
-    let startTime = 0
-    while (true) {
-      await video.flushAndPrimeVideoDecoder()
-      const result = await video.libav.avformat_seek_file_max(
-        video.formatContext,
-        video.videoStream.index,
-        50000000, 0,
-        0)
-      if (result !== 0) {
-        throw new Error("Search failed: " + result)
-      }
-      skipRef.current = 0
-      await new Promise(resolve => window.setTimeout(resolve, 100))
-      for await (const frame of video.getFrames()) {
-        const now = Date.now()
-        if (startTime === 0) {
-          startTime = now - frame.timestamp / 1000
-        } else {
-          const waitTime = startTime + frame.timestamp / 1000 - now
-          if (waitTime > 0) {
-            await new Promise(resolve => window.setTimeout(resolve, waitTime))
-          }
-        }
-        i+= 1
-        ctx.drawImage(frame, 0, 0, 640, 360)
-        onProgress({"converting": i / 45000})
-        if (lastFrame) lastFrame.close()
-        lastFrame = frame
-        if (skipRef.current !== 0) {
-          console.log({skipRef})
-          break
-        }
-      }
+  useEffect(() => {
+    if (video === null) {
+      return
     }
-    console.log({lastFrame})
-    await video.deinit()
-    onProgress("done")
-  }
+    void((async (frameNumber: number) => {
+      const frame = await video.getFrame(frameNumber)
+      if (!canvasRef.current) {
+        return
+      }
+      const ctx = canvasRef.current.getContext("2d")!
+      if (frame === null) {
+        return
+      }
+      if (frame === "EOF") {
+        ctx.fillStyle = "blue"
+        ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+        return
+      }
+      ctx.drawImage(frame, 0, 0, canvasRef.current.width, canvasRef.current.height)
+    })(frameNr))
+
+
+  }, [frameNr, video])
+
 
   const skipDelta = (diff: number) => {
-    skipRef.current += diff
+    setFrameNr(frameNr => frameNr + diff)
   }
 
   return <>
@@ -112,6 +88,10 @@ export function Debugger(): JSX.Element {
     <canvas width="640" height="360" ref={canvasRef}/>
     <button onClick={() => skipDelta(-10)}>-10s</button>
     <button onClick={() => skipDelta(10)}>+10s</button>
+    <div style={{width: "100%"}}>
+      <input type="range" min="0" max={(video && video.videoInfo && video.videoInfo.numberOfFramesInStream || 1) - 1} value={frameNr} onMouseDown={() => setSliderIsClicked(true)} onMouseUp={() => setSliderIsClicked(false)} onInput={e => {const val = (e.target as HTMLInputElement).valueAsNumber; console.log("set", val); setFrameNr(val)} } />
+    {frameNr}
+    </div>
   </>
 }
 

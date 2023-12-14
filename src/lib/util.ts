@@ -35,10 +35,7 @@ export function formatTimeHMMSS(totalseconds: number): string {
 }
 
 export function getPromiseFromEvent<T extends string>(
-  item: {
-    addEventListener(eventName: T, listener: (event: Event & {type: T}) => void): void,
-    removeEventListener(eventName: T, listener:  (event: Event & {type: T}) => void): void,
-  },
+  item: EventTarget,
   eventName: T
 ): Promise<Event> {
   return new Promise((resolve) => {
@@ -71,7 +68,10 @@ export function promiseWithTimeout<T>(
 ): Promise<T | "timeout"> {
   return Promise.race([
     promise,
-    new Promise<"timeout">(
-      resolve => window.setTimeout(() => resolve("timeout"), timeout_ms)),
+    asyncSleep(timeout_ms).then(() => "timeout" as const)
   ])
+}
+
+export async function asyncSleep(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
 }

@@ -9,6 +9,8 @@ import { Video } from "../lib/video";
 export function Debugger(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
   const [frameNr, setFrameNr] = useState(0)
+  const [numberAndFrame, setNumberAndFrame] =
+    useState<[number, VideoFrame | "EOF"]>()
   const [video, setVideo] = useState<Video | null>(null)
   const [sliderIsClicked, setSliderIsClicked] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -16,8 +18,8 @@ export function Debugger(): JSX.Element {
   useEffect(() => {
     if (!video) return;
     if (sliderIsClicked) return;
-    const interval = window.setInterval(() => setFrameNr(n => n + 1), 40)
-    return () => window.clearInterval(interval)
+    //const interval = window.setInterval(() => setFrameNr(n => n + 1), 40)
+    //return () => window.clearInterval(interval)
   }, [video, sliderIsClicked])
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
@@ -53,24 +55,33 @@ export function Debugger(): JSX.Element {
     }
     void((async (frameNumber: number) => {
       const frame = await video.getFrame(frameNumber)
-      if (!canvasRef.current) {
-        return
-      }
-      const ctx = canvasRef.current.getContext("2d")!
+      console.log(`got ${frameNumber}: ${frame === null ? "" : "not"} null`)
       if (frame === null) {
         return
       }
+      setNumberAndFrame([frameNumber, frame])
+    })(frameNr))
+  }, [frameNr, video])
+
+  useEffect(() => {
+    if (!canvasRef.current) {
+      return
+    }
+    if (numberAndFrame === undefined) {
+      return
+    }
+    const [frameNumber, frame] = numberAndFrame
+      const ctx = canvasRef.current.getContext("2d")!
       if (frame === "EOF") {
         ctx.fillStyle = "blue"
         ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
-        return
+      } else {
+        ctx.drawImage(frame, 0, 0, canvasRef.current.width, canvasRef.current.height)
       }
-      ctx.drawImage(frame, 0, 0, canvasRef.current.width, canvasRef.current.height)
-    })(frameNr))
-
-
-  }, [frameNr, video])
-
+      ctx.font = "48px sans-serif"
+      ctx.fillStyle = "yellow"
+      ctx.fillText(frameNumber.toString(), 10, 40)
+    }, [numberAndFrame])
 
   const skipDelta = (diff: number) => {
     setFrameNr(frameNr => frameNr + diff)
@@ -88,9 +99,15 @@ export function Debugger(): JSX.Element {
     <canvas width="640" height="360" ref={canvasRef}/>
     <button onClick={() => skipDelta(-10)}>-10s</button>
     <button onClick={() => skipDelta(10)}>+10s</button>
+    <button onClick={() => setFrameNr(35656)}>35656</button>
+    <button onClick={() => setFrameNr(35696)}>35696</button>
     <div style={{width: "100%"}}>
       <input type="range" min="0" max={(video && video.videoInfo && video.videoInfo.numberOfFramesInStream || 1) - 1} value={frameNr} onMouseDown={() => setSliderIsClicked(true)} onMouseUp={() => setSliderIsClicked(false)} onInput={e => {const val = (e.target as HTMLInputElement).valueAsNumber; console.log("set", val); setFrameNr(val)} } />
-    {frameNr}
+    {frameNr} = 
+      {frameNr % 300 === 2 ? "IDR"
+      : frameNr % 12 === 2 ? "I"
+      : frameNr % 3 === 2 ? "P" : "B"}-frame (simple heuristic, don't trust me)
+
     </div>
   </>
 }

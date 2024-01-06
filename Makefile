@@ -1,6 +1,6 @@
 DOCKER ?= nerdctl.lima
 DOCKER_TMPDIR ?= /tmp/lima/
-LIBAVJS_VERSION := 4.6.6.0.1
+LIBAVJS_VERSION := 4.8.6.0.1
 LIBAVJS_COMMIT := $(shell cat libav.js/commit.txt | tr -d '\n')
 LIBAVJS_BASE_FILES := \
 	behave.dbg.js \

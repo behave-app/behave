@@ -26,7 +26,7 @@ function dumpPacket(packet: LibAVTypes.Packet) {
   }
 }
 
-function extractNALs(packet: LibAVTypes.Packet): number[] {
+export function extractNALs(packet: LibAVTypes.Packet): number[] {
   const view = new DataView(packet.data.buffer)
   const nals = []
   let index = 0
@@ -63,13 +63,13 @@ type VideoInfo = {
   readonly fps: number,
 }
 
-function splitLowHigh(combined: number): {lo: number, hi: number} {
+export function splitLowHigh(combined: number): {lo: number, hi: number} {
   const hi = Math.floor(combined / 0x100000000)
   const lo = combined & 0xFFFFFFFF
   return {hi, lo}
 }
 
-function combineLowHigh(lo: number, hi: number): number {
+export function combineLowHigh(lo: number, hi: number): number {
   const unsigned_lo = lo >= 0 ? lo : lo + 0x100000000
   const tsCombined = unsigned_lo + hi * 0x100000000
   if (!Number.isSafeInteger(tsCombined)) {
@@ -229,7 +229,7 @@ export class Video {
   public readonly formatContext = null as unknown as number
   public readonly videoStream = null as unknown as LibAVTypes.Stream
   public readonly videoInfo = null as unknown as VideoInfo
-  private readonly ticksToUsFactor: number = null as unknown as number;
+  public readonly ticksToUsFactor: number = null as unknown as number;
   private packetStreamState: PacketStreamState = {state: "stopped"}
   private frameStreamState: FrameStreamState = null as unknown as FrameStreamState
 
@@ -239,8 +239,6 @@ export class Video {
   async init(options?: { libavoptions?: LibAVTypes.LibAVOpts }) {
     const _rwthis = this as {
       -readonly [K in keyof typeof this]: typeof this[K]
-    } & {
-        ticksToUsFactor: number,
     }
     if (_rwthis.libav !== null) {
       throw new Error("already inited");
@@ -272,10 +270,10 @@ export class Video {
     await this.setVideoInfo()
     const frameCache = new FrameCache(0, 50, 50)
     this.frameStreamState = {state: "streaming", frameCache}
-    void(this.frameCacheFiller())
+    // void(this.frameCacheFiller())
   }
 
-  private async getInitialisedVideoDecoder(
+  public async getInitialisedVideoDecoder(
     callback: (frame: VideoFrame) => void
   ): Promise<VideoDecoder> {
     const videoDecoder = new VideoDecoder({
@@ -573,6 +571,13 @@ export class Video {
           }
           const pts = combineLowHigh(packet.pts!, packet.ptshi!)
           const framenr = (pts - startTick) / frameDurationTicks
+          const nals = extractNALs(packet)
+          if (lastFrameNumberToAddToDecoder === "good enough") {
+            console.log(`First frame after seek: ${framenr}; nals ${nals.map(n => n.toString(16).padStart(2, "0")).join(" ")}`)
+          }
+          if (new Set(nals).has(0x65)) {
+            console.log("IDR frame " + framenr)
+          }
           if (Number.isInteger(framenr)) {
             frameCache.setIfPartOfCacheSection(framenr, "loading")
           }
@@ -598,6 +603,19 @@ export class Video {
       }
     }
     videoDecoder.close()
+  }
+
+  async *getFrames(): AsyncGenerator<VideoFrame, void, void> {
+    let frameNumber = 0
+    while (true) {
+      const frame = await this.getFrame(frameNumber)
+      if (frame === "EOF" || frame === null) {
+        return
+      }
+      yield frame
+      frameNumber++
+
+    }
   }
 
   async getFrame(frameNumber: number): Promise<VideoFrame | null | "EOF"> {
@@ -690,7 +708,7 @@ export async function getNumberOfFrames(input: File): Promise<number> {
 /**
  * See https://github.com/Yahweasel/libavjs-webcodecs-bridge/issues/3#issuecomment-1837189047 for more info
  */
-async function createFakeKeyFrameChunk(
+export async function createFakeKeyFrameChunk(
   decoderConfig: VideoDecoderConfig
 ): Promise<EncodedVideoChunk> {
   const { promise, resolve, reject } = promiseWithResolve<EncodedVideoChunk>();

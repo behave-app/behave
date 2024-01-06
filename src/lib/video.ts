@@ -270,7 +270,7 @@ export class Video {
     await this.setVideoInfo()
     const frameCache = new FrameCache(0, 50, 50)
     this.frameStreamState = {state: "streaming", frameCache}
-    // void(this.frameCacheFiller())
+    void(this.frameCacheFiller())
   }
 
   public async getInitialisedVideoDecoder(
@@ -471,6 +471,12 @@ export class Video {
     }
     this.packetStreamState = {state: "seeking"}
     try {
+      if (frameNumber === 0) {
+        const seekFlags = this.libav.AVSEEK_FLAG_BYTE
+        await this.libav.avformat_seek_file_max(
+          this.formatContext, this.videoStream.index, 0, 0, seekFlags)
+        return
+      }
       const frameNumberPts = this.videoInfo.startTick
         + frameNumber * this.videoInfo.frameDurationTicks
       const {lo: ptslo, hi: ptshi} = splitLowHigh(frameNumberPts)
@@ -571,13 +577,6 @@ export class Video {
           }
           const pts = combineLowHigh(packet.pts!, packet.ptshi!)
           const framenr = (pts - startTick) / frameDurationTicks
-          const nals = extractNALs(packet)
-          if (lastFrameNumberToAddToDecoder === "good enough") {
-            console.log(`First frame after seek: ${framenr}; nals ${nals.map(n => n.toString(16).padStart(2, "0")).join(" ")}`)
-          }
-          if (new Set(nals).has(0x65)) {
-            console.log("IDR frame " + framenr)
-          }
           if (Number.isInteger(framenr)) {
             frameCache.setIfPartOfCacheSection(framenr, "loading")
           }
@@ -634,7 +633,6 @@ export class Video {
         return "EOF"
       }
       if (item instanceof VideoFrame) {
-    console.log("got ", frameNumber)
         return item
       }
       await this.frameStreamState.frameCache.waitForChange

@@ -113,7 +113,12 @@ export async function convert(
   let lastProgress = Date.now()
   const video = new Video(file)
   await video.init({libavoptions: {noworker: true}})
-  for await (const videoFrame of video.getFrames()) {
+  while (true) {
+    console.log({framenr})
+    const videoFrame = await video.getFrame(framenr)
+    if (videoFrame === "EOF" || videoFrame === null) {
+      break
+    }
     const [boxes, scores, classes] = await infer(model, yoloVersion, videoFrame)
     if (ctx) {
       ctx.drawImage(videoFrame, 0, 0)
@@ -149,6 +154,7 @@ export async function convert(
     }
     framenr++
   }
+  console.log("done")
   await video.deinit()
   await outputstream.seek(0)
   await outputstream.write(textEncoder.encode(

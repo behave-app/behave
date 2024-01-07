@@ -573,10 +573,15 @@ export class Video {
           const packet = await this.packetStreamNext()
           if (packet === null) {
             frameCache.set(nextFrameNumberToLoad, "pastEOS")
+            await videoDecoder.flush()
             continue
           }
           const pts = combineLowHigh(packet.pts!, packet.ptshi!)
           const framenr = (pts - startTick) / frameDurationTicks
+          if (framenr < 0) {
+            // these frames we should ignore
+            continue
+          }
           if (Number.isInteger(framenr)) {
             frameCache.setIfPartOfCacheSection(framenr, "loading")
           }
@@ -711,9 +716,8 @@ export async function createFakeKeyFrameChunk(
 ): Promise<EncodedVideoChunk> {
   const { promise, resolve, reject } = promiseWithResolve<EncodedVideoChunk>();
   const encoderConfig = { ...decoderConfig } as VideoEncoderConfig;
-  // encoderConfig needs a width and height set; in my tests these dimensions
-  // do not have to match the actual video dimensions, so I'm just using something
-  // random for them
+  // encoderConfig needs a width and height set; it seems to not matter for
+  // annexB, but it does matter for avcc
   encoderConfig.width = 1920;
   encoderConfig.height = 1080;
   encoderConfig.avc = { format: decoderConfig.description ? "avc" : "annexb" };

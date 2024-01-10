@@ -1,3 +1,45 @@
-.test {
+body {
+  padding: 0;
+  margin: 0;
+  --sidebar-width: 1.7em;
+  --detectionbar-height: 3em;
+  --behaviour-height: 5em;
+}
+
+.viewer {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows:
+  1fr
+  var(--detectionbar-height)
+  var(--behaviour-height)
+  ;
+  grid-template-areas:
+  "sidebar videoplayer"
+  "sidebar detectionbar"
+  "sidebar behaviour"
+  ;
+  height: 100vh;
+  width: 100vw;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  background-color: green;
+}
+
+.videoplayer {
+  grid-area: videoplayer;
+  background-color: red;
+  overflow: scroll;
+}
+
+.detectionbar {
+  grid-area: detectionbar;
   background-color: yellow;
+}
+
+.behaviour {
+  grid-area: behaviour;
+  background-color: orange;
 }

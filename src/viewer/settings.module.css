@@ -1,0 +1,18 @@
+.background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, .5);
+  backdrop-filter: blur(10px);
+}
+
+.popup {
+  position: absolute;
+  left: 5vw;
+  top: 5vh;
+  width: 90vw;
+  height: 90vw;
+  background-color: silver;
+}

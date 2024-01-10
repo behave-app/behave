@@ -1,0 +1,10 @@
+.canvas {
+  max-width: 100%;
+  max-height: 100%;
+  background-color: blue;
+
+  &.dummy {
+    background-color: grey;
+  aspect-ratio: 16 / 9;
+  }
+}

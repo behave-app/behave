@@ -1,24 +1,25 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { RootState } from './store'
 
-export type MainWindow = "VideoViewer" | "FileSelector"
 export const appSlice = createSlice({
   name: "app",
   initialState: {
-    mainWindow: "VideoViewer" as MainWindow,
-    opfsFileCache: new URLSearchParams(document.location.search).has("opfsCache"),
+    showSettingsScreen: false,
+    shownFrameNumber: NaN,
   },
   reducers: {
-    mainWindowChanged: (state, action: PayloadAction<MainWindow>) => {
-      state.mainWindow = action.payload
-    }
+    shownFrameNumberUpdated: (state, action: PayloadAction<number>) => {
+      state.shownFrameNumber = action.payload
+    },
+    settingsScreenShown: state => {state.showSettingsScreen = true},
+    settingsScreenHidden: state => {state.showSettingsScreen = false},
   }
 })
 
 
 export default appSlice.reducer
 
-export const {mainWindowChanged} = appSlice.actions
+export const {shownFrameNumberUpdated, settingsScreenShown, settingsScreenHidden} = appSlice.actions
 
-export const selectMainWindow = (state: RootState) => state.app.mainWindow
-export const selectOpfsFileCache = (state: RootState) => state.app.opfsFileCache
+export const selectShownFrameNumber = (state: RootState) => state.app.shownFrameNumber
+export const selectShowSettingsScreen = (state: RootState) => state.app.showSettingsScreen

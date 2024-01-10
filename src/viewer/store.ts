@@ -3,6 +3,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import {useDispatch } from "react-redux"
 import videoFileReducer from "./videoFileSlice.js"
 import appReducer from "./appSlice.js"
+import settingsReducer from "./settingsSlice.js"
 import detectionsDirectoryReducer from './detectionsDirectorySlice.js'
 import behaviourDirectoryReducer from './behaviourDirectorySlice.js'
 export type RootState = ReturnType<typeof store.getState>
@@ -12,6 +13,7 @@ export const useAppDispatch: () => AppDispatch = useDispatch
 const store = configureStore({
   reducer: {
     app: appReducer,
+    settings: settingsReducer,
     detectionsDirectory: detectionsDirectoryReducer,
     behaviourDirectory: behaviourDirectoryReducer,
     videoFile: videoFileReducer,

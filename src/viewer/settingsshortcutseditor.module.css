@@ -1,0 +1,60 @@
+.shortcuts td:nth-child(2) > kbd {
+  font-size: .8em;
+  padding: .1rem .3em;
+  border: 1px solid black;
+  min-width: 1.5rem;
+}
+.shortcuts td:nth-child(2) > kbd + kbd {
+  margin-left: .2rem;
+}
+
+.shortcuts th {
+  text-align: left;
+}
+
+.shortcuts {
+  width: 95%;
+  border-collapse: collapse;
+}
+.shortcuts th:not(:first-child), .shortcuts td:not(:first-child){
+  border-left: 1px solid;
+}
+.shortcuts th, .shortcuts td {
+  padding: .3em;
+}
+
+.shortcuts tbody tr:nth-child(2n + 1) {
+  background-color: hsl(0, 0%, 70%);
+}
+
+.shortcuts td:nth-child(1) {
+  width: 2em;
+}
+.shortcuts td:nth-child(2) {
+  width: 15em;
+}
+
+.shortcuts td:nth-child(2) {
+  width: auto;
+}
+
+.shortcuts td:nth-child(3) select {
+  width: 100%
+}
+
+.shortcuts td:nth-child(4) {
+  width: 2em;
+}
+
+.shortcuts .recordKey {
+  color: hsl(0, 0%, 30%);
+}
+
+.shortcuts .delete button {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.shortcuts .duplicate td:nth-child(2) {
+  background-color: red;
+}

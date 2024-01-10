@@ -3,6 +3,7 @@ import { FunctionComponent, ComponentProps, h } from "preact"
 const ICONS = {
   settings: "\ue8b8",
   play_pause: "\uf127",
+  delete: "\ue872",
 } as const
 
 export type ValidIconName = keyof typeof ICONS

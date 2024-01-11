@@ -3,12 +3,10 @@ import { ACTIONS } from "./VideoPlayer"
 import * as css from "./settingsshortcutseditor.module.css"
 import { Icon } from "src/lib/Icon"
 
-import { Key, InvalidKeyError,
-  VideoShortcut, VideoShortcuts,
-  SubjectShortcut, SubjectShortcuts,
-  BehaviourShortcut, BehaviourShortcuts,
-  SettingsState, selectSettings } from "./settingsSlice"
-import { useState, useEffect, useCallback } from "react"
+import { keyFromEvent, keyToStrings, keyToString } from "../lib/key.js"
+import {
+  VideoShortcuts, SubjectShortcuts, BehaviourShortcuts, } from "./settingsSlice"
+import { useState, useEffect, } from "react"
 
 type Props = {
   type: "video"
@@ -73,18 +71,11 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
       return
     }
     const keyUp = (event: KeyboardEvent) => {
-      if (event.key in Key.MODIFIER_KEYS) {
-        // ignore
+      const key = keyFromEvent(event)
+      if (key === null) {
         return
       }
-      const modifiers = [
-        ...event.shiftKey ? ["Shift"] : [],
-        ...event.metaKey ? ["Meta"] : [],
-        ...event.altKey ? ["Alt"] : [],
-        ...event.ctrlKey ? ["Control"] : [],
-      ] as Array<keyof typeof Key["MODIFIER_KEYS"]>
-      const key = new Key(event.key, modifiers)
-      updateLocalShortcuts(recordKey, {key: key.toKeyStrings()})
+      updateLocalShortcuts(recordKey, {key})
       setRecordKey(undefined)
     }
     window.document.documentElement.addEventListener("keyup", keyUp)
@@ -97,12 +88,12 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
   const defaultAction = actions ? Object.keys(actions)[0] : ""
 
   const indicesByKey = localShortcuts.reduce(
-    (prev, [keyStrings, ], index) => {
-      if (keyStrings === null) {
-        return prev
+    (keyStrings, [key, ], index) => {
+      if (key === null) {
+        return keyStrings
       }
-      const key = keyStrings.join("-")
-      return prev.set(key, [...prev.get(key) ?? [], index])
+      const keyString = keyToString(key)
+      return keyStrings.set(keyString, [...keyStrings.get(keyString) ?? [], index])
     }, new Map<string, number[]>())
 
   const duplicates = new Set(
@@ -144,7 +135,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
                 <button className={css.buttons} onClick={() => setRecordKey(undefined)}>cancel</button>
               </>
                 : <>
-                  {key ? key.map(k => <kbd>{k}</kbd>): "No key set"}
+                  {key ? keyToStrings(key).map(k => <kbd>{k}</kbd>): "No key set"}
                   <div className={css.buttons}>
                     {key && <button onClick={() => {
                       updateLocalShortcuts(index, {key: null})

@@ -75,3 +75,14 @@ export function promiseWithTimeout<T>(
 export async function asyncSleep(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms))
 }
+
+export function range(endOrStart: number, end?: number, step?: number): number[] {
+  const [realStart, realEnd] = end === undefined ? [0, endOrStart] : [endOrStart, end]
+  const realStep = step ?? 1
+  const nrSteps = Math.ceil((realEnd - realStart) / realStep)
+  if (nrSteps <= 0) {
+      return []
+  }
+  return [...new Array(nrSteps)].map((_, i) => realStart + i * realStep)
+
+}

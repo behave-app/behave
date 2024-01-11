@@ -32,10 +32,11 @@
 }
 
 .shortcutGroups {
+  --select-width: 1em;
   --name-width: 10em;
   --operations-width: 7em;
   --shortcuts-width: max(
-  calc(100% - var(--name-width) - var(--operations-width)),
+  calc(100% - var(--select-width) - var(--name-width) - var(--operations-width)),
   40em);
   width: 100%;
   border-collapse: collapse;
@@ -50,8 +51,30 @@
     background-color: hsl(0, 0%, 70%);
   }
 
+  tr.selected {
+    border: 2px solid hsl(120, 90%, 70%);
+  }
+
+  .shortcutSelect {
+    width: var(--select-width);
+    span {
+      cursor: pointer;
+    }
+  }
+
   .shortcutGroupsName {
     width: var(--name-width);
+    &:not(th) {
+      border-left: 1px solid;
+    }
+    input {
+      width: calc(100% - 4px);
+      background-color: transparent;
+      border: none;
+    }
+    &.duplicate {
+      background-color: hsl(0, 90%, 50%);
+    }
   }
   .shortcutGroupsShortcuts {
     width: var(--shortcuts-width);
@@ -62,3 +85,11 @@
     border-left: 1px solid;
   }
 }
+
+.submitbuttons {
+  margin-top: 1.5em;
+  button {
+    margin-right: .7em;
+  }
+}
+

@@ -1,4 +1,4 @@
-import { FunctionComponent, ComponentProps, h } from "preact"
+import { FunctionComponent } from "preact"
 import * as css from "./icon.module.css"
 
 const ICONS = {
@@ -6,6 +6,8 @@ const ICONS = {
   play_pause: "\uf127",
   delete: "\ue872",
   add: "\ue145",
+  check_box_checked: "\ue834",
+  check_box_unchecked: "\ue835",
 } as const
 
 export type ValidIconName = keyof typeof ICONS

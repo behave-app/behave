@@ -21,32 +21,46 @@ export type SubjectShortcut = [Key | null, Subject]
 export type SubjectShortcuts = SubjectShortcut[]
 
 export type SubjectShortcutGroups = {
-  name: string,
-  shortcuts: SubjectShortcuts
-}[]
+  readonly selectedIndex: number,
+  readonly groups: ReadonlyArray<{
+    readonly name: string,
+    readonly shortcuts: SubjectShortcuts
+  }>
+}
 
-const exampleSubjectShortcuts: SubjectShortcutGroups = [{
-  name: "example",
-  shortcuts: [
-  [{code: "KeyA"}, "Subject A"],
-  [{code: "KeyB"}, "Subject B"],
-]}] as const
+const exampleSubjectShortcuts: SubjectShortcutGroups = {
+  selectedIndex: 0,
+  groups: [{
+    name: "example",
+    shortcuts: [
+      [{code: "KeyA"}, "Subject A"],
+      [{code: "KeyB"}, "Subject B"],
+    ]
+  }]
+} as const
 
 type Behaviour = string
 export type BehaviourShortcut = [Key | null, Behaviour]
 export type BehaviourShortcuts = BehaviourShortcut[]
 
 export type BehaviourShortcutGroups = {
-  name: string,
-  shortcuts: BehaviourShortcuts
-}[]
+  readonly selectedIndex: number,
+  readonly groups: ReadonlyArray<{
+    readonly name: string,
+    readonly shortcuts: BehaviourShortcuts
+  }>
+}
 
-const exampleBehaviourShortcuts: BehaviourShortcutGroups = [{
-  name: "example",
-  shortcuts: [
-  [{code: "KeyC", modifiers: ["shiftKey"]}, "Climbing"],
-  [{code: "KeyD", modifiers: ["shiftKey"]}, "Diving"],
-]}] as const
+const exampleBehaviourShortcuts: BehaviourShortcutGroups = {
+  selectedIndex: 0,
+  groups: [{
+    name: "example",
+    shortcuts: [
+      [{code: "KeyC", modifiers: ["shiftKey"]}, "Climbing"],
+      [{code: "KeyD", modifiers: ["shiftKey"]}, "Diving"],
+    ]
+  }]
+} as const
 
 export type SettingsState = {
   videoShortcuts: VideoShortcuts
@@ -62,7 +76,7 @@ export const settingsSlice = createSlice({
     behaviourShortcutsGroups: exampleBehaviourShortcuts,
   } as SettingsState,
   reducers: {
-    settingsUpdated: (state, action: PayloadAction<SettingsState>) => {
+    settingsUpdated: (_state, action: PayloadAction<SettingsState>) => {
       return action.payload
     }
   }

@@ -5,10 +5,10 @@ import { settingsScreenHidden } from "./appSlice.js"
 import { useState, } from "react"
 import { Icon } from "src/lib/Icon"
 import { ACTIONS } from "./VideoPlayer"
-import { SettingsState, selectSettings } from "./settingsSlice"
+import { SettingsState, selectSettings, settingsUpdated } from "./settingsSlice"
 import { useSelector } from "react-redux"
 import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
-import { assert } from "src/lib/util"
+import { assert, getDuplicateIndices } from "src/lib/util"
 import { keyToStrings } from "src/lib/key"
 
 
@@ -34,8 +34,8 @@ function createSettingsShortcutsEditor(
   const shortcuts = subscreen.shortcutsType === "video"
     ? localSettings.videoShortcuts
     : (subscreen.shortcutsType === "subject"
-      ? localSettings.subjectShortcutsGroups
-      : localSettings.behaviourShortcutsGroups)[subscreen.index].shortcuts
+      ? localSettings.subjectShortcutsGroups.groups
+      : localSettings.behaviourShortcutsGroups.groups)[subscreen.index].shortcuts
   return <SettingsShortcutsEditor
     type={subscreen.shortcutsType}
     shortcuts={shortcuts}
@@ -49,20 +49,15 @@ function createSettingsShortcutsEditor(
             newLocalSettings.videoShortcuts = updatedShortcuts
             break
           }
-          case "subject": {
-            newLocalSettings.subjectShortcutsGroups = [
-              ...newLocalSettings.subjectShortcutsGroups]
-            newLocalSettings.subjectShortcutsGroups[subscreen.index] = {
-              name: newLocalSettings.subjectShortcutsGroups[subscreen.index].name,
-              shortcuts: updatedShortcuts
-            }
-            break
-          }
+          case "subject":
           case "behaviour": {
-            newLocalSettings.behaviourShortcutsGroups = [
-              ...newLocalSettings.behaviourShortcutsGroups]
-            newLocalSettings.behaviourShortcutsGroups[subscreen.index] = {
-              name: newLocalSettings.behaviourShortcutsGroups[subscreen.index].name,
+            const shortcutsKey = subscreen.shortcutsType  === "subject" ? "subjectShortcutsGroups" : "behaviourShortcutsGroups"
+            newLocalSettings[shortcutsKey] = {
+              ...newLocalSettings[shortcutsKey],
+              groups: [...newLocalSettings[shortcutsKey].groups]
+            }
+            newLocalSettings[shortcutsKey].groups[subscreen.index] = {
+              ...newLocalSettings[shortcutsKey].groups[subscreen.index],
               shortcuts: updatedShortcuts
             }
             break
@@ -79,12 +74,22 @@ function createSettingsShortcutsEditor(
     } />
 }
 
+function getValue(event: Event): string {
+  return (event.target as HTMLInputElement).value
+}
+
 function capitalize(s: string): string {
   if (s.length === 0) {
     return s;
   }
   return s[0].toLocaleUpperCase() + s.slice(1)
 }
+
+function classNamesFromDict(dict: Record<string, boolean>): string {
+  return Object.entries(dict)
+    .filter(([_k, v]) => v).map(([k]) => k).join(" ")
+}
+
 
 const GroupedShortcuts: FunctionComponent<{
   localSettings: SettingsState,
@@ -95,6 +100,10 @@ const GroupedShortcuts: FunctionComponent<{
   localSettings, setLocalSettings, setSubscreen, shortcutsType
 }) => {
   const shortcutsKey = shortcutsType === "subject" ? "subjectShortcutsGroups" : "behaviourShortcutsGroups"
+  const duplicateNames = getDuplicateIndices(
+    localSettings[shortcutsKey].groups.map(i => i.name.trim()))
+  const duplicateNamesSet = new Set(duplicateNames.flat())
+
   return <>
     <h3>{capitalize(shortcutsType)} shortcuts</h3>
     {shortcutsType === "subject" ? <div className={css.explanation}>
@@ -111,14 +120,47 @@ const GroupedShortcuts: FunctionComponent<{
       <table className={css.shortcutGroups}>
         <thead>
           <tr>
+            <th className={css.shortcutSelect}></th>
             <th className={css.shortcutGroupsName}>name</th>
             <th className={css.shortcutGroupsShortcuts}>shortcuts</th>
           </tr>
         </thead>
         <tbody>
-          {localSettings[shortcutsKey].map(
-            ({name, shortcuts}, index) => <tr>
-              <td className={css.shortcutGroupsName}>{name}</td>
+          {localSettings[shortcutsKey].groups.map(
+            ({name, shortcuts}, index) => <tr className={classNamesFromDict({
+              [css.selected]: localSettings[shortcutsKey].selectedIndex === index,
+            })}>
+              <td className={css.shortcutSelect}>
+              <span onClick={() => setLocalSettings(settings => ({
+                    ...settings,
+                    [shortcutsKey]: {
+                      ...settings[shortcutsKey],
+                      selectedIndex: index
+                  }}))}>
+                <Icon iconName={index === localSettings[shortcutsKey].selectedIndex
+                ? "check_box_checked" : "check_box_unchecked"} />
+              </span>
+              </td>
+              <td className={classNamesFromDict({
+                [css.shortcutGroupsName]: true,
+                [css.duplicate]: duplicateNamesSet.has(index),
+              })}>
+                <input type="text" value={name}
+                  onChange={e => setLocalSettings(settings => {
+                    const newSettings = {
+                      ...settings,
+                      [shortcutsKey]: {
+                        ...settings[shortcutsKey],
+                        groups: [...settings[shortcutsKey].groups]
+                      }
+                    }
+                    newSettings[shortcutsKey].groups[index] = {
+                      ...newSettings[shortcutsKey].groups[index],
+                      name: getValue(e), 
+                    }
+                    return newSettings
+                  })} />
+              </td>
               <td className={css.shortcutGroupsShortcuts}>
                 {shortcuts.filter(([key]) => key !== null).map(([key, action]) =>
                   <div className={css.keycombination} title={action}>
@@ -133,13 +175,24 @@ const GroupedShortcuts: FunctionComponent<{
                   index,
                   name: `${capitalize(shortcutsType)} shortcuts for "${name}"`
                 })}>Edit</button>
-                <button disabled={localSettings[shortcutsKey].length < 2}
+                <button disabled={
+                  localSettings[shortcutsKey].selectedIndex === index}
+                  title={
+                  localSettings[shortcutsKey].selectedIndex === index
+                      ? "Cannot delete active shortcuts" : "Delete shortcut group" }
                   onClick={() => {
                     setLocalSettings(settings => {
-                      if (settings[shortcutsKey].length < 2) {
+                      if (settings[shortcutsKey].selectedIndex === index) {
                         return settings
                       }
-                      const newGroups = settings[shortcutsKey].filter(
+                      const oldSelectedIndex = settings[shortcutsKey].selectedIndex
+                      const newSelectedIndex = oldSelectedIndex - (
+                        oldSelectedIndex < index ? 0 : 1)
+                      const newGroups = {
+                        ...settings[shortcutsKey],
+                        selectedIndex: newSelectedIndex,
+                      }
+                      newGroups.groups = newGroups.groups.filter(
                         (_, i) => i !== index)
                       return {
                         ...settings,
@@ -154,18 +207,21 @@ const GroupedShortcuts: FunctionComponent<{
       <button onClick={() => {
         setLocalSettings(settings => {
           const usedNames = new Set(
-            settings[shortcutsKey].map(({name}) => name))
+            settings[shortcutsKey].groups.map(({name}) => name))
           let name = "new"
           for (let i=1; usedNames.has(name); i++) {
             name = `new (${i})`
           }
-          const newGroups = [
+          const newGroups = {
             ...settings[shortcutsKey],
-            {name, shortcuts: []}
-          ]
+            groups: [
+              ...settings[shortcutsKey].groups,
+              {name, shortcuts: []}
+            ]
+          }
           return {
             ...settings,
-            subjectShortcutsGroups: newGroups
+            [shortcutsKey]: newGroups
           }})}
       }><Icon iconName="add" /></button>
     </div>
@@ -201,7 +257,17 @@ export const Settings: FunctionComponent = () => {
             {...{localSettings, setLocalSettings, setSubscreen}} />
           <GroupedShortcuts shortcutsType="behaviour"
             {...{localSettings, setLocalSettings, setSubscreen}} />
-          <button onClick={() => dispatch(settingsScreenHidden())}>close</button>
+          <div className={css.submitbuttons}>
+            <button onClick={() => {
+              dispatch(settingsScreenHidden())
+              dispatch(settingsUpdated(localSettings))
+            }}>Save &amp; close</button>
+            <button onClick={() => {
+              if (confirm("This will close this screen, without saving any of your changes. Do you want to continue?")) {
+                dispatch(settingsScreenHidden())
+              }
+            }}>Discard changes &amp; close</button>
+          </div>
         </> : createSettingsShortcutsEditor(
           localSettings, setLocalSettings, subscreen, () => setSubscreen(null))
       }

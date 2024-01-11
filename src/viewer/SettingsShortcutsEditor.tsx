@@ -2,6 +2,7 @@ import { FunctionComponent } from "preact"
 import { ACTIONS } from "./VideoPlayer"
 import * as css from "./settingsshortcutseditor.module.css"
 import { Icon } from "src/lib/Icon"
+import { getDuplicateIndices } from "src/lib/util"
 
 import { keyFromEvent, keyToStrings, keyToString } from "../lib/key.js"
 import {
@@ -87,17 +88,9 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
 
   const defaultAction = actions ? Object.keys(actions)[0] : ""
 
-  const indicesByKey = localShortcuts.reduce(
-    (keyStrings, [key, ], index) => {
-      if (key === null) {
-        return keyStrings
-      }
-      const keyString = keyToString(key)
-      return keyStrings.set(keyString, [...keyStrings.get(keyString) ?? [], index])
-    }, new Map<string, number[]>())
-
-  const duplicates = new Set(
-    [...indicesByKey.values()].filter(v => v.length > 1).flat())
+  const duplicates = getDuplicateIndices(
+    localShortcuts.filter(([k]) => k !== null).map(([k]) => keyToString(k!)))
+  const duplicatesSet = new Set(duplicates.flat())
 
   return <div>
     <h2>{title}</h2>
@@ -127,7 +120,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
             <td className={css.nrcolumn}>{index + 1}.</td>
             <td className={classNamesFromDict({
               [css.keycolumn]: true,
-              [css.duplicate]: duplicates.has(index),
+              [css.duplicate]: duplicatesSet.has(index),
               [css.recordKey]: recording,
             })}>
               {recording ? <>
@@ -171,12 +164,13 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
     {/* // @ts-expect-error: TS not smart enough that localShortcuts is right type  -- but it doesn't always give an error.... */}
     <button onClick={() => setLocalShortcuts(s => [...s, [null, defaultAction]])}>+</button>
     <div className={css.submitbuttons}>
-      {duplicates.size > 0 && <div class={css.duplicateserrormessage}>
+      {duplicates.length > 0 && <div class={css.duplicateserrormessage}>
         The same key is used in lines {
-          [...duplicates].sort((a, b) => a - b).map(n => n.toString())
-          .join(", ").replace(/, (\d+)$/, " and $1")}.
+          duplicates.map(dups =>
+            dups.slice(0, -1).map(i => `${i}`).join(", ") + `and ${dups.at(-1)}`
+          ).join("; ")}
       </div>}
-      <button disabled={duplicates.size > 0}
+      <button disabled={duplicates.length > 0}
         onClick={() => updateShortcuts(localShortcuts)}>Save &amp; close</button>
       <button onClick={() => {
         if (confirm("This will close this screen, without saving any of your changes. Do you want to continue?")) {

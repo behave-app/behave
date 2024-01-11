@@ -86,3 +86,12 @@ export function range(endOrStart: number, end?: number, step?: number): number[]
   return [...new Array(nrSteps)].map((_, i) => realStart + i * realStep)
 
 }
+
+export function binIndices<T>(keys: T[]): Map<T, number[]> {
+  return keys.reduce((myMap, key, index) =>
+    myMap.set(key, [...(myMap.get(key) ?? []), index]), new Map<T, number[]>())
+}
+
+export function getDuplicateIndices(keys: unknown[]): number[][] {
+  return [...binIndices(keys).values()].filter(v => v.length > 1)
+}

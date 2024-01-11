@@ -5,7 +5,9 @@
   --action-column-width: max(
   calc(100% - var(--nr-column-width) - var(--key-column-width) - var(--delete-column-width)),
   40em);
+  width: 100%;
   border-collapse: collapse;
+  margin-top: 1.5em;
 
   th {
     text-align: left;
@@ -22,15 +24,6 @@ tbody tr:nth-child(2n + 1) {
   }
   .keycolumn {
     width: var(--key-column-width);
-    kbd {
-      font-size: .8em;
-      padding: .1rem .3em;
-      border: 1px solid black;
-      min-width: 1.5rem;
-    }
-    kbd + kbd {
-      margin-left: .2rem;
-    }
     &.recordKey {
       color: hsl(0, 0%, 30%);
     }

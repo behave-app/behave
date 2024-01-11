@@ -14,14 +14,20 @@ type Props = {
   type: "video"
   shortcuts: VideoShortcuts,
   updateShortcuts: (shortcuts: VideoShortcuts) => void,
+  closeWithoutUpdating: () => void,
+  title: string,
 } | {
   type: "subject"
   shortcuts: SubjectShortcuts,
   updateShortcuts: (shortcuts: SubjectShortcuts) => void,
+  closeWithoutUpdating: () => void,
+  title: string,
 } | {
   type: "behaviour"
   shortcuts: BehaviourShortcuts,
   updateShortcuts: (shortcuts: BehaviourShortcuts) => void,
+  closeWithoutUpdating: () => void,
+  title: string,
 }
 
 function classNamesFromDict(dict: Record<string, boolean>): string {
@@ -37,6 +43,8 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
   type,
   shortcuts,
   updateShortcuts,
+  closeWithoutUpdating,
+  title,
 }) => {
   const [localShortcuts, setLocalShortcuts] = useState(shortcuts)
   const [recordKey, setRecordKey] = useState<number>()
@@ -101,6 +109,18 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
     [...indicesByKey.values()].filter(v => v.length > 1).flat())
 
   return <div>
+    <h2>{title}</h2>
+    <div>
+      Below you can customize the keyboard shortcuts.
+      Note that not all key combinations are always available on all systems,
+      since they may be used by the operating system.
+      For instance, on Windows it will not be able to assign anything to <kbd>Ctrl</kbd><kbd>C</kbd>, since that is already being used for "copy"; on a Mac computer however, one is able to use this (since there <kbd>Cmd</kbd><kbd>C</kbd> is used for copying).
+    </div>
+    <div>
+      Note that letters below are always shown as uppercase letters.
+      However <kbd>B</kbd> means that a lowercase b should be typed, whereas <kbd>Shift</kbd><kbd>B</kbd> means a Shift-B should be typed.
+      <kbd>B</kbd> stands for the <em>key</em> "B" on your keyboard (which is also uppercase mpost of the time), not for the <em>letter</em> B.
+    </div>
     <table className={css.shortcuts}>
       <thead>
         <tr>
@@ -168,10 +188,10 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
       <button disabled={duplicates.size > 0}
         onClick={() => updateShortcuts(localShortcuts)}>Save &amp; close</button>
       <button onClick={() => {
-        if (confirm("This will reset all changes made since opening this screen, do you want to continue?")) {
-          setLocalShortcuts(shortcuts)
+        if (confirm("This will close this screen, without saving any of your changes. Do you want to continue?")) {
+          closeWithoutUpdating()
         }
-      }}>Reset</button>
+      }}>Discard &amp; close</button>
     </div>
   </div>
 }

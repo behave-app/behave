@@ -5,6 +5,7 @@ const ICONS = {
   settings: "\ue8b8",
   play_pause: "\uf127",
   delete: "\ue872",
+  add: "\ue145",
 } as const
 
 export type ValidIconName = keyof typeof ICONS

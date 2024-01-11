@@ -13,6 +13,52 @@
   left: 5vw;
   top: 5vh;
   width: 90vw;
-  height: 90vw;
+  height: 90vh;
   background-color: silver;
+  overflow: scroll;
+  padding: 3em 0;
+  box-sizing: border-box;
+}
+
+.keycombination {
+  display: inline-block;
+}
+.keycombination + .keycombination::before {
+  content: ", ";
+}
+
+.explanation {
+  font-size: .8em;
+}
+
+.shortcutGroups {
+  --name-width: 10em;
+  --operations-width: 7em;
+  --shortcuts-width: max(
+  calc(100% - var(--name-width) - var(--operations-width)),
+  40em);
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5em;
+  th {
+    text-align: left;
+  }
+  th, td {
+    padding: .3em;
+  }
+  tbody tr:nth-child(2n + 1) {
+    background-color: hsl(0, 0%, 70%);
+  }
+
+  .shortcutGroupsName {
+    width: var(--name-width);
+  }
+  .shortcutGroupsShortcuts {
+    width: var(--shortcuts-width);
+    border-left: 1px solid;
+  }
+  .shortcutGroupsOperations {
+    width: var(--operations-width);
+    border-left: 1px solid;
+  }
 }

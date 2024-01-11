@@ -6,6 +6,17 @@ body {
   --behaviour-height: 5em;
 }
 
+kbd {
+  font-size: .8em;
+  padding: .1rem .3em;
+  border: 1px solid black;
+  min-width: 1.5rem;
+}
+
+kbd + kbd {
+  margin-left: .2rem;
+}
+
 .viewer {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;

@@ -5,7 +5,7 @@ import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {convert, getOutputFilename} from "./ffmpeg.js"
 
-const NR_WORKERS = 2
+const NR_WORKERS = 1
 
 function fileFilter(file: File, extension: string): boolean {
   return !file.name.startsWith(".") && file.name.endsWith("." + extension)

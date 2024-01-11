@@ -1,4 +1,5 @@
 import { FunctionComponent, ComponentProps, h } from "preact"
+import * as css from "./icon.module.css"
 
 const ICONS = {
   settings: "\ue8b8",
@@ -8,22 +9,11 @@ const ICONS = {
 
 export type ValidIconName = keyof typeof ICONS
 
-type ButtonProps = {
-  type: "button"
-} & ComponentProps<"button">
-
-type SpanProps = {
-  type?: "span"
-} & ComponentProps<"span">
-
 type Props = {
   iconName: ValidIconName | ValidIconName[]
-} & (
-  ButtonProps | SpanProps
-)
+}
 
-export const Icon: FunctionComponent<Props> = ({type, iconName, ...props}) => {
+export const Icon: FunctionComponent<Props> = ({iconName}) => {
   const iconNames = (typeof iconName === "string") ? [iconName] : iconName
-  props.className = "material-symbols-outlined" + ("className" in props ? " " + props.className : "")
-  return h(type ?? "span", props, iconNames.map(iconName => ICONS[iconName]).join(""))
+  return <span className={css.iconWrapper}><span className={css.icon}>{iconNames.map(iconName => ICONS[iconName]).join("")}</span></span>
 }

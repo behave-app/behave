@@ -19,7 +19,9 @@ export const ACTIONS: Record<string, {description: string}> = {
 } as const
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
-  return <div className={[css.canvas, css.dummy].join(" ")}>{message}</div>
+  return <div className={[css.canvas, css.dummy].join(" ")}>
+    {message}
+  </div>
 }
 
 const VideoCanvas: FunctionComponent<{videoFile: File}> = ({videoFile}) => {

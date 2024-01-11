@@ -1,60 +1,66 @@
-.shortcuts td:nth-child(2) > kbd {
-  font-size: .8em;
-  padding: .1rem .3em;
-  border: 1px solid black;
-  min-width: 1.5rem;
-}
-.shortcuts td:nth-child(2) > kbd + kbd {
-  margin-left: .2rem;
-}
-
-.shortcuts th {
-  text-align: left;
-}
-
 .shortcuts {
-  width: 95%;
+  --nr-column-width: 2em;
+  --key-column-width: 15em;
+  --delete-column-width: 2em;
+  --action-column-width: max(
+  calc(100% - var(--nr-column-width) - var(--key-column-width) - var(--delete-column-width)),
+  40em);
   border-collapse: collapse;
-}
-.shortcuts th:not(:first-child), .shortcuts td:not(:first-child){
-  border-left: 1px solid;
-}
-.shortcuts th, .shortcuts td {
-  padding: .3em;
-}
 
-.shortcuts tbody tr:nth-child(2n + 1) {
+  th {
+    text-align: left;
+  }
+  th, td {
+    padding: .3em;
+  }
+tbody tr:nth-child(2n + 1) {
   background-color: hsl(0, 0%, 70%);
 }
 
-.shortcuts td:nth-child(1) {
-  width: 2em;
-}
-.shortcuts td:nth-child(2) {
-  width: 15em;
+  .nrcolumn {
+    width: var(--nr-column-width);
+  }
+  .keycolumn {
+    width: var(--key-column-width);
+    kbd {
+      font-size: .8em;
+      padding: .1rem .3em;
+      border: 1px solid black;
+      min-width: 1.5rem;
+    }
+    kbd + kbd {
+      margin-left: .2rem;
+    }
+    &.recordKey {
+      color: hsl(0, 0%, 30%);
+    }
+    &.duplicate:not(.recordKey) {
+      background-color: hsl(0, 90%, 50%);
+    }
+    .buttons{
+      float: right;
+    }
+  }
+  .actioncolumn {
+    width: var(--action-column-width);
+  }
+  .deletecolumn {
+    width: var(--delete-column-width);
+  }
+
+  .keycolumn, .actioncolumn, .deletecolumn {
+    border-left: 1px solid;
+  }
 }
 
-.shortcuts td:nth-child(2) {
-  width: auto;
+.submitbuttons {
+  margin-top: 1.5em;
+  button {
+    margin-right: .7em;
+  }
 }
 
-.shortcuts td:nth-child(3) select {
-  width: 100%
-}
-
-.shortcuts td:nth-child(4) {
-  width: 2em;
-}
-
-.shortcuts .recordKey {
-  color: hsl(0, 0%, 30%);
-}
-
-.shortcuts .delete button {
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.shortcuts .duplicate td:nth-child(2) {
-  background-color: red;
+.duplicateserrormessage {
+  background-color: hsl(0, 90%, 50%);
+  font-weight: bold;
 }

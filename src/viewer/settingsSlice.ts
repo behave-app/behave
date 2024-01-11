@@ -16,10 +16,10 @@ export class Key {
     "Enter": "Enter",
     "Tab": "Tab",
     " ": "Space",
-    "ArrowDown": "\u2193",
-    "ArrowUp": "\u2191",
-    "ArrowLeft": "\u2190",
-    "ArrowRight": "\u2192",
+    "ArrowDown": "\u2193 (down arrow)",
+    "ArrowUp": "\u2191 (up arrow)",
+    "ArrowLeft": "\u2190 (left arrow)",
+    "ArrowRight": "\u2192 (right arrow)",
     "End": "End",
     "Home": "Home",
     "PageDown": "PageDown",
@@ -93,7 +93,7 @@ type SerializableKey = string[]
 
 type VideoAction = keyof typeof ACTIONS
 
-export type VideoShortcut = [SerializableKey, VideoAction]
+export type VideoShortcut = [SerializableKey | null, VideoAction]
 export type VideoShortcuts = VideoShortcut[]
 
 
@@ -104,7 +104,7 @@ const defaultVideoShortcuts: VideoShortcuts = [
 ] as const
 
 type Subject = string
-export type SubjectShortcut = [SerializableKey, Subject]
+export type SubjectShortcut = [SerializableKey | null, Subject]
 export type SubjectShortcuts = SubjectShortcut[]
 
 const exampleSubjectShortcuts: SubjectShortcuts = [
@@ -113,7 +113,7 @@ const exampleSubjectShortcuts: SubjectShortcuts = [
 ] as const
 
 type Behaviour = string
-export type BehaviourShortcut = [SerializableKey, Behaviour]
+export type BehaviourShortcut = [SerializableKey | null, Behaviour]
 export type BehaviourShortcuts = BehaviourShortcut[]
 
 const exampleBehaviourShortcuts: SubjectShortcuts = [

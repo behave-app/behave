@@ -24,29 +24,11 @@ type Props = {
   updateShortcuts: (shortcuts: BehaviourShortcuts) => void,
 }
 
-function addShortcut<T extends VideoShortcut | SubjectShortcut | BehaviourShortcut>(
-  shortcuts: T[],
-  shortcut: T,
-  ): T[] {
-  return [
-    ...shortcuts,
-    shortcut
-  ]
+function classNamesFromDict(dict: Record<string, boolean>): string {
+  return Object.entries(dict)
+    .filter(([_k, v]) => v).map(([k]) => k).join(" ")
 }
-  
-function removeShortcut(shortcuts: VideoShortcuts, shortcut: VideoShortcut): VideoShortcuts;
-function removeShortcut(shortcuts: SubjectShortcuts, shortcut: SubjectShortcut): SubjectShortcuts;
-function removeShortcut(shortcuts: BehaviourShortcuts, shortcut: BehaviourShortcut): BehaviourShortcuts;
-function removeShortcut(
-  shortcuts: VideoShortcuts | SubjectShortcuts | BehaviourShortcuts,
-  shortcut: VideoShortcut | SubjectShortcut | BehaviourShortcut
-): VideoShortcuts | SubjectShortcuts | BehaviourShortcuts {
-  const [keyToRemove, actionToRemove] = shortcut
-  const keyToRemoveStr = keyToRemove.toString()
-  return shortcuts.filter(([key, action]) => !(
-    action === actionToRemove && key.toString() === keyToRemoveStr))
-}
-  
+
 function getValue(event: Event): string {
   return (event.target as HTMLInputElement).value
 }
@@ -122,23 +104,37 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
     <table className={css.shortcuts}>
       <thead>
         <tr>
-          <th>nr</th>
-          <th>key</th>
-          <th>{type} shortcut</th>
+          <th className={css.nrcolumn}>nr</th>
+          <th className={css.keycolumn}>key</th>
+          <th className={css.actioncolumn}>{type} shortcut</th>
         </tr>
       </thead>
       <tbody>
         {localShortcuts.map(([key, action], index) => {
           const recording = recordKey === index
-          return <tr className={duplicates.has(index) ? css.duplicate : ""}>
-            <td>{index + 1}.</td>
-            <td onClick={recording ? undefined : () => setRecordKey(index)}
-              className={recording ? css.recordKey: ""}>
-              {recording ? <span>Press key...
-                <button onClick={() => setRecordKey(undefined)}>cancel</button>
-              </span> : key ? key.map(k => <kbd>{k}</kbd>) : "No key set"}
+          return <tr>
+            <td className={css.nrcolumn}>{index + 1}.</td>
+            <td className={classNamesFromDict({
+              [css.keycolumn]: true,
+              [css.duplicate]: duplicates.has(index),
+              [css.recordKey]: recording,
+            })}>
+              {recording ? <>
+                <span>Press key...</span>
+                <button className={css.buttons} onClick={() => setRecordKey(undefined)}>cancel</button>
+              </>
+                : <>
+                  {key ? key.map(k => <kbd>{k}</kbd>): "No key set"}
+                  <div className={css.buttons}>
+                    {key && <button onClick={() => {
+                      updateLocalShortcuts(index, {key: null})
+                      setRecordKey(undefined)
+                    }}><Icon iconName="delete" /></button>}
+                    <button onClick={() => setRecordKey(index)}>change</button>
+                  </div>
+                </>}
             </td>
-            <td>
+            <td className={css.actioncolumn}>
               {actions
                 ? <select
                   onChange={e => updateLocalShortcuts(index, {action: getValue(e)})}
@@ -151,17 +147,31 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
                   value={action ?? ""} />
               }
             </td>
-            <td className="delete">
-              <Icon iconName="delete" onClick={
-                  () => setLocalShortcuts(s => s.filter((_, i) => i !== index))} />
+            <td className={css.deletecolumn}>
+              <button onClick={
+                () => setLocalShortcuts(s => s.filter((_, i) => i !== index))}>
+                <Icon iconName="delete" />
+              </button>
             </td>
           </tr>
         })}
       </tbody>
     </table>
-    {/* @ts-expect-error: TS not smart enough that localShortcuts is right type */}
+    {/* // @ts-expect-error: TS not smart enough that localShortcuts is right type  -- but it doesn't always give an error.... */}
     <button onClick={() => setLocalShortcuts(s => [...s, [null, defaultAction]])}>+</button>
-    <button onClick={() => updateShortcuts(localShortcuts)}>OK</button>
-    <button onClick={() => setLocalShortcuts(shortcuts)}>Reset</button>
+    <div className={css.submitbuttons}>
+      {duplicates.size > 0 && <div class={css.duplicateserrormessage}>
+        The same key is used in lines {
+          [...duplicates].sort((a, b) => a - b).map(n => n.toString())
+          .join(", ").replace(/, (\d+)$/, " and $1")}.
+      </div>}
+      <button disabled={duplicates.size > 0}
+        onClick={() => updateShortcuts(localShortcuts)}>Save &amp; close</button>
+      <button onClick={() => {
+        if (confirm("This will reset all changes made since opening this screen, do you want to continue?")) {
+          setLocalShortcuts(shortcuts)
+        }
+      }}>Reset</button>
+    </div>
   </div>
 }

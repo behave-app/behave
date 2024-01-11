@@ -8,6 +8,8 @@ import {settingsScreenShown} from "./appSlice.js"
 export const SideBar: FunctionComponent = () => {
   const dispatch = useDispatch()
   return <div className={[viewercss.sidebar, css.sidebar,].join(" ")}>
-    <Icon type="button" className={[css.button, css.settings].join(" ")} iconName="settings" onClick={() => dispatch(settingsScreenShown())}/>
+    <button className={[css.button, css.settings].join(" ")} onClick={() => dispatch(settingsScreenShown())}>
+      <Icon iconName="settings" />
+    </button>
   </div>
 }

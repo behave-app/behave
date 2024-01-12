@@ -3,6 +3,7 @@ import { RootState } from './store'
 
 export type DetectionsDirectory = {
   directory: FileSystemDirectoryHandle
+  detectionsByFilename: Record<string, FileSystemFileHandle[]>
 }
 
 export const detectionsDirectorySlice = createSlice({

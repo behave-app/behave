@@ -95,3 +95,30 @@ export function binIndices<T>(keys: T[]): Map<T, number[]> {
 export function getDuplicateIndices(keys: unknown[]): number[][] {
   return [...binIndices(keys).values()].filter(v => v.length > 1)
 }
+
+export async function* readLines(
+  file: File
+): AsyncGenerator<string, void, undefined> {
+  const textDecoder = new TextDecoder('utf-8');
+  const fileStream = file.stream().getReader();
+
+  let partialLine = '';
+
+  while (true) {
+    const { done, value } = await fileStream.read();
+    if (done) break;
+
+    const chunk = textDecoder.decode(value, { stream: !done });
+    const lines = (partialLine + chunk).split('\n');
+
+    for (let i = 0; i < lines.length - 1; i++) {
+      yield lines[i];
+    }
+
+    partialLine = lines[lines.length - 1];
+  }
+
+  if (partialLine) {
+    yield partialLine;
+  }
+}

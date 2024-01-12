@@ -1,16 +1,45 @@
 import { FunctionComponent } from "preact"
 import * as css from "./viewer.module.css"
-import { detectionsDirectorySet, selectDetectionsDirectory, selectDetectionsDirectoryIsReady } from "./detectionsDirectorySlice"
+import { detectionsDirectorySet, selectDetectionsDirectory, selectDetectionsDirectoryIsReady, DetectionsDirectory } from "./detectionsDirectorySlice"
 import { useSelector } from "react-redux"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAppDispatch } from "./store"
 import { ModalPopup } from "src/lib/ModalPopup"
+import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
+import { detectionInfoFromFile, DetectionInfo } from "./detections"
 
 const DetectionBarNoDirectory: FunctionComponent = () => {
+  const [filesSeenWhileLoading, setFilesSeenWhileLoading] = useState<number | null>(null)
   const [moreInfoOpen, setMoreInfoOpen] = useState(false)
   const dispatch = useAppDispatch()
 
+  async function scanDirectoryAndSave(directory: FileSystemDirectoryHandle) {
+    const directoriesToCheck = [directory]
+    const detectionsByFilename: DetectionsDirectory["detectionsByFilename"] = {}
+    let filesSeen = 0
+    while (directoriesToCheck.length > 0) {
+      const currentDirectory = directoriesToCheck.pop()!
+      for await (const [name, fileOrDirHandle] of currentDirectory.entries()) {
+        if ((filesSeen++ % 100) === 0) {
+          setFilesSeenWhileLoading(filesSeen)
+        }
+        if (fileOrDirHandle instanceof FileSystemDirectoryHandle) {
+          directoriesToCheck.push(fileOrDirHandle)
+        } else {
+          if (!(name in detectionsByFilename)) {
+            detectionsByFilename[name] = []
+          }
+          detectionsByFilename[name].push(fileOrDirHandle)
+        }
+      }
+    }
+    dispatch(detectionsDirectorySet({directory, detectionsByFilename}))
+  }
+
   return <div>
+    {filesSeenWhileLoading !== null && <ModalPopup>
+      <>Scanning directory, looked at {filesSeenWhileLoading} files.</>
+    </ModalPopup>}
     No detection directory was set.
     <a href="javascript:void(0)" onClick={() => setMoreInfoOpen(true)}>More info...</a>
     <button onClick={() => {
@@ -18,7 +47,7 @@ const DetectionBarNoDirectory: FunctionComponent = () => {
       try {
           const directory = await window.showDirectoryPicker({id: "detectionDir"})
           if (directory) {
-            dispatch(detectionsDirectorySet({directory}))
+            void(scanDirectoryAndSave(directory))
           }
         } catch (e) {
           console.error("Picking directory error: ", e)
@@ -41,8 +70,49 @@ const DetectionBarNoDirectory: FunctionComponent = () => {
   </div>
 }
 
+type DetectionState = "no video" | "searching" | "no detection file found" | DetectionInfo
+
 const DetectionBarWithDirectory: FunctionComponent = () => {
-  return <div>We have a dir!</div>
+  const [detectionState, setDetectionState] = useState<DetectionState>("no video")
+  const detectionsDirectory = useSelector(selectDetectionsDirectory)
+  const videoFile = useSelector(selectVideoFilePotentiallyNull)
+
+  useEffect(() => {
+    void((async () => {
+      if (!videoFile) {
+        setDetectionState("no video")
+        return
+      }
+      setDetectionState("searching")
+      const baseFilename = videoFile.file.name.split(".").slice(0, -1).join(".")
+      const detectionsFilename = baseFilename + ".csv"
+      console.log({detectionsDirectory, detectionsFilename})
+      const possibleDetectionFileHandles =
+      detectionsDirectory.detectionsByFilename[detectionsFilename] ?? []
+      for (const fileHandle of possibleDetectionFileHandles) {
+        const detectionInfo = await detectionInfoFromFile(
+          await fileHandle.getFile())
+        if (detectionInfo !== null) {
+          setDetectionState(detectionInfo)
+          return
+        }
+      }
+      setDetectionState("no detection file found")
+    })())
+  }, [detectionsDirectory, videoFile])
+
+  switch (detectionState) {
+    case "no video":
+      return <div>Waiting for a video file to be loaded</div>
+    case "searching":
+      return <div>Searching for a matching detection file</div>
+    case "no detection file found":
+      return <div>No detection file was found for this video</div>
+    default:
+      return <div>
+        Detection file with {detectionState.totalNumberOfFrames} frames.
+      </div>
+  }
 }
 
 export const DetectionBar: FunctionComponent = () => {

@@ -29,8 +29,8 @@ const store = configureStore({
       ],
       ignoredPaths: [
         "videoFile.file",
-        "detectionsDirectory/directory",
-        "behaviourDirectory/directory",
+        "detectionsDirectory",
+        "behaviourDirectory",
       ],
     },
     serializableCheck: {
@@ -42,8 +42,8 @@ const store = configureStore({
       ],
       ignoredPaths: [
         "videoFile.file",
-        "detectionsDirectory/directory",
-        "behaviourDirectory/directory",
+        "detectionsDirectory",
+        "behaviourDirectory",
       ],
     },
   })

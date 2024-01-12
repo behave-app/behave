@@ -1,4 +1,4 @@
-import { FunctionComponent } from "preact"
+import { FunctionComponent, JSX } from "preact"
 import * as css from "./modalpopup.module.css"
 
 export type ButtonInfo = {
@@ -6,24 +6,20 @@ export type ButtonInfo = {
 }
 
 
-type Props<K extends ButtonInfo[] = {name: "OK"}[]> = {
-  message: string,
-  buttonInfos?: K,
-  callback: (pressedButton: K[number]) => void
+type Props = {
+  children: string | JSX.Element | JSX.Element[]
+  addOkButtonCallback?: () => void
 }
 
 export const ModalPopup: FunctionComponent<Props> = ({
-  message,
-  buttonInfos,
-  callback,
+  children,
+  addOkButtonCallback,
 }) => {
-  buttonInfos = buttonInfos ?? [{name: "OK"}]
   return <div className={css.background}>
     <div className={css.popup}>
-      <div>{message}</div>
-      {buttonInfos.map(bi =>
-        <button onClick={() => callback(bi)}>{bi.name}</button>
-        )}
+      <div>{children}</div>
+      {addOkButtonCallback !== undefined &&
+        <button onClick={addOkButtonCallback}>OK</button>}
     </div>
   </div>
 

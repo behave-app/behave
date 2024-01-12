@@ -96,7 +96,7 @@ export const VideoPlayer: FunctionComponent = () => {
   }, [])
 
   return <div className={viewercss.videoplayer}>
-    {uploadError ? <ModalPopup message={uploadError} callback={() => setUploadError(undefined)} /> : ""}
+    {uploadError ? <ModalPopup addOkButtonCallback={() => setUploadError(undefined)} >{uploadError}</ModalPopup> : ""}
     {videoFile && dragState === "nodrag"
       ? <VideoCanvas videoFile={videoFile.file} />
       : <DummyCanvas message={dragState=="dragging" ? "Drop file here" : "Start by dropping in a video file"} />

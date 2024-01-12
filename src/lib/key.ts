@@ -35,6 +35,39 @@ export function keyToString(key: Key): string {
   return keyToStrings(key).join("-")
 }
 
+export function isKey(key: unknown): key is Key {
+  if (!key || typeof key !== "object") {
+    return false
+  }
+  const keyLength = Object.keys(key).length
+  if (! ("code" in key) || typeof key.code !== "string") {
+    return false
+  }
+  if (!(key.code in KEYCODE_BY_DISPLAY)) {
+    return false
+  }
+  if (keyLength === 1) {
+    return true
+  }
+  if (keyLength !== 2) {
+    return false
+  }
+  if (! ("modifiers" in key)
+    || !Array.isArray(key.modifiers)
+    || !key.modifiers.every(m => typeof m !== "string")) {
+    return false
+  }
+  const indices = key.modifiers.map(m => Object.keys(MODIFIER_KEYS).findIndex(m))
+  let lastSeenIndex = -1
+  for (const index of indices) {
+    if (index <= lastSeenIndex) {
+      return false
+      }
+      lastSeenIndex = index
+  }
+  return true
+}
+
 export const KEYCODE_BY_DISPLAY = {
     Enter: "Enter",
     Space: "Space",

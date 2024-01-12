@@ -86,6 +86,13 @@
   }
 }
 
+.sectionbuttons {
+  margin-top: 0.5em;
+  button {
+    margin-right: .7em;
+  }
+}
+
 .submitbuttons {
   margin-top: 1.5em;
   button {

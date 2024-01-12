@@ -8,6 +8,8 @@ const ICONS = {
   add: "\ue145",
   check_box_checked: "\ue834",
   check_box_unchecked: "\ue835",
+  download: "\uf090",
+  upload: "\uf09b",
 } as const
 
 export type ValidIconName = keyof typeof ICONS

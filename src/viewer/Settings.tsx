@@ -5,7 +5,7 @@ import { settingsScreenHidden } from "./appSlice.js"
 import { useState, } from "react"
 import { Icon } from "src/lib/Icon"
 import { ACTIONS } from "./VideoPlayer"
-import { SettingsState, selectSettings, settingsUpdated } from "./settingsSlice"
+import { SettingsState, isBehaviourShortcutGroupsGroups, isSubjectShortcutGroupsGroups, selectSettings, settingsUpdated } from "./settingsSlice"
 import { useSelector } from "react-redux"
 import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
 import { assert, getDuplicateIndices } from "src/lib/util"
@@ -70,8 +70,8 @@ function createSettingsShortcutsEditor(
         return newLocalSettings
       })
       closeSubscreen()
-    }
-    } />
+    }}
+  />
 }
 
 function getValue(event: Event): string {
@@ -90,6 +90,41 @@ function classNamesFromDict(dict: Record<string, boolean>): string {
     .filter(([_k, v]) => v).map(([k]) => k).join(" ")
 }
 
+function downloadAsJson(data: unknown, filename: string) {
+    const blob = new Blob(
+    [JSON.stringify(data, undefined, 4)], {type: "application/json"})
+    const link = document.createElement("a")
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+}
+
+async function uploadJson(filenameFilter?: RegExp): Promise<unknown> {
+  try {
+  const handlers = await window.showOpenFilePicker({ 
+      id: "uploadJson",
+      multiple: false,
+      types: [{
+        description: "JSON settings file",
+        accept: {
+          "application/json": [".json"]
+        }}]
+    })
+    if (handlers.length !== 1) {
+      return null
+    }
+    const file = await handlers[0].getFile()
+    if (filenameFilter && !filenameFilter.test(file.name)) {
+      if (!confirm("The selected file has a different filename from the usual files of this type. Continue with import anyways?")) {
+        return null
+      }
+    }
+    return JSON.parse(await file.text())
+  } catch (e) {
+    console.error("File picker failed: " + e)
+    return null;
+  }
+}
 
 const GroupedShortcuts: FunctionComponent<{
   localSettings: SettingsState,
@@ -131,15 +166,15 @@ const GroupedShortcuts: FunctionComponent<{
               [css.selected]: localSettings[shortcutsKey].selectedIndex === index,
             })}>
               <td className={css.shortcutSelect}>
-              <span onClick={() => setLocalSettings(settings => ({
-                    ...settings,
-                    [shortcutsKey]: {
-                      ...settings[shortcutsKey],
-                      selectedIndex: index
+                <span onClick={() => setLocalSettings(settings => ({
+                  ...settings,
+                  [shortcutsKey]: {
+                    ...settings[shortcutsKey],
+                    selectedIndex: index
                   }}))}>
-                <Icon iconName={index === localSettings[shortcutsKey].selectedIndex
-                ? "check_box_checked" : "check_box_unchecked"} />
-              </span>
+                  <Icon iconName={index === localSettings[shortcutsKey].selectedIndex
+                    ? "check_box_checked" : "check_box_unchecked"} />
+                </span>
               </td>
               <td className={classNamesFromDict({
                 [css.shortcutGroupsName]: true,
@@ -178,7 +213,7 @@ const GroupedShortcuts: FunctionComponent<{
                 <button disabled={
                   localSettings[shortcutsKey].selectedIndex === index}
                   title={
-                  localSettings[shortcutsKey].selectedIndex === index
+                    localSettings[shortcutsKey].selectedIndex === index
                       ? "Cannot delete active shortcuts" : "Delete shortcut group" }
                   onClick={() => {
                     setLocalSettings(settings => {
@@ -196,7 +231,7 @@ const GroupedShortcuts: FunctionComponent<{
                         (_, i) => i !== index)
                       return {
                         ...settings,
-                        subjectShortcutsGroups: newGroups
+                        [shortcutsKey]: newGroups
                       }})}
                   }><Icon iconName="delete" /></button>
               </td>
@@ -204,26 +239,60 @@ const GroupedShortcuts: FunctionComponent<{
           )}
         </tbody>
       </table>
-      <button onClick={() => {
-        setLocalSettings(settings => {
-          const usedNames = new Set(
-            settings[shortcutsKey].groups.map(({name}) => name))
-          let name = "new"
-          for (let i=1; usedNames.has(name); i++) {
-            name = `new (${i})`
-          }
-          const newGroups = {
-            ...settings[shortcutsKey],
-            groups: [
-              ...settings[shortcutsKey].groups,
-              {name, shortcuts: []}
-            ]
-          }
-          return {
-            ...settings,
-            [shortcutsKey]: newGroups
-          }})}
-      }><Icon iconName="add" /></button>
+      <div className={css.sectionbuttons}>
+        <button onClick={() => {
+          setLocalSettings(settings => {
+            const usedNames = new Set(
+              settings[shortcutsKey].groups.map(({name}) => name))
+            let name = "new"
+            for (let i=1; usedNames.has(name); i++) {
+              name = `new (${i})`
+            }
+            const newGroups = {
+              ...settings[shortcutsKey],
+              groups: [
+                ...settings[shortcutsKey].groups,
+                {name, shortcuts: []}
+              ]
+            }
+            return {
+              ...settings,
+              [shortcutsKey]: newGroups
+            }})}
+        }><Icon iconName="add" /></button>
+        <button title={`export ${shortcutsType} shortcuts`} onClick={() =>
+          downloadAsJson(
+            localSettings[shortcutsKey].groups, `${shortcutsType}.shortcuts.json`)
+        }><Icon iconName="download" /></button>
+        <button title={`import ${shortcutsType} shortcuts from file`} onClick={() =>{
+          void(uploadJson(new RegExp(`^${shortcutsType}\\.shortcuts.*\\.json$`)).then(shortcutGroups => {
+            if (shortcutGroups === null) {
+              return
+            }
+            const typeChecker = {
+              "subject": isSubjectShortcutGroupsGroups,
+              "behaviour": isBehaviourShortcutGroupsGroups,
+            }[shortcutsType]
+            if (!typeChecker(shortcutGroups)) {
+              alert("File is corrupted")
+              return
+            }
+            setLocalSettings(settings => {
+              const newGroups = {
+                ...settings[shortcutsKey],
+                groups: [
+                  ...settings[shortcutsKey].groups,
+                  ...shortcutGroups,
+                ]
+              }
+              return {
+                ...settings,
+                [shortcutsKey]: newGroups
+              }
+            })
+          }))
+        }}><Icon iconName="upload" /></button>
+      </div>
     </div>
     <hr />
   </>

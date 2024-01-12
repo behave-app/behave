@@ -89,12 +89,17 @@
 .sectionbuttons {
   margin-top: 0.5em;
   button {
-    margin-right: .7em;
+    margin-right: .3em;
   }
 }
 
 .submitbuttons {
   margin-top: 1.5em;
+  .errormessage {
+    background-color: hsl(0, 90%, 50%);
+    margin-bottom: .7em;
+    padding: .7em;
+  }
   button {
     margin-right: .7em;
   }

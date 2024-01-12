@@ -5,7 +5,7 @@ import { settingsScreenHidden } from "./appSlice.js"
 import { useState, } from "react"
 import { Icon } from "src/lib/Icon"
 import { ACTIONS } from "./VideoPlayer"
-import { SettingsState, isBehaviourShortcutGroupsGroups, isSubjectShortcutGroupsGroups, selectSettings, settingsUpdated } from "./settingsSlice"
+import { SettingsState, isBehaviourShortcutGroupsGroups, isSubjectShortcutGroupsGroups, noDuplicateOrInvalidGroupNames, selectSettings, settingsUpdated, noInvalidSettings } from "./settingsSlice"
 import { useSelector } from "react-redux"
 import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
 import { assert, getDuplicateIndices } from "src/lib/util"
@@ -135,9 +135,9 @@ const GroupedShortcuts: FunctionComponent<{
   localSettings, setLocalSettings, setSubscreen, shortcutsType
 }) => {
   const shortcutsKey = shortcutsType === "subject" ? "subjectShortcutsGroups" : "behaviourShortcutsGroups"
-  const duplicateNames = getDuplicateIndices(
-    localSettings[shortcutsKey].groups.map(i => i.name.trim()))
-  const duplicateNamesSet = new Set(duplicateNames.flat())
+  const valid = noDuplicateOrInvalidGroupNames(localSettings[shortcutsKey])
+  const duplicateNamesSet = new Set(
+    valid === "ok" ? [] : (valid.duplicateGroupNames ?? []).flat())
 
   return <>
     <h3>{capitalize(shortcutsType)} shortcuts</h3>
@@ -303,6 +303,8 @@ export const Settings: FunctionComponent = () => {
   const [subscreen, setSubscreen] = useState<Subscreen>(null)
   const [localSettings, setLocalSettings] = useState(useSelector(selectSettings))
 
+  const validSettings = noInvalidSettings(localSettings)
+
   return <div className={css.background}>
     <div className={css.popup}>
       {subscreen === null
@@ -327,7 +329,24 @@ export const Settings: FunctionComponent = () => {
           <GroupedShortcuts shortcutsType="behaviour"
             {...{localSettings, setLocalSettings, setSubscreen}} />
           <div className={css.submitbuttons}>
-            <button onClick={() => {
+            {validSettings !== "ok" && <div class={css.errormessage}>
+              {validSettings.videoShortcutsProblem ? <div>Problem with video playback shortcuts</div> : <></>}
+              {validSettings.subjectShortcutsGroupsProblem ? <div>Problem with subject shortcuts</div> : <></>}
+              {validSettings.behaviourShortcutsGroupsProblem ? <div>Problem with behaviour shortcuts</div> : <></>}
+              {validSettings.videoControlsAndShortcutControlsOverlap ?<div>
+                The following keys are defined both as video playback shortcuts as as subject shortcuts;
+                this is not allowed since the system will not know what action you meant:
+                <ul>
+                  {validSettings.videoControlsAndShortcutControlsOverlap.map(
+                    key => <li>{keyToStrings(key).map(k => <kbd>{k}</kbd>)}</li>)}
+                </ul>
+              </div> : <></>}
+            </div>}
+            <button disabled={validSettings !== "ok"} onClick={() => {
+              if (validSettings !== "ok") {
+                console.log("Will not save invalid settings")
+                return
+              }
               dispatch(settingsScreenHidden())
               dispatch(settingsUpdated(localSettings))
             }}>Save &amp; close</button>

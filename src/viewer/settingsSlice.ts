@@ -1,7 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { ACTIONS } from './VideoPlayer'
 import { RootState } from './store'
-import { Key, isKey } from "../lib/key.js"
+import { Key, isKey, keyToString } from "../lib/key.js"
+import { getDuplicateIndices } from 'src/lib/util'
 
 
 type VideoAction = keyof typeof ACTIONS
@@ -170,3 +171,85 @@ export const {
 
 export const selectSettings = (state: RootState) => state.settings
 
+export function noDuplicateKeysInShortcuts(
+  shortcuts: ReadonlyArray<VideoShortcut | SubjectShortcut | BehaviourShortcut>
+): "ok" | {
+  duplicateKeyMappings: number[][]
+} {
+  const duplicates = getDuplicateIndices(
+    // small trick, map null keys to a unique number, so they will never show up
+    shortcuts.map(([k], index) => k === null ? index : keyToString(k)))
+  if (duplicates.length === 0) {
+    return "ok"
+  }
+  return {duplicateKeyMappings: duplicates}
+}
+
+export function noDuplicateOrInvalidGroupNames(
+  groups: SubjectShortcutGroups | BehaviourShortcutGroups
+): "ok" | {
+  duplicateGroupNames?: number[][]
+  invalidGroupNames?: number[]
+  invalidSelectedIndex?: true
+} {
+  const result: Exclude<ReturnType<typeof noDuplicateOrInvalidGroupNames>, "ok"> = {}
+  if (!groups.groups[groups.selectedIndex]) {
+    result.invalidSelectedIndex = true
+  }
+  const duplicates = getDuplicateIndices(
+    groups.groups.map(({name}) => name.trim()))
+  if (duplicates.length) {
+    result.duplicateGroupNames = duplicates
+  }
+  const invalidNames = groups.groups.map(({name}, index) =>
+    name.trim().length === 0 ? index : null).filter(x => x !== null) as number[]
+  if (invalidNames.length) {
+    result.invalidGroupNames = invalidNames
+  }
+  if (Object.keys(result).length) {
+    return result
+  }
+  return "ok"
+}
+
+export function noInvalidSettings(settings: SettingsState): "ok" | {
+  videoShortcutsProblem?: true
+  subjectShortcutsGroupsProblem?: true
+  behaviourShortcutsGroupsProblem?: true
+  videoControlsAndShortcutControlsOverlap?: Key[]
+} {
+  const result: Exclude<ReturnType<typeof noInvalidSettings>, "ok"> = {}
+  if (noDuplicateKeysInShortcuts(settings.videoShortcuts) !== "ok") {
+    result.videoShortcutsProblem = true
+  }
+  if (noDuplicateOrInvalidGroupNames(settings.subjectShortcutsGroups) !== "ok"
+    || settings.subjectShortcutsGroups.groups.some(
+      group => noDuplicateKeysInShortcuts(group.shortcuts) !== "ok")) {
+    result.subjectShortcutsGroupsProblem = true
+  }
+  if (noDuplicateOrInvalidGroupNames(settings.behaviourShortcutsGroups) !== "ok"
+    || settings.behaviourShortcutsGroups.groups.some(
+      group => noDuplicateKeysInShortcuts(group.shortcuts) !== "ok")) {
+    result.behaviourShortcutsGroupsProblem = true
+  }
+  const videoAndActiveSubjectShortcuts = [
+    ...settings.videoShortcuts,
+    ...(settings.subjectShortcutsGroups.groups[settings.subjectShortcutsGroups.selectedIndex] ?? {shortcuts: []}).shortcuts
+  ]
+  const valid = noDuplicateKeysInShortcuts(videoAndActiveSubjectShortcuts)
+  if (valid !== "ok") {
+    const duplicates = valid.duplicateKeyMappings
+    const cutoffBetweenVideoAndSubject = settings.videoShortcuts.length
+    const interestingDuplicates = duplicates.filter(dups => (
+      dups[0] < cutoffBetweenVideoAndSubject
+        && dups[dups.length - 1]! >= cutoffBetweenVideoAndSubject))
+    if (interestingDuplicates.length) {
+      result.videoControlsAndShortcutControlsOverlap = interestingDuplicates.map(
+        dups => settings.videoShortcuts[dups[0]][0] as Key)
+    }
+  }
+  if (Object.keys(result).length) {
+    return result
+  }
+  return "ok"
+}

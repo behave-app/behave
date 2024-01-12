@@ -2,11 +2,10 @@ import { FunctionComponent } from "preact"
 import { ACTIONS } from "./VideoPlayer"
 import * as css from "./settingsshortcutseditor.module.css"
 import { Icon } from "src/lib/Icon"
-import { getDuplicateIndices } from "src/lib/util"
 
 import { keyFromEvent, keyToStrings, keyToString } from "../lib/key.js"
 import {
-  VideoShortcuts, SubjectShortcuts, BehaviourShortcuts, } from "./settingsSlice"
+  VideoShortcuts, SubjectShortcuts, BehaviourShortcuts, noDuplicateKeysInShortcuts, } from "./settingsSlice"
 import { useState, useEffect, } from "react"
 
 type Props = {
@@ -88,8 +87,8 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
 
   const defaultAction = actions ? Object.keys(actions)[0] : ""
 
-  const duplicates = getDuplicateIndices(
-    localShortcuts.filter(([k]) => k !== null).map(([k]) => keyToString(k!)))
+  const valid = noDuplicateKeysInShortcuts(localShortcuts)
+  const duplicates = valid === "ok" ? [] : valid.duplicateKeyMappings
   const duplicatesSet = new Set(duplicates.flat())
 
   return <div>
@@ -167,7 +166,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
       {duplicates.length > 0 && <div class={css.duplicateserrormessage}>
         The same key is used in lines {
           duplicates.map(dups =>
-            dups.slice(0, -1).map(i => `${i}`).join(", ") + `and ${dups.at(-1)}`
+            dups.slice(0, -1).map(i => `${i}`).join(", ") + ` and ${dups.at(-1)}`
           ).join("; ")}
       </div>}
       <button disabled={duplicates.length > 0}

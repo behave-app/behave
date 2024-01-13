@@ -1,5 +1,6 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { RootState } from './store'
+import { selectFps, selectOffset } from './detectionsSlice'
 
 export type PlayerState = Readonly<{
   currentTime: number
@@ -93,20 +94,18 @@ export const selectSeeking = (state: RootState) => {
   return state.videoPlayer.playerState.seeking
 }
 
-const FPS = 25
-const OFFSET = 0
 export const selectCurrentFrameNumber = createSelector(
-  [selectCurrentTime, () => FPS, () => OFFSET],
+  [selectCurrentTime, selectFps, selectOffset],
   (currentTime, fps, offset) => Math.round(currentTime * fps) + offset
 )
 
 export const selectDurationInFrames = createSelector(
-  [selectDuration, () => FPS, () => OFFSET],
+  [selectDuration, selectFps, selectOffset],
   (duration, fps, offset) => Math.round(duration * fps) + offset
 )
 
 export const selectPlaybackControls = createSelector(
-  [selectVideoPlayerElementId, () => FPS, () => OFFSET],
+  [selectVideoPlayerElementId, selectFps, selectOffset],
   (id, fps, offset) => {
     function getVid(): HTMLVideoElement {
       if (id === null) {

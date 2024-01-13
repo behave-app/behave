@@ -1,6 +1,6 @@
 import { FunctionComponent } from "preact"
 import * as css from "./viewer.module.css"
-import { detectionsDirectorySet, selectDetectionsDirectory, selectDetectionsDirectoryIsReady, DetectionsDirectory } from "./detectionsDirectorySlice"
+import { detectionsDirectorySet, selectDetectionsDirectory, selectDetectionsDirectoryIsReady, DetectionsDirectory, detectionsInfoSet, selectDetectionInfo } from "./detectionsSlice"
 import { useSelector } from "react-redux"
 import { useEffect, useState } from "react"
 import { useAppDispatch } from "./store"
@@ -71,14 +71,13 @@ const DetectionBarNoDirectory: FunctionComponent = () => {
   </div>
 }
 
-type DetectionState = "no video" | "searching" | "no detection file found" | DetectionInfo
+type DetectionState = "no video" | "searching" | "no detection file found"
 
 const DetectionBarWithDirectory: FunctionComponent = () => {
   const [detectionState, setDetectionState] = useState<DetectionState>("no video")
   const detectionsDirectory = useSelector(selectDetectionsDirectory)
   const videoFile = useSelector(selectVideoFilePotentiallyNull)
-  const playbackControls = useSelector(selectPlaybackControls)
-  const currentFrameNumber = useSelector(selectCurrentFrameNumber)
+  const dispatch = useAppDispatch()
 
   useEffect(() => {
     void((async () => {
@@ -89,14 +88,13 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
       setDetectionState("searching")
       const baseFilename = videoFile.file.name.split(".").slice(0, -1).join(".")
       const detectionsFilename = baseFilename + ".csv"
-      console.log({detectionsDirectory, detectionsFilename})
       const possibleDetectionFileHandles =
       detectionsDirectory.detectionsByFilename[detectionsFilename] ?? []
       for (const fileHandle of possibleDetectionFileHandles) {
         const detectionInfo = await detectionInfoFromFile(
           await fileHandle.getFile())
         if (detectionInfo !== null) {
-          setDetectionState(detectionInfo)
+          dispatch(detectionsInfoSet(detectionInfo))
           return
         }
       }
@@ -111,18 +109,30 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
       return <div>Searching for a matching detection file</div>
     case "no detection file found":
       return <div>No detection file was found for this video</div>
-    default:
-      return <div>
-        Detection file with {detectionState.totalNumberOfFrames} frames, video currently at frame {currentFrameNumber}.
-        <button onClick={() => playbackControls.togglePlayPause()}>play/pause</button>
-      </div>
+    default: {
+      const exhaustive: never = detectionState
+      throw new Error(`Unhandled detection state: ${exhaustive}`)
+    }
   }
 }
 
+const DetectBarWithDetectionInfo: FunctionComponent = () => {
+  const detectionInfo = useSelector(selectDetectionInfo) as DetectionInfo
+  const playbackControls = useSelector(selectPlaybackControls)
+  const currentFrameNumber = useSelector(selectCurrentFrameNumber)
+  return <div>
+    Detection file with {detectionInfo.totalNumberOfFrames} frames, video currently at frame {currentFrameNumber}.
+    <button onClick={() => playbackControls.togglePlayPause()}>play/pause</button>
+  </div>
+}
+
 export const DetectionBar: FunctionComponent = () => {
+  const hasDetectionInfo = !!useSelector(selectDetectionInfo)
   const hasDirectory = useSelector(selectDetectionsDirectoryIsReady)
 
   return <div className={css.detectionbar}>
-    {hasDirectory ? <DetectionBarWithDirectory /> : <DetectionBarNoDirectory />}
+    {hasDetectionInfo ? <DetectBarWithDetectionInfo />
+    : hasDirectory ? <DetectionBarWithDirectory />
+    : <DetectionBarNoDirectory />}
   </div>
 }

@@ -1,6 +1,6 @@
 import { readLines } from "src/lib/util"
 
-export type Detections = Record<number, ReadonlyArray<{
+export type Detections = Record<number, Array<{
       klass: number
       cx: number
       cy: number

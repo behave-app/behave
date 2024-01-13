@@ -2,6 +2,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import {useDispatch } from "react-redux"
 import videoFileReducer from "./videoFileSlice.js"
+import videoPlayerReducer from "./videoPlayerSlice.js"
 import appReducer from "./appSlice.js"
 import settingsReducer from "./settingsSlice.js"
 import {settingsToLocalStorage, SettingsState} from "./settingsSlice.js"
@@ -18,6 +19,7 @@ const store = configureStore({
     detectionsDirectory: detectionsDirectoryReducer,
     behaviourDirectory: behaviourDirectoryReducer,
     videoFile: videoFileReducer,
+    videoPlayer: videoPlayerReducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware({
     immutableCheck: {

@@ -13,7 +13,7 @@ export const Viewer: FunctionComponent = () => {
 
   return <div className={css.viewer}>
     <SideBar />
-    <VideoPlayer  />
+    <VideoPlayer />
     <DetectionBar />
     <Behaviour />
     {showSettingsScreen && <Settings />}

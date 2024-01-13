@@ -5,7 +5,9 @@ import * as css from "./videoplayer.module.css"
 import { useSelector } from "react-redux"
 import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice"
 import { ModalPopup } from "src/lib/ModalPopup.js"
-import {useRef, useState, useEffect} from 'preact/hooks'
+import { useRef, useState, useEffect} from 'preact/hooks'
+import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
+import { assert } from "src/lib/util"
 
 
 export const ACTIONS: Record<string, {description: string}> = {
@@ -24,8 +26,45 @@ const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
   </div>
 }
 
-const VideoCanvas: FunctionComponent<{videoFile: File}> = ({videoFile}) => {
-  return <video className={css.canvas}>
+const VideoCanvas: FunctionComponent<{
+  videoFile: File
+}> = ({videoFile}) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const dispatch = useAppDispatch()
+  const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
+    dispatch(playerStateSet({
+      currentTime: video.currentTime,
+      duration: video.duration,
+      ended: video.ended,
+      error: video.error,
+      paused: video.paused,
+      playbackRate: video.playbackRate,
+      seeking: video.seeking
+    }))
+  }
+
+  useEffect(() => {
+    assert(!!videoRef.current,
+      "useEffect is supposed to only run after rendering, so videoRef.current should be set")
+    const video = videoRef.current
+    dispatch(videoPlayerElementIdSet(video.id))
+    copyAndDispatchPlayerState(video)
+    return () => {
+      dispatch(playerStateSet(null))
+      dispatch(videoPlayerElementIdSet(null))
+    }
+  }, [videoRef.current])
+
+  return <video ref={videoRef} id="myVideoPlayer" className={css.canvas}
+    onPlay={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onPause={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onDurationChange={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onEnded={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onRateChange={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onError={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onLoadedMetadata={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onTimeUpdate={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+  >
     <source src={URL.createObjectURL(videoFile)} />
   </video>
 }
@@ -77,7 +116,6 @@ export const VideoPlayer: FunctionComponent = () => {
       if (dragCounter.current > 0) {
         return;
       }
-      console.log("leave")
       setDragState("nodrag")
     }
     const dragOver = (event: DragEvent) => {

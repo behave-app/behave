@@ -7,6 +7,7 @@ import { useAppDispatch } from "./store"
 import { ModalPopup } from "src/lib/ModalPopup"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { detectionInfoFromFile, DetectionInfo } from "./detections"
+import { selectCurrentFrameNumber, selectPlaybackControls } from "./videoPlayerSlice"
 
 const DetectionBarNoDirectory: FunctionComponent = () => {
   const [filesSeenWhileLoading, setFilesSeenWhileLoading] = useState<number | null>(null)
@@ -76,6 +77,8 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
   const [detectionState, setDetectionState] = useState<DetectionState>("no video")
   const detectionsDirectory = useSelector(selectDetectionsDirectory)
   const videoFile = useSelector(selectVideoFilePotentiallyNull)
+  const playbackControls = useSelector(selectPlaybackControls)
+  const currentFrameNumber = useSelector(selectCurrentFrameNumber)
 
   useEffect(() => {
     void((async () => {
@@ -110,7 +113,8 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
       return <div>No detection file was found for this video</div>
     default:
       return <div>
-        Detection file with {detectionState.totalNumberOfFrames} frames.
+        Detection file with {detectionState.totalNumberOfFrames} frames, video currently at frame {currentFrameNumber}.
+        <button onClick={() => playbackControls.togglePlayPause()}>play/pause</button>
       </div>
   }
 }

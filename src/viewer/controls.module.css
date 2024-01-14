@@ -1,0 +1,12 @@
+.controls {
+  --button-size: 1.33em;
+  display: grid;
+  grid-template-columns: var(--button-size) var(--button-size) var(--button-size);
+    font-size: 2rem;
+  button {
+    font: unset;
+    width: var(--button-size);
+    height: var(--button-size);
+    text-align: center;
+  }
+}

@@ -7,6 +7,7 @@ import { Behaviour } from "./Behaviour.js";
 import { Settings } from "./Settings.js";
 import { selectShowSettingsScreen } from "./appSlice";
 import { useSelector } from "react-redux";
+import { Controls } from "./Controls";
 
 export const Viewer: FunctionComponent = () => {
   const showSettingsScreen = useSelector(selectShowSettingsScreen)
@@ -14,6 +15,7 @@ export const Viewer: FunctionComponent = () => {
   return <div className={css.viewer}>
     <SideBar />
     <VideoPlayer />
+    <Controls />
     <DetectionBar />
     <Behaviour />
     {showSettingsScreen && <Settings />}

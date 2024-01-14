@@ -1,12 +1,12 @@
 import { FunctionComponent } from 'preact'
 import { useMemo, useState, useCallback } from 'preact/hooks';
 import { assert, binIndices, range, selectStringsFromDict } from "../lib/util.js"
-import { selectCurrentFrameNumber, selectPlaybackControls } from './videoPlayerSlice.js';
+import { selectCurrentFrameNumber, videoSeekToFrameNumberAndPause } from './videoPlayerSlice.js';
 import { useSelector } from 'react-redux';
 import { selectDetectionInfo } from './detectionsSlice.js';
 import { selectConfidenceCutoff } from './settingsSlice.js';
 import * as css from "./detectionbardetections.module.css"
-import { useEffect } from 'react';
+import { useAppDispatch } from './store.js';
 
 type UseClientRect<T extends (HTMLElement | SVGElement)> =
   () => [[DOMRect | null, T | null], (node: T | null) => void]
@@ -91,10 +91,10 @@ const TOP_SCALING_FACTOR = 2;
 const BETWEEN_LAYERS_HEIGHT = 10;
 
 export const DetectionBarDetections: FunctionComponent = () => {
-  const playbackControls = useSelector(selectPlaybackControls)
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
   const detectionInfo = useSelector(selectDetectionInfo)
   const confidenceCutoff = useSelector(selectConfidenceCutoff)
+  const dispatch = useAppDispatch()
   const [hoverInfo, setHoverInfo] = useState<{
     x: number, y: number, frameNumber: number} | null>(null)
   assert(detectionInfo !== null)
@@ -118,8 +118,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
     if (isNaN(newFrameNumber)) {
       return
     }
-    playbackControls.pause()
-    playbackControls.seekToFrameNumber(newFrameNumber)
+    void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
   }
 
   const svgViewBox =

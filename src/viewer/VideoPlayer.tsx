@@ -10,16 +10,6 @@ import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert } from "src/lib/util"
 
 
-export const ACTIONS: Record<string, {description: string}> = {
-  play_pause: {description: "Pause if playing, start playing if paused"},
-  speed_up: {description: "Increase playback speed"},
-  speed_down: {description: "Decrease playback speed"},
-  next_frame: {description: "Next frame"},
-  previous_frame: {description: "Previous frame"},
-  next_frame_with_detection: {description: "Next frame with detection"},
-  previous_frame_with_detection: {description: "Previous frame with detection"},
-} as const
-
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
   return <div className={[css.canvas, css.dummy].join(" ")}>
     {message}

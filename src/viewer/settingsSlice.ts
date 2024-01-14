@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { ACTIONS } from './VideoPlayer'
+import { ACTIONS } from './Controls.js'
 import { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key.js"
 import { getDuplicateIndices } from 'src/lib/util'

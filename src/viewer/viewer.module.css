@@ -4,6 +4,7 @@ body {
   --sidebar-width: 1.7em;
   --detectionbar-height: min(5em, 10vh);
   --behaviour-height: 5em;
+  --controls-width: 10em;
 }
 
 kbd {
@@ -19,16 +20,16 @@ kbd + kbd {
 
 .viewer {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr var(--controls-width);
   grid-template-rows:
   1fr
   var(--detectionbar-height)
   var(--behaviour-height)
   ;
   grid-template-areas:
-  "sidebar videoplayer"
-  "sidebar detectionbar"
-  "sidebar behaviour"
+  "sidebar videoplayer controls"
+  "sidebar detectionbar detectionbar"
+  "sidebar behaviour behaviour"
   ;
   height: 100vh;
   width: 100vw;
@@ -43,6 +44,10 @@ kbd + kbd {
   grid-area: videoplayer;
   background-color: red;
   overflow: scroll;
+}
+.controls {
+  grid-area: controls;
+  background-color: yellow;
 }
 
 .detectionbar {

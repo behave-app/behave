@@ -1,5 +1,5 @@
 import { FunctionComponent } from "preact"
-import { ACTIONS } from "./VideoPlayer"
+import { ACTIONS } from "./Controls.js"
 import * as css from "./settingsshortcutseditor.module.css"
 import { Icon } from "src/lib/Icon"
 

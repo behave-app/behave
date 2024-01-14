@@ -55,15 +55,21 @@ const VideoCanvas: FunctionComponent<{
     }
   }, [videoRef.current])
 
+  const syncState = (e: Event) => {
+    copyAndDispatchPlayerState(e.target as HTMLVideoElement)
+  }
+
   return <video ref={videoRef} id="myVideoPlayer" className={css.canvas}
-    onPlay={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onPause={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onDurationChange={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onEnded={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onRateChange={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onError={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onLoadedMetadata={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
-    onTimeUpdate={e => copyAndDispatchPlayerState(e.target as HTMLVideoElement)}
+    onPlay={syncState}
+    onPause={syncState}
+    onDurationChange={syncState}
+    onEnded={syncState}
+    onRateChange={syncState}
+    onError={syncState}
+    onLoadedMetadata={syncState}
+    onSeeking={syncState}
+    onSeeked={syncState}
+    onTimeUpdate={syncState}
   >
     <source src={URL.createObjectURL(videoFile)} />
   </video>

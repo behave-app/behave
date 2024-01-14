@@ -3,7 +3,8 @@ import { ACTIONS } from "./VideoPlayer"
 import * as css from "./settingsshortcutseditor.module.css"
 import { Icon } from "src/lib/Icon"
 
-import { keyFromEvent, keyToStrings, keyToString } from "../lib/key.js"
+import { selectStringsFromDict } from "src/lib/util"
+import { keyFromEvent, keyToStrings, } from "../lib/key.js"
 import {
   VideoShortcuts, SubjectShortcuts, BehaviourShortcuts, noDuplicateKeysInShortcuts, } from "./settingsSlice"
 import { useState, useEffect, } from "react"
@@ -26,11 +27,6 @@ type Props = {
   updateShortcuts: (shortcuts: BehaviourShortcuts) => void,
   closeWithoutUpdating: () => void,
   title: string,
-}
-
-function classNamesFromDict(dict: Record<string, boolean>): string {
-  return Object.entries(dict)
-    .filter(([_k, v]) => v).map(([k]) => k).join(" ")
 }
 
 function getValue(event: Event): string {
@@ -117,7 +113,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
           const recording = recordKey === index
           return <tr>
             <td className={css.nrcolumn}>{index + 1}.</td>
-            <td className={classNamesFromDict({
+            <td className={selectStringsFromDict({
               [css.keycolumn]: true,
               [css.duplicate]: duplicatesSet.has(index),
               [css.recordKey]: recording,

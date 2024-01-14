@@ -57,5 +57,12 @@ export const selectDetectionsDirectory = (state: RootState): DetectionsDirectory
 }
 export const selectDetectionInfo = (state: RootState) => state.detections.detectionInfo
 
+export const selectDetectionsByFrameNumber = (state: RootState) => {
+  if (!state.detections.detectionInfo) {
+    throw new Error("Should not be called if detectionInfo can be null")
+  }
+  return state.detections.detectionInfo.detections
+}
+
 export const selectFps = (_state: RootState) => 25 /// this should come from detectionInfo
 export const selectOffset = (_state: RootState) => 0 /// this should come from detectionInfo

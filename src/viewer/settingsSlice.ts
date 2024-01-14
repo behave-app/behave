@@ -129,6 +129,13 @@ export const settingsToLocalStorage = (settings: SettingsState) => {
   console.debug("Settings saved to localStorage")
 }
 
+const defaultSettings: SettingsState = {
+  confidenceCutoff: 0.5,
+  videoShortcuts: defaultVideoShortcuts,
+  subjectShortcutsGroups: exampleSubjectShortcuts,
+  behaviourShortcutsGroups: exampleBehaviourShortcuts,
+}
+
 const getSettingsFromLocalStorageOrDefault = (): SettingsState => {
   const settingsJSON = window.localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY)
   if (settingsJSON !== null) {
@@ -139,14 +146,11 @@ const getSettingsFromLocalStorageOrDefault = (): SettingsState => {
       console.warn("Problem unserializing settings, using default settings")
     }
   }
-  return {
-    videoShortcuts: defaultVideoShortcuts,
-    subjectShortcutsGroups: exampleSubjectShortcuts,
-    behaviourShortcutsGroups: exampleBehaviourShortcuts,
-  }
+  return defaultSettings
 }
 
 export type SettingsState = {
+  confidenceCutoff: number
   videoShortcuts: VideoShortcuts
   subjectShortcutsGroups: BehaviourShortcutGroups
   behaviourShortcutsGroups: BehaviourShortcutGroups
@@ -170,6 +174,7 @@ export const {
 } = settingsSlice.actions
 
 export const selectSettings = (state: RootState) => state.settings
+export const selectConfidenceCutoff = (state: RootState) => state.settings.confidenceCutoff
 
 export function noDuplicateKeysInShortcuts(
   shortcuts: ReadonlyArray<VideoShortcut | SubjectShortcut | BehaviourShortcut>

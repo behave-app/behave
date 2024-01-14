@@ -1,0 +1,94 @@
+.detectionBanner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  & > svg {
+    width: 100%;
+    height: 100%;
+    --top-and-bottom-view-height: calc(
+    (var(--svgHeight) - var(--between-layers-height)) / 2);
+    --top-view-y: var(--top-and-bottom-view-height);
+    --transition-layer-y: calc(var(--top-view-y) + var(--between-layers-height));
+    --bottom-view-y: var(--svgHeight);
+  }
+  .detectionsTop {
+    transform:
+    translateX(calc((var(--svgWidth) / 2) * 1px)) /* put 0 in middle of screen */
+    translateY(calc(var(--top-view-y) * 1px))
+    scaleX(var(--top-scaling-factor))
+    translateX(calc(var(--currentFrame) * -1px))  /* currentFrame on left edge */
+    scaleY(calc(-1 * var(--top-and-bottom-view-height) / var(--maxCount)));
+  }
+  .detectionsBottom {
+    transform:
+    translateY(calc(var(--bottom-view-y) * 1px))
+    scaleX(calc(var(--svgWidth) / var(--totalNumberOfFrames)))
+    scaleY(calc(-1 * var(--top-and-bottom-view-height) / var(--maxCount)));
+  }
+  .detections {
+    stroke: var(--line-colour);
+    fill: var(--line-colour);
+  }
+  .cursor {
+    stroke: hsl(0 0% 30%);
+    fill: hsl(0 0% 30%);
+    transform: scaleY(var(--top-and-bottom-view-height));
+    path {
+      vector-effect: non-scaling-stroke;
+    }
+  }
+
+  .cursorTop {
+    transform: translateX(calc((var(--svgWidth) / 2) * 1px));
+  }
+
+  .cursorBottom {
+    transform: translateX(
+    calc(var(--currentFrame) / var(--totalNumberOfFrames) * 100%)
+    ) translateY(calc(var(--transition-layer-y) * 1px));
+    & > rect {
+      fill: hsl(0 0% 70% / 30%);
+      stroke: hsl(0 0% 30% / 40%);
+      stroke-dasharray: 2 4;
+      vector-effect: non-scaling-stroke;
+      --itemWidth: calc(
+      var(--svgWidth) * var(--svgWidth)
+      / (var(--totalNumberOfFrames) * var(--top-scaling-factor)));
+      x: calc(-1 * var(--itemWidth) / 2 * 1px);
+      width: calc(var(--itemWidth) * 1px);
+      height: calc(var(--top-and-bottom-view-height) * 1px);
+    }
+  }
+
+  .detectionLines > path {
+    vector-effect: non-scaling-stroke;
+  }
+  .horizontalRulers {
+    line {
+      vector-effect: non-scaling-stroke;
+      stroke: hsl(0 0% 30% / 40%);
+    }
+
+    text {
+      fill: hsl(0 0% 20% / 80%);
+      font-family: monospace;
+      font-size: .7em;
+    }
+  }
+}
+
+.hoverInfo {
+  position: absolute;
+  &:not(.active) {
+    display: none;
+  }
+  &.active {
+    top: calc(var(--y) + 1.3em);
+    left: calc(var(--x) + 1.3em);
+    background-color: hsl(140, 60%, 90%);
+    padding: .3em;
+    border: 1px solid hsl(140, 60%, 30%);
+    transform: translateX(sign(var(--x) - 100px));
+  }
+}

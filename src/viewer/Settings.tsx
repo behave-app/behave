@@ -8,7 +8,7 @@ import { ACTIONS } from "./VideoPlayer"
 import { SettingsState, isBehaviourShortcutGroupsGroups, isSubjectShortcutGroupsGroups, noDuplicateOrInvalidGroupNames, selectSettings, settingsUpdated, noInvalidSettings } from "./settingsSlice"
 import { useSelector } from "react-redux"
 import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
-import { assert, getDuplicateIndices } from "src/lib/util"
+import { assert, selectStringsFromDict } from "src/lib/util"
 import { keyToStrings } from "src/lib/key"
 
 
@@ -85,11 +85,6 @@ function capitalize(s: string): string {
   return s[0].toLocaleUpperCase() + s.slice(1)
 }
 
-function classNamesFromDict(dict: Record<string, boolean>): string {
-  return Object.entries(dict)
-    .filter(([_k, v]) => v).map(([k]) => k).join(" ")
-}
-
 function downloadAsJson(data: unknown, filename: string) {
     const blob = new Blob(
     [JSON.stringify(data, undefined, 4)], {type: "application/json"})
@@ -162,7 +157,7 @@ const GroupedShortcuts: FunctionComponent<{
         </thead>
         <tbody>
           {localSettings[shortcutsKey].groups.map(
-            ({name, shortcuts}, index) => <tr className={classNamesFromDict({
+            ({name, shortcuts}, index) => <tr className={selectStringsFromDict({
               [css.selected]: localSettings[shortcutsKey].selectedIndex === index,
             })}>
               <td className={css.shortcutSelect}>
@@ -310,6 +305,15 @@ export const Settings: FunctionComponent = () => {
       {subscreen === null
         ? <>
           <h1>Settings</h1>
+          <div>
+            Confidence:
+            <input type="range" min="0.10" max="0.95" step="0.05"
+              value={localSettings.confidenceCutoff}
+              onChange={e => setLocalSettings(settings => ({
+                ...settings,
+                confidenceCutoff: parseFloat(getValue(e))}))} />
+            {localSettings.confidenceCutoff}
+          </div>
           <h3>Video player shortcuts</h3>
           <div className={css.explanation}>
             Define keys to quickly navigate around the video (e.g. next detection, previous frame, start/pause play.

@@ -1,13 +1,14 @@
-import { readLines } from "src/lib/util"
+import { range, readLines } from "src/lib/util"
 
-export type Detections = Record<number, Array<{
+export type DetectionsForFrame = Array<{
       klass: number
       cx: number
       cy: number
       width: number
       height: number
       confidence: number
-  }>>
+  }>
+export type Detections = DetectionsForFrame[]
 
 export type DetectionInfo = {
   version: 1
@@ -44,9 +45,8 @@ const DETECTION_INFO_MAP: {[K in keyof Omit<DetectionInfo, "detections"> as stri
 export async function detectionInfoFromFile(
   file: File
 ): Promise<DetectionInfo | null> {
-  const info: Partial<DetectionInfo> & Pick<DetectionInfo, "detections"> = {
-    detections: []
-  }
+  const detections: Record<number, DetectionsForFrame> = {}
+  const info: Partial<DetectionInfo> = {}
   for await(const line of readLines(file)) {
     if (line.length === 0) {
       continue
@@ -72,15 +72,17 @@ export async function detectionInfoFromFile(
     if (parts.length !== 7) {
       return null
     }
-    const [frameNr, klass] = parts.slice(0, 2).map(parseInt)
-    const [cx, cy, width, height, confidence] = parts.slice(2).map(parseFloat)
-    info.detections[frameNr] = [
-      ...(info.detections[frameNr] ?? []),
+    const [frameNr, klass] = parts.slice(0, 2).map(i => parseInt(i))
+    const [cx, cy, width, height, confidence] = parts.slice(2).map(f => parseFloat(f))
+    detections[frameNr] = [
+      ...(detections[frameNr] ?? []),
       {klass, cx, cy, width, height, confidence}
     ]
   }
   if (!(Object.values(DETECTION_INFO_MAP).every(([key]) => key in info))) {
     return null
   }
+  info.detections = range(info.totalNumberOfFrames!).map(
+    index => detections[index] ?? [])
   return info as DetectionInfo
 }

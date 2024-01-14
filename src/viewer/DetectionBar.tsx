@@ -8,6 +8,7 @@ import { ModalPopup } from "src/lib/ModalPopup"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { detectionInfoFromFile, DetectionInfo } from "./detections"
 import { selectCurrentFrameNumber, selectPlaybackControls } from "./videoPlayerSlice"
+import { DetectionBarDetections } from "./DetectionBarDetections"
 
 const DetectionBarNoDirectory: FunctionComponent = () => {
   const [filesSeenWhileLoading, setFilesSeenWhileLoading] = useState<number | null>(null)
@@ -116,22 +117,12 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
   }
 }
 
-const DetectBarWithDetectionInfo: FunctionComponent = () => {
-  const detectionInfo = useSelector(selectDetectionInfo) as DetectionInfo
-  const playbackControls = useSelector(selectPlaybackControls)
-  const currentFrameNumber = useSelector(selectCurrentFrameNumber)
-  return <div>
-    Detection file with {detectionInfo.totalNumberOfFrames} frames, video currently at frame {currentFrameNumber}.
-    <button onClick={() => playbackControls.togglePlayPause()}>play/pause</button>
-  </div>
-}
-
 export const DetectionBar: FunctionComponent = () => {
   const hasDetectionInfo = !!useSelector(selectDetectionInfo)
   const hasDirectory = useSelector(selectDetectionsDirectoryIsReady)
 
   return <div className={css.detectionbar}>
-    {hasDetectionInfo ? <DetectBarWithDetectionInfo />
+    {hasDetectionInfo ? <DetectionBarDetections />
     : hasDirectory ? <DetectionBarWithDirectory />
     : <DetectionBarNoDirectory />}
   </div>

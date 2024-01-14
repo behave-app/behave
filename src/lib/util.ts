@@ -122,3 +122,8 @@ export async function* readLines(
     yield partialLine;
   }
 }
+
+export function selectStringsFromDict(dict: Record<string, boolean>): string {
+  return Object.entries(dict)
+    .filter(([_k, v]) => v).map(([k]) => k).join(" ")
+}

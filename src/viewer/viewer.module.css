@@ -2,7 +2,7 @@ body {
   padding: 0;
   margin: 0;
   --sidebar-width: 1.7em;
-  --detectionbar-height: 3em;
+  --detectionbar-height: min(5em, 10vh);
   --behaviour-height: 5em;
 }
 
@@ -47,7 +47,6 @@ kbd + kbd {
 
 .detectionbar {
   grid-area: detectionbar;
-  background-color: yellow;
 }
 
 .behaviour {

@@ -72,7 +72,7 @@ export const VideoPlayer: FunctionComponent = () => {
   type DragState = "nodrag" | "dragging"
   const dragCounter = useRef(0)
   const [dragState, setDragState] = useState<DragState>("nodrag")
-  const [uploadError, setUploadError] = useState<string>()
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     const aimedAt = window.document.documentElement
@@ -84,7 +84,7 @@ export const VideoPlayer: FunctionComponent = () => {
       dragCounter.current -= 1
       event.preventDefault()
       setDragState("nodrag")
-      setUploadError(undefined)
+      setUploadError(null)
 
       if (event.dataTransfer === null || event.dataTransfer.items.length === 0) {
         setUploadError("Make sure you drag a file")
@@ -130,7 +130,7 @@ export const VideoPlayer: FunctionComponent = () => {
   }, [])
 
   return <div className={viewercss.videoplayer}>
-    {uploadError ? <ModalPopup addOkButtonCallback={() => setUploadError(undefined)} >{uploadError}</ModalPopup> : ""}
+    {uploadError ? <ModalPopup addOkButtonCallback={() => setUploadError(null)} >{uploadError}</ModalPopup> : ""}
     {videoFile && dragState === "nodrag"
       ? <VideoCanvas videoFile={videoFile.file} />
       : <DummyCanvas message={dragState=="dragging" ? "Drop file here" : "Start by dropping in a video file"} />

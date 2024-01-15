@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSelector } from '@reduxjs/toolkit'
+import { createSelector } from '@reduxjs/toolkit'
 import { RootState, } from './store'
 import { selectDetectionInfo, selectFps, selectOffset } from './detectionsSlice'
 import { assert } from 'src/lib/util'

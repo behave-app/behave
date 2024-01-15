@@ -1,6 +1,6 @@
 import { FunctionComponent } from 'preact'
 import { useMemo, useState, useCallback } from 'preact/hooks';
-import { assert, binIndices, range, selectStringsFromDict } from "../lib/util.js"
+import { assert, binIndices, range, joinedStringFromDict } from "../lib/util.js"
 import { selectCurrentFrameNumber, videoSeekToFrameNumberAndPause } from './videoPlayerSlice.js';
 import { useSelector } from 'react-redux';
 import { selectDetectionInfo } from './detectionsSlice.js';
@@ -168,7 +168,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
   } else {
     const totalFrames = detectionInfo.totalNumberOfFrames
     return <div className={css.detectionBanner}>
-      <div className={selectStringsFromDict({
+      <div className={joinedStringFromDict({
         [css.hoverInfo]: true,
         [css.active]: hoverInfo !== null
       })} style={hoverInfo ? {

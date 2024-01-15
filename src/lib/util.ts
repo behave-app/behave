@@ -123,7 +123,7 @@ export async function* readLines(
   }
 }
 
-export function selectStringsFromDict(dict: Record<string, boolean>): string {
+export function joinedStringFromDict(dict: Record<string, boolean>, sep?: string): string {
   return Object.entries(dict)
-    .filter(([_k, v]) => v).map(([k]) => k).join(" ")
+    .filter(([_k, v]) => v).map(([k]) => k).join(sep ?? " ")
 }

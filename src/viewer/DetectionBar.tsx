@@ -6,8 +6,7 @@ import { useEffect, useState } from "react"
 import { useAppDispatch } from "./store"
 import { ModalPopup } from "src/lib/ModalPopup"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
-import { detectionInfoFromFile, DetectionInfo } from "./detections"
-import { selectCurrentFrameNumber, selectPlaybackControls } from "./videoPlayerSlice"
+import { detectionInfoFromFile, } from "./detections"
 import { DetectionBarDetections } from "./DetectionBarDetections"
 
 const DetectionBarNoDirectory: FunctionComponent = () => {

@@ -1,33 +1,46 @@
 import { FunctionComponent } from "preact"
-import * as css from "./settings.module.css"
-import { useDispatch } from "react-redux"
-import { settingsScreenHidden } from "./appSlice.js"
 import { useState, } from "react"
+import { useDispatch, useSelector } from "react-redux"
 import { Icon } from "src/lib/Icon"
-import { ACTIONS } from "./Controls.js"
-import { SettingsState, isBehaviourShortcutGroupsGroups, isSubjectShortcutGroupsGroups, noDuplicateOrInvalidGroupNames, selectSettings, settingsUpdated, noInvalidSettings } from "./settingsSlice"
-import { useSelector } from "react-redux"
-import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
-import { assert, selectStringsFromDict } from "src/lib/util"
 import { keyToStrings } from "src/lib/key"
+import { assert, joinedStringFromDict } from "src/lib/util"
+import { CONTROL_INFO_S } from "./PlayerInfo.js"
+import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
+import { settingsScreenHidden } from "./appSlice.js"
+import * as css from "./settings.module.css"
+import {
+    SettingsState,
+    isBehaviourShortcutGroupsGroups,
+    isSubjectShortcutGroupsGroups,
+    noDuplicateOrInvalidGroupNames,
+    noInvalidSettings,
+    selectSettings,
+    settingsUpdated,
+  VideoShortcuts,
+} from "./settingsSlice"
+
+type Types = "video" | "behaviour" | "subject"
 
 
-type Subscreen = null
-| {
+type Subscreen<T extends Types> = null
+| (T extends "video" ? {
   type: "editShortcuts"
   shortcutsType: "video"
   name: string
-} | {
+} : {
   type: "editShortcuts"
   shortcutsType: "subject" | "behaviour"
   index: number
   name: string
-}
+})
 
-function createSettingsShortcutsEditor(
+
+
+
+function createSettingsShortcutsEditor<T extends Types>(
   localSettings: SettingsState,
   setLocalSettings: (cb: (localSettings: SettingsState) => SettingsState) => void,
-  subscreen: Subscreen & {type: "editShortcuts"},
+  subscreen: Subscreen<T> & {type: "editShortcuts"},
   closeSubscreen: () => void,
 ) {
   assert(subscreen !== null && subscreen.type === "editShortcuts")
@@ -46,7 +59,7 @@ function createSettingsShortcutsEditor(
         const newLocalSettings = {...localSettings}
         switch (subscreen.shortcutsType) {
           case "video": {
-            newLocalSettings.videoShortcuts = updatedShortcuts
+            newLocalSettings.videoShortcuts = updatedShortcuts as VideoShortcuts
             break
           }
           case "subject":
@@ -121,14 +134,15 @@ async function uploadJson(filenameFilter?: RegExp): Promise<unknown> {
   }
 }
 
-const GroupedShortcuts: FunctionComponent<{
+type GroupedShortcutsProps<T extends "subject" | "behaviour"> = {
   localSettings: SettingsState,
   setLocalSettings: (cb: (localSettings: SettingsState) => SettingsState) => void,
-  setSubscreen: (ss: Subscreen) => void,
-  shortcutsType: "subject" | "behaviour"
-}> = ({
+  setSubscreen: (ss: Subscreen<T>) => void,
+  shortcutsType: T
+}
+const GroupedShortcuts = <T extends "subject" | "behaviour">({
   localSettings, setLocalSettings, setSubscreen, shortcutsType
-}) => {
+}: GroupedShortcutsProps<T>) => {
   const shortcutsKey = shortcutsType === "subject" ? "subjectShortcutsGroups" : "behaviourShortcutsGroups"
   const valid = noDuplicateOrInvalidGroupNames(localSettings[shortcutsKey])
   const duplicateNamesSet = new Set(
@@ -157,7 +171,7 @@ const GroupedShortcuts: FunctionComponent<{
         </thead>
         <tbody>
           {localSettings[shortcutsKey].groups.map(
-            ({name, shortcuts}, index) => <tr className={selectStringsFromDict({
+            ({name, shortcuts}, index) => <tr className={joinedStringFromDict({
               [css.selected]: localSettings[shortcutsKey].selectedIndex === index,
             })}>
               <td className={css.shortcutSelect}>
@@ -171,7 +185,7 @@ const GroupedShortcuts: FunctionComponent<{
                     ? "check_box_checked" : "check_box_unchecked"} />
                 </span>
               </td>
-              <td className={classNamesFromDict({
+              <td className={joinedStringFromDict({
                 [css.shortcutGroupsName]: true,
                 [css.duplicate]: duplicateNamesSet.has(index),
               })}>
@@ -201,10 +215,10 @@ const GroupedShortcuts: FunctionComponent<{
               <td className={css.shortcutGroupsOperations}>
                 <button onClick={() => setSubscreen({
                   type: "editShortcuts",
-                  shortcutsType,
+                  shortcutsType: shortcutsType as "behaviour" | "subject",
                   index,
                   name: `${capitalize(shortcutsType)} shortcuts for "${name}"`
-                })}>Edit</button>
+                } as Subscreen<T>)}>Edit</button>
                 <button disabled={
                   localSettings[shortcutsKey].selectedIndex === index}
                   title={
@@ -295,7 +309,7 @@ const GroupedShortcuts: FunctionComponent<{
 
 export const Settings: FunctionComponent = () => {
   const dispatch = useDispatch()
-  const [subscreen, setSubscreen] = useState<Subscreen>(null)
+  const [subscreen, setSubscreen] = useState<Subscreen<Types>>(null)
   const [localSettings, setLocalSettings] = useState(useSelector(selectSettings))
 
   const validSettings = noInvalidSettings(localSettings)
@@ -320,7 +334,7 @@ export const Settings: FunctionComponent = () => {
           </div>
           <div>
             {localSettings.videoShortcuts.filter(([key]) => key !== null).length} video shortcuts are active:
-            {localSettings.videoShortcuts.filter(([key]) => key !== null).map(([key, action]) => <div className={css.keycombination} title={ACTIONS[action].description}>{keyToStrings(key!).map(k => <kbd>{k}</kbd>)}</div>)}
+            {localSettings.videoShortcuts.filter(([key]) => key !== null).map(([key, action]) => <div className={css.keycombination} title={CONTROL_INFO_S[action].description}>{keyToStrings(key!).map(k => <kbd>{k}</kbd>)}</div>)}
           </div>
           <button onClick={() => setSubscreen({
             type: "editShortcuts",

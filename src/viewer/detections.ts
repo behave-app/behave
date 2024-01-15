@@ -24,7 +24,7 @@ export type DetectionInfo = {
 
 const error = Symbol()
 
-const DETECTION_INFO_MAP: {[K in keyof Omit<DetectionInfo, "detections"> as string]: [
+const DETECTION_INFO_MAP: {[K in keyof Omit<DetectionInfo, "detections"> as string]: readonly [
   K,
   (s: string) => DetectionInfo[K] | typeof error,
 ]} = {

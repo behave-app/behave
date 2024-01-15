@@ -1,30 +1,21 @@
 import { FunctionComponent } from "preact"
-import { ACTIONS } from "./Controls.js"
+import { CONTROL_INFO_S } from "./PlayerInfo.js"
 import * as css from "./settingsshortcutseditor.module.css"
 import { Icon } from "src/lib/Icon"
 
-import { selectStringsFromDict } from "src/lib/util"
+import { joinedStringFromDict } from "src/lib/util"
 import { keyFromEvent, keyToStrings, } from "../lib/key.js"
 import {
   VideoShortcuts, SubjectShortcuts, BehaviourShortcuts, noDuplicateKeysInShortcuts, } from "./settingsSlice"
 import { useState, useEffect, } from "react"
 
-type Props = {
-  type: "video"
-  shortcuts: VideoShortcuts,
-  updateShortcuts: (shortcuts: VideoShortcuts) => void,
-  closeWithoutUpdating: () => void,
-  title: string,
-} | {
-  type: "subject"
-  shortcuts: SubjectShortcuts,
-  updateShortcuts: (shortcuts: SubjectShortcuts) => void,
-  closeWithoutUpdating: () => void,
-  title: string,
-} | {
-  type: "behaviour"
-  shortcuts: BehaviourShortcuts,
-  updateShortcuts: (shortcuts: BehaviourShortcuts) => void,
+type Types = "video" | "behaviour" | "subject"
+type ShortcutsType<T extends Types> = T extends "video" ? VideoShortcuts : T extends "subject" ? SubjectShortcuts : BehaviourShortcuts
+
+type Props<T extends Types> = {
+  type: T
+  shortcuts: ShortcutsType<T>
+  updateShortcuts: (shortcuts: ShortcutsType<T>) => void,
   closeWithoutUpdating: () => void,
   title: string,
 }
@@ -33,30 +24,29 @@ function getValue(event: Event): string {
   return (event.target as HTMLInputElement).value
 }
 
-export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
+export const SettingsShortcutsEditor = <T extends Types>({
   type,
   shortcuts,
   updateShortcuts,
   closeWithoutUpdating,
   title,
-}) => {
-  const [localShortcuts, setLocalShortcuts] = useState(shortcuts)
+}: Props<T>): ReturnType<FunctionComponent> => {
+  const [localShortcuts, setLocalShortcuts] = useState<ShortcutsType<T>>(shortcuts)
   const [recordKey, setRecordKey] = useState<number>()
 
-  const actions = type === "video" ? Object.fromEntries(Object.entries(ACTIONS)
+  const actions = type === "video" ? Object.fromEntries(Object.entries(CONTROL_INFO_S)
     .map(([key, {description}]) => [key, description])
   ) : null
 
   const updateLocalShortcuts = (
   index: number,
-  update: Partial<{key: typeof shortcuts[0][0], action: typeof shortcuts[0][1]}>
+  update: Partial<{key: ShortcutsType<T>[number][0], action: ShortcutsType<T>[number][1]}>
   ) => {
     setLocalShortcuts(localShortcuts => {
-      const newShortcuts = [...localShortcuts]
-      newShortcuts[index] = [
-      "key" in update ? update.key! : newShortcuts[index][0],
-      "action" in update ? update.action! : newShortcuts[index][1],
-      ]
+      const newShortcuts = localShortcuts.splice(index, 1, [
+      "key" in update ? update.key! : localShortcuts[index][0],
+      "action" in update ? update.action! : localShortcuts[index][1],
+      ]) as ShortcutsType<T>
       return newShortcuts
     })
 
@@ -113,7 +103,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
           const recording = recordKey === index
           return <tr>
             <td className={css.nrcolumn}>{index + 1}.</td>
-            <td className={selectStringsFromDict({
+            <td className={joinedStringFromDict({
               [css.keycolumn]: true,
               [css.duplicate]: duplicatesSet.has(index),
               [css.recordKey]: recording,
@@ -148,7 +138,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
             </td>
             <td className={css.deletecolumn}>
               <button onClick={
-                () => setLocalShortcuts(s => s.filter((_, i) => i !== index))}>
+                () => setLocalShortcuts(s => s.filter((_, i) => i !== index) as ShortcutsType<T>)}>
                 <Icon iconName="delete" />
               </button>
             </td>
@@ -157,7 +147,7 @@ export const SettingsShortcutsEditor: FunctionComponent<Props> = ({
       </tbody>
     </table>
     {/* // @ts-expect-error: TS not smart enough that localShortcuts is right type  -- but it doesn't always give an error.... */}
-    <button onClick={() => setLocalShortcuts(s => [...s, [null, defaultAction]])}>+</button>
+    <button onClick={() => setLocalShortcuts(s => [...s, [null, defaultAction]] as ShortcutsType<T>)}>+</button>
     <div className={css.submitbuttons}>
       {duplicates.length > 0 && <div class={css.duplicateserrormessage}>
         The same key is used in lines {

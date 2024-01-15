@@ -1,11 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { ACTIONS } from './Controls.js'
+import { CONTROL_INFO_S } from './PlayerInfo.js'
 import { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key.js"
 import { getDuplicateIndices } from 'src/lib/util'
 
 
-type VideoAction = keyof typeof ACTIONS
+type VideoAction = keyof typeof CONTROL_INFO_S
 
 export type VideoShortcut = [Key | null, VideoAction]
 export type VideoShortcuts = VideoShortcut[]
@@ -16,14 +16,20 @@ export function isVideoShortcuts(
   if (!isSubjectShortcuts(data)) {
     return false
   }
-  return data.every(([_key, action]) => action in ACTIONS)
+  return data.every(([_key, action]) => action in CONTROL_INFO_S)
 }
 
 const defaultVideoShortcuts: VideoShortcuts = [
-  [{code: "Space"}, "play_pause"],
-  [{code: "ArrowLeft"}, "previous_frame"],
-  [{code: "ArrowRight"}, "next_frame"],
-] as const
+  [{code: "KeyQ"}, "previous_frame_with_detection"],
+  [{code: "KeyW"}, "next_frame_with_detection"],
+  [{code: "KeyE"}, "next_frame_with_detection"],
+  [{code: "KeyA"}, "previous_frame"],
+  [{code: "KeyS"}, "play_pause"],
+  [{code: "KeyD"}, "next_frame"],
+  [{code: "KeyZ"}, "speed_down"],
+  [{code: "KeyX"}, "play_pause"],
+  [{code: "KeyC"}, "speed_up"],
+]
 
 type Subject = string
 export type SubjectShortcut = [Key | null, Subject]
@@ -89,7 +95,7 @@ const exampleSubjectShortcuts: SubjectShortcutGroups = {
       [{code: "KeyB"}, "Subject B"],
     ]
   }]
-} as const
+}
 
 type Behaviour = string
 export type BehaviourShortcut = [Key | null, Behaviour]
@@ -119,7 +125,7 @@ const exampleBehaviourShortcuts: BehaviourShortcutGroups = {
       [{code: "KeyD", modifiers: ["shiftKey"]}, "Diving"],
     ]
   }]
-} as const
+}
 
 const LOCAL_STORAGE_SETTINGS_KEY = "Behave_Settings_v1"
 

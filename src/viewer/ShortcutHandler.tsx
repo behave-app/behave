@@ -4,7 +4,7 @@ import { useSelector } from "react-redux"
 import { useEffect } from "react"
 import { store, useAppDispatch } from "./store"
 import { keyFromEvent, keyToString } from "src/lib/key"
-import { CONTROL_INFO_S } from "./PlayerInfo"
+import { CONTROL_INFO_S, makeSelector } from "./PlayerInfo"
 
 export const ShortcutHandler: FunctionComponent = () => {
   const activeShortcuts = useSelector(selectActiveShortcuts)
@@ -23,7 +23,7 @@ export const ShortcutHandler: FunctionComponent = () => {
       const {key: _key, type, action} = activeShortcuts.get(keyString)!
       if (type === "video") {
         const control = CONTROL_INFO_S[action]
-        if (control.selectIsDisabled && control.selectIsDisabled(store.getState())) {
+        if (makeSelector(control.selectIsDisabled, true)(store.getState())) {
           console.log(`Video action ${action} is currently disabled`)
           return
         }

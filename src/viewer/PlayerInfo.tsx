@@ -87,7 +87,7 @@ export const CONTROL_INFO_S = {
   } as ControlInfo,
 } as const
 
-const makeSelector = (
+export const makeSelector = (
   selector: undefined | ((state: RootState) => boolean),
   stateIfNoPlayerState: boolean,
 ): ((state: RootState) => boolean) => {

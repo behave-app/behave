@@ -126,7 +126,12 @@ const PlayerInfoDetails: FunctionComponent = () => {
 
   return <div>
     <div>Framenumber: {currentFrameNumber}</div>
-    <div>Timestamp: {currentDateTime?.date.toISOString()}</div>
+    {currentDateTime && 
+    <div>
+        Timestamp: <div>
+          {currentDateTime.day}-{currentDateTime.month}-{currentDateTime.year} {currentDateTime.hour}:{currentDateTime.minute}:{currentDateTime.second}
+          </div>
+      </div>}
   </div>
 }
 
@@ -145,13 +150,13 @@ export const PlayerInfo: FunctionComponent = () => {
     {playerState && <PlayerInfoDetails />}
     <div className={css.controls}>
       <Button controlInfo={CONTROL_INFO_S.previous_frame_with_detection} />
-      <Button controlInfo={CONTROL_INFO_S.play} />
+      <button disabled />
       <Button controlInfo={CONTROL_INFO_S.next_frame_with_detection} />
       <Button controlInfo={CONTROL_INFO_S.previous_frame} />
       <Button controlInfo={playControl} />
       <Button controlInfo={CONTROL_INFO_S.next_frame} />
       <Button controlInfo={CONTROL_INFO_S.speed_down} />
-      <Button controlInfo={CONTROL_INFO_S.play} />
+      <button disabled />
       <Button controlInfo={CONTROL_INFO_S.speed_up} />
     </div>
   </div>

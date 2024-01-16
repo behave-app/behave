@@ -85,6 +85,7 @@ function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
   for (const frame of framesInfo) {
     if (
       typeof frame.pts !== "number" ||
+      typeof frame.dts !== "number" ||
       !["I", "IDR", "P", "B"].includes(frame.type) ||
       !Array.isArray(frame.detections) ||
       frame.detections.some(
@@ -113,10 +114,22 @@ export function stringToDetectionInfo(data: string): null | DetectionInfo {
   if (!validateDataIsDetectionInfo(detectionInfo)) {
     return null
   }
-
   return detectionInfo
 }
-export function getPartsFromTimestamp(ts: NonNullable<SingleFrameInfo["timestamp"]>) {
+export type DateTimeParts = {
+  year: string
+  month: string
+  day: string
+  hour: string
+  minute: string
+  second: string
+  tz: string
+  date: Date,
+  tzOffsetHours: number
+}
+export function getPartsFromTimestamp(
+  ts: NonNullable<SingleFrameInfo["timestamp"]>
+): DateTimeParts {
   const match = ts.match(ISODATETIMESTRINGREGEX)
   if (!match || !match.groups) {
     throw new Error("No timestamp: " + ts)

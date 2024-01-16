@@ -7,7 +7,7 @@ import appReducer from "./appSlice.js"
 import settingsReducer from "./settingsSlice.js"
 import {settingsToLocalStorage, SettingsState} from "./settingsSlice.js"
 import detectionsDirectoryReducer from './detectionsSlice.js'
-import behaviourDirectoryReducer from './behaviourDirectorySlice.js'
+import behaviourReducer from './behaviourSlice.js'
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 export const useAppDispatch: () => AppDispatch = useDispatch
@@ -17,7 +17,7 @@ export const store = configureStore({
     app: appReducer,
     settings: settingsReducer,
     detections: detectionsDirectoryReducer,
-    behaviourDirectory: behaviourDirectoryReducer,
+    behaviour: behaviourReducer,
     videoFile: videoFileReducer,
     videoPlayer: videoPlayerReducer,
   },
@@ -26,26 +26,26 @@ export const store = configureStore({
       ignoredActions: [
         "videoFile/videoFileSet",
         "detections/detectionsDirectorySet",
-        "behaviourDirectory/behaviourDirectorySet",
+        "behaviour/behaviourDirectorySet",
         "videoFile/videoFileSet",
       ],
       ignoredPaths: [
         "videoFile.file",
         "detections.directory",
-        "behaviourDirectory",
+        "behaviour.directory",
       ],
     },
     serializableCheck: {
       ignoredActions: [
         "videoFile/videoFileSet",
         "detections/detectionsDirectorySet",
-        "behaviourDirectory/behaviourDirectorySet",
+        "behaviour/behaviourDirectorySet",
         "videoFile/videoFileSet",
       ],
       ignoredPaths: [
         "videoFile.file",
         "detections.directory",
-        "behaviourDirectory",
+        "behaviour.directory",
       ],
     },
   })

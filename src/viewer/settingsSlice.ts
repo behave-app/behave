@@ -3,7 +3,7 @@ import { CONTROL_INFO_S } from './PlayerInfo.js'
 import { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key.js"
 import { getDuplicateIndices } from 'src/lib/util'
-import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForVideoShortcut } from './appSlice.js'
+import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut } from './appSlice.js'
 
 
 type VideoAction = keyof typeof CONTROL_INFO_S
@@ -187,6 +187,18 @@ export const selectActiveSubjectShortcuts = (state: RootState) => state.settings
 
 export const selectActiveBehaviourShortcuts = (state: RootState) => state.settings.behaviourShortcutsGroups.groups[state.settings.behaviourShortcutsGroups.selectedIndex].shortcuts
 
+export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
+export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>
+
+export const selectBehaviourLayout = (_state: RootState): BehaveLayout => [
+  {width: 2, type: "frameNumber"},
+  {width: 5, type: "dateTime:%d-%m-%Y"},
+  {width: 5, type: "dateTime:%H:%M:%S"},
+  {width: 10, type: "subject"},
+  {width: 15, type: "behaviour"},
+  {width: "*", type: "comments:comments"},
+]
+
 type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
 export const selectVideoShortcutMap = createSelector(
 [selectActiveVideoShortcuts],
@@ -230,7 +242,7 @@ export const selectBehaviourShortcutMap = createSelector(
 })
 
 export const selectActiveShortcuts = createSelector(
-  [selectIsWaitingForVideoShortcut, selectSubjectShortcutMap,
+  [selectIsWaitingForVideoShortcut, selectIsWaitingForSubjectShortcut,
   selectIsWaitingForBehaviourShortcut, selectVideoShortcutMap,
   selectSubjectShortcutMap, selectBehaviourShortcutMap],
   (doVideo, doSubject, doBehaviour,
@@ -289,6 +301,7 @@ export function noInvalidSettings(settings: SettingsState): "ok" | {
   subjectShortcutsGroupsProblem?: true
   behaviourShortcutsGroupsProblem?: true
   videoControlsAndShortcutControlsOverlap?: Key[]
+  subjectControlsAndBehaviourControlsOverlap?: Key[]
 } {
   const result: Exclude<ReturnType<typeof noInvalidSettings>, "ok"> = {}
   if (noDuplicateKeysInShortcuts(settings.videoShortcuts) !== "ok") {
@@ -304,21 +317,40 @@ export function noInvalidSettings(settings: SettingsState): "ok" | {
       group => noDuplicateKeysInShortcuts(group.shortcuts) !== "ok")) {
     result.behaviourShortcutsGroupsProblem = true
   }
-  const videoAndActiveSubjectShortcuts = [
-    ...settings.videoShortcuts,
-    ...(settings.subjectShortcutsGroups.groups[settings.subjectShortcutsGroups.selectedIndex] ?? {shortcuts: []}).shortcuts
-  ]
-  const valid = noDuplicateKeysInShortcuts(videoAndActiveSubjectShortcuts)
-  if (valid !== "ok") {
-    const duplicates = valid.duplicateKeyMappings
-    const cutoffBetweenVideoAndSubject = settings.videoShortcuts.length
-    const interestingDuplicates = duplicates.filter(dups => (
-      dups[0] < cutoffBetweenVideoAndSubject
-        && dups[dups.length - 1]! >= cutoffBetweenVideoAndSubject))
-    if (interestingDuplicates.length) {
-      result.videoControlsAndShortcutControlsOverlap = interestingDuplicates.map(
-        dups => settings.videoShortcuts[dups[0]][0] as Key)
+  const checkCombinedOverlap = (
+  shortcuts1: VideoShortcuts | SubjectShortcuts | BehaviourShortcuts,
+  shortcuts2: VideoShortcuts | SubjectShortcuts | BehaviourShortcuts,
+  ) => {
+    const combinedShortcuts = [
+      ...shortcuts1,
+      ...shortcuts2,
+    ]
+    const valid = noDuplicateKeysInShortcuts(combinedShortcuts)
+    if (valid === "ok") {
+      return []
     }
+    const duplicates = valid.duplicateKeyMappings
+    const cutoffBetweenFirstAndSecond = settings.videoShortcuts.length
+    const interestingDuplicates = duplicates.filter(dups => (
+      dups[0] < cutoffBetweenFirstAndSecond
+        && dups[dups.length - 1]! >= cutoffBetweenFirstAndSecond))
+    return interestingDuplicates.map(
+      dups => settings.videoShortcuts[dups[0]][0] as Key)
+  }
+
+  const videoAndSubjectOverlap = checkCombinedOverlap(
+    settings.videoShortcuts,
+    (settings.subjectShortcutsGroups.groups[settings.subjectShortcutsGroups.selectedIndex] ?? {shortcuts: []}).shortcuts,
+  )
+  if (videoAndSubjectOverlap.length) {
+    result.videoControlsAndShortcutControlsOverlap = videoAndSubjectOverlap
+  }
+  const subjectAndBehaviourOverlap = checkCombinedOverlap(
+    (settings.subjectShortcutsGroups.groups[settings.subjectShortcutsGroups.selectedIndex] ?? {shortcuts: []}).shortcuts,
+    (settings.behaviourShortcutsGroups.groups[settings.behaviourShortcutsGroups.selectedIndex] ?? {shortcuts: []}).shortcuts,
+  )
+  if (subjectAndBehaviourOverlap.length) {
+    result.subjectControlsAndBehaviourControlsOverlap = subjectAndBehaviourOverlap
   }
   if (Object.keys(result).length) {
     return result

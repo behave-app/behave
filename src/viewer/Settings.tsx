@@ -359,6 +359,14 @@ export const Settings: FunctionComponent = () => {
                     key => <li>{keyToStrings(key).map(k => <kbd>{k}</kbd>)}</li>)}
                 </ul>
               </div> : <></>}
+              {validSettings.subjectControlsAndBehaviourControlsOverlap ?<div>
+                The following keys are defined both as subject shortcuts as as behaviour shortcuts;
+                this is not allowed since the system will not know what action you meant:
+                <ul>
+                  {validSettings.subjectControlsAndBehaviourControlsOverlap.map(
+                    key => <li>{keyToStrings(key).map(k => <kbd>{k}</kbd>)}</li>)}
+                </ul>
+              </div> : <></>}
             </div>}
             <button disabled={validSettings !== "ok"} onClick={() => {
               if (validSettings !== "ok") {

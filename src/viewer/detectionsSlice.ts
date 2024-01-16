@@ -1,6 +1,6 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { RootState } from './store'
-import { DetectionInfo, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
+import { DetectionInfo, getPartsFromTimestamp, } from '../lib/detections'
 import { selectCurrentFrameNumber } from './videoPlayerSlice'
 
 export type DetectionsDirectory = {
@@ -92,13 +92,13 @@ export const selectDateTimes = createSelector(
       const ts = Math.round(
         (start.timestampParts.date.valueOf() + pos * (
           end.timestampParts.date.valueOf() - start.timestampParts.date.valueOf()
-        )) / 1000) * 1000
+        )) / 1000) * 1000 + start.timestampParts.tzOffsetHours * 60 * 60 * 1000
       const date = new Date(ts)
       return {
         date,
         year: p4(date.getUTCFullYear()),
         month: p2(date.getUTCMonth() + 1),
-        day: p2(date.getUTCDay()),
+        day: p2(date.getUTCDate()),
         hour: p2(date.getUTCHours()),
         minute: p2(date.getUTCMinutes()),
         second: p2(date.getUTCSeconds()),

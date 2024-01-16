@@ -56,5 +56,6 @@ kbd + kbd {
 
 .behaviour {
   grid-area: behaviour;
-  background-color: orange;
+  background-color: hsl(140, 50%, 95%);
+  overflow: scroll;
 }

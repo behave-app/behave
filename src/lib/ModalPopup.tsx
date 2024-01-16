@@ -1,5 +1,8 @@
 import { FunctionComponent, JSX } from "preact"
 import * as css from "./modalpopup.module.css"
+import { useAppDispatch } from "src/viewer/store"
+import { useEffect } from "react"
+import { modalPopupOpened } from "src/viewer/appSlice"
 
 export type ButtonInfo = {
   name: string
@@ -15,6 +18,13 @@ export const ModalPopup: FunctionComponent<Props> = ({
   children,
   addOkButtonCallback,
 }) => {
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    dispatch(modalPopupOpened())
+    return () => {dispatch(modalPopupOpened())}
+  }, [])
+
   return <div className={css.background}>
     <div className={css.popup}>
       <div>{children}</div>

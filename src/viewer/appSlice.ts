@@ -13,8 +13,13 @@ export const appSlice = createSlice({
     settingsScreenHidden: state => {state.showSettingsScreen = false},
     modalPopupOpened: state => {state.modalPopupOpen = true},
     modalPopupClosed: state => {state.modalPopupOpen = false},
-    behaviourInputSubjectSelected: (state, action: PayloadAction<string>) => {
-      state.selectedSubject = action.payload},
+    behaviourInputSubjectToggle: (state, action: PayloadAction<string>) => {
+      if (state.selectedSubject === action.payload) {
+        state.selectedSubject = null
+      } else {
+        state.selectedSubject = action.payload
+      }
+    },
     behaviourInputSubjectUnselected: (state) => {
       state.selectedSubject = null},
   }
@@ -23,25 +28,30 @@ export const appSlice = createSlice({
 
 export default appSlice.reducer
 
-export const {settingsScreenShown, settingsScreenHidden} = appSlice.actions
+export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected} = appSlice.actions
 
+export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
 export const selectShowSettingsScreen = (state: RootState) => state.app.showSettingsScreen
 export const selectModalPopupIsOpen = (state: RootState) => state.app.modalPopupOpen
 
 export const selectIsWaitingForVideoShortcut = (state: RootState) => (
   !state.app.showSettingsScreen
+    && state.videoFile
     && !state.app.modalPopupOpen
     && state.app.selectedSubject === null
 )
 
 export const selectIsWaitingForSubjectShortcut = (state: RootState) => (
   !state.app.showSettingsScreen
+    && state.videoFile
     && !state.app.modalPopupOpen
-    && state.app.selectedSubject === null
+    && state.behaviour.behaviourInfo
 )
 
 export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
   !state.app.showSettingsScreen
+    && state.videoFile
     && !state.app.modalPopupOpen
+    && state.behaviour.behaviourInfo
     && state.app.selectedSubject !== null
 )

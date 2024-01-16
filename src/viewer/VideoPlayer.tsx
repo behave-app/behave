@@ -105,7 +105,9 @@ export const VideoPlayer: FunctionComponent = () => {
         setUploadError("At the moment only mp4 videos are allowed")
         return
       }
-      dispatch(videoFileSet({file, xxh64sum: "0"}))
+      const match = file.name.match(/^.*\.(?<hash>.{16})\.mp4$/)
+
+      dispatch(videoFileSet({file, xxh64sum: match?.groups?.hash ?? file.name}))
     }
     const dragLeave = (_event: DragEvent) => {
       dragCounter.current -= 1

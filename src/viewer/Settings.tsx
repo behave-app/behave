@@ -182,7 +182,7 @@ const GroupedShortcuts = <T extends "subject" | "behaviour">({
                     selectedIndex: index
                   }}))}>
                   <Icon iconName={index === localSettings[shortcutsKey].selectedIndex
-                    ? "check_box_checked" : "check_box_unchecked"} />
+                    ? "check_box" : "check_box_outline_blank"} />
                 </span>
               </td>
               <td className={joinedStringFromDict({

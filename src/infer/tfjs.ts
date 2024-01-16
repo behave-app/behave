@@ -7,12 +7,15 @@ import type {FileTreeLeaf} from "../lib/FileTree.js"
 import {getNumberOfFrames, Video} from "../lib/video.js"
 import { xxh64sum } from 'src/lib/fileutil.js'
 import { parse as YAMLParse } from "yaml"
+import { DetectionInfo, detectionInfoToString, SingleFrameInfo } from 'src/lib/detections.js'
 
 
-export function getOutputFilename(inputfilename: string) {
-  const parts = inputfilename.split(".")
+export async function getOutputFilename(file: File): Promise<string> {
+  const parts = file.name.split(".")
   const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
-  return [...baseparts, "csv"].join(".")
+  const hash = await xxh64sum(file)
+  const filename = [...baseparts, hash, "behave-detection-v1", "json"].join(".")
+  return filename
 }
 export type YoloBackend = "wasm" | "webgl" | "webgpu"
 export type YoloVersion = "v5" | "v8"
@@ -79,7 +82,6 @@ export async function getModel(
 }
 
 const NR_FRAMES_PROGRESS_PART = 0.001
-const HASH_PROGRESS_PART = 0.002
 const PROGRESS_INTERVAL_MS = 300
 
 export async function convert(
@@ -93,32 +95,30 @@ export async function convert(
   onProgress({"converting": 0})
   const numberOfFrames = await getNumberOfFrames(file)
   onProgress({"converting": NR_FRAMES_PROGRESS_PART})
-  const hash = await xxh64sum(file, progress => {
-    onProgress({"converting": NR_FRAMES_PROGRESS_PART + progress * HASH_PROGRESS_PART})
-  })
-  let framenr = 0;
-  const textEncoder = new TextEncoder()
-  await outputstream.write(textEncoder.encode([
-    `# version: 1`,
-    `# Total number of frames: TO_FILL`,
-    `# Source file name: ${file.name}`,
-    `# Source file xxHash64: ${hash}`,
-    `# Model name: ${model.name}`,
-    `# Model klasses: ${JSON.stringify(model.klasses)}`,
-    `# Framenumber, Class, x, y, w, h, confidence`,
-    `# (x, y) is the left top of the detection`,
-    `# all coordinates are on frame where left-top = (0, 0) and right-bottom is (1, 1)`,
-  ].join("\n") + "\n"
-  ))
-  let lastProgress = Date.now()
   const video = new Video(file)
-  await video.init({libavoptions: {noworker: true}})
+  await video.init({libavoptions: {noworker: true}, keepFrameInfo: true})
+  const detectionInfo: Omit<DetectionInfo, "totalNumberOfFrames"> = {
+    version: 1,
+    sourceFileName: file.name,
+    sourceFileXxHash64: "See filename",
+    modelName: model.name,
+    modelKlasses: model.klasses,
+    playbackFps: video.videoInfo.fps,
+    recordFps: null,
+    framesInfo: []
+  }
+  let framenr = 0;
+  let lastProgress = Date.now()
   while (true) {
-    console.log({framenr})
     const videoFrame = await video.getFrame(framenr)
     if (videoFrame === "EOF" || videoFrame === null) {
       break
     }
+    const singleFrameInfo = {
+      ...video.getInfoForFrame(framenr),
+      detections: []
+    } as SingleFrameInfo
+
     const [boxes, scores, classes] = await infer(model, yoloVersion, videoFrame)
     if (ctx) {
       ctx.drawImage(videoFrame, 0, 0)
@@ -133,32 +133,43 @@ export async function convert(
       if (!Number.isInteger(klass)) {
         throw new Error(`Class is not an int? ${i} ${boxes}, ${scores} ${classes}`)
       }
-      const line = `${framenr},${klass.toFixed(0)},${[...box].map(c => c.toFixed(4)).join(",")},${score.toFixed(3)}\n`
-      await outputstream.write(textEncoder.encode(line))
-      const [cx, cy, w, h] = box
+      const [cx, cy, width, height] = box
+
+      singleFrameInfo.detections.push(
+        {klass, cx, cy, width, height, confidence: score})
+
       if (ctx) {
         const scale = Math.max(videoFrame.displayWidth, videoFrame.displayHeight)
         ctx.strokeRect(
-          (cx - w / 2) * scale, (cy - h / 2) * scale, w * scale, h * scale,
+          (cx - width / 2) * scale, (cy - height / 2) * scale,
+          width * scale, height * scale,
         )
       }
     }
+    detectionInfo.framesInfo.push(singleFrameInfo)
     videoFrame.close()
     const now = Date.now()
     if (now - lastProgress > PROGRESS_INTERVAL_MS) {
       const progress = Math.min(
-        NR_FRAMES_PROGRESS_PART + HASH_PROGRESS_PART
-          + framenr / numberOfFrames * (1 - (NR_FRAMES_PROGRESS_PART + HASH_PROGRESS_PART)), 1)
+        NR_FRAMES_PROGRESS_PART +
+          + framenr / numberOfFrames * (1 - (NR_FRAMES_PROGRESS_PART)), 1)
       onProgress({"converting": progress})
       lastProgress = now
     }
     framenr++
   }
+  const completeDetectionInfo = {
+    ...detectionInfo,
+    totalNumberOfFrames: framenr
+  }
   console.log("done")
   await video.deinit()
-  await outputstream.seek(0)
-  await outputstream.write(textEncoder.encode(
-    `# version: 1\n# Total number of frames: ${framenr.toString().padStart(7," ")}`))
+  const stringData = detectionInfoToString(completeDetectionInfo)
+  console.log({stringData})
+  console.log(`Now writing ${stringData.length} bytes of data`);
+  const textEncoder = new TextEncoder()
+  await outputstream.write(textEncoder.encode(stringData))
+  console.log("Done writing")
   onProgress({"converting": 1})
 }
 

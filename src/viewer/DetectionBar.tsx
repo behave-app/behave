@@ -6,7 +6,7 @@ import { useEffect, useState } from "react"
 import { useAppDispatch } from "./store"
 import { ModalPopup } from "src/lib/ModalPopup"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
-import { detectionInfoFromFile, } from "./detections"
+import { stringToDetectionInfo, } from "../lib/detections"
 import { DetectionBarDetections } from "./DetectionBarDetections"
 
 const DetectionBarNoDirectory: FunctionComponent = () => {
@@ -87,13 +87,15 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
       }
       setDetectionState("searching")
       const baseFilename = videoFile.file.name.split(".").slice(0, -1).join(".")
-      const detectionsFilename = baseFilename + ".csv"
+      const detectionsFilename = baseFilename + ".behave-detection-v1.json"
       const possibleDetectionFileHandles =
       detectionsDirectory.detectionsByFilename[detectionsFilename] ?? []
       for (const fileHandle of possibleDetectionFileHandles) {
-        const detectionInfo = await detectionInfoFromFile(
-          await fileHandle.getFile())
-        if (detectionInfo !== null) {
+        const file = await fileHandle.getFile()
+        const detectionInfo = stringToDetectionInfo(await file.text())
+        if (detectionInfo === null) {
+          alert("Problem loading detectionInfo")
+        } else {
           dispatch(detectionsInfoSet(detectionInfo))
           return
         }

@@ -147,11 +147,11 @@ async function convertOne(
   path: string[],
   destination: FileSystemDirectoryHandle,
   conversionAction: ConvertAction,
-  getOutputFilename: (name: string) => string,
+  getOutputFilename: (file: File) => Promise<string>,
   setFiles: (cb: (files: FileTreeBranch) => FileTreeBranch) => void
 ) {
   const leaf = findLeaf(files, path)
-  const outfilename = getOutputFilename(leaf.file.name)
+  const outfilename = await getOutputFilename(leaf.file)
   const outpath = [...path.slice(0, -1), outfilename]
   if (await nonEmptyFileExists(destination, outpath)) {
     setFiles(files => updateLeaf(files, path, leaf => (
@@ -195,7 +195,7 @@ export async function convertAll(
   files: FileTreeBranch,
   concurrency: number,
   conversionAction: ConvertAction,
-  getOutputFilename: (name: string) => string,
+  getOutputFilename: (file: File) => Promise<string>,
   setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void,
 ) {
   const destination = await window.showDirectoryPicker(
@@ -205,12 +205,6 @@ export async function convertAll(
   let newFiles = files
   const queuedPaths: string[][] = []
   for (const path of paths) {
-    const outpath = [...path.slice(0, -1), getOutputFilename(path.slice(-1)[0])]
-    if (await nonEmptyFileExists(destination, outpath)) {
-      newFiles = updateLeaf(
-        newFiles, path, leaf => ({file: leaf.file, progress: {"error": "File aready exists at the destination"}}))
-      continue
-    }
     newFiles = updateLeaf(
       newFiles, path, leaf => ({file: leaf.file, progress: "queue"}))
     queuedPaths.push(path)

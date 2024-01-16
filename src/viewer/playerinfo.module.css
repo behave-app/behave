@@ -8,5 +8,15 @@
     width: var(--button-size);
     height: var(--button-size);
     text-align: center;
+    &.activated {
+      background-color: red;
+    }
+    position: relative;
+    .subIcon.topRight {
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: .4em;
+    }
   }
 }

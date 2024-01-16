@@ -1,6 +1,6 @@
 import { FunctionComponent } from "react";
 import * as viewercss from "./viewer.module.css"
-import * as css from "./controls.module.css"
+import * as css from "./playerinfo.module.css"
 import { Icon, ValidIconName } from "src/lib/Icon";
 import { useSelector } from "react-redux";
 import { selectPlayerState, PLAYBACK_RATES,
@@ -17,10 +17,11 @@ import { selectPlayerState, PLAYBACK_RATES,
 import { AppDispatch, useAppDispatch } from "./store"
 import { RootState } from "./store.js"
 import { joinedStringFromDict } from "src/lib/util";
-import { selectDetectionInfo } from "./detectionsSlice";
+import { selectCurrentFrameDateTime, selectDetectionInfo } from "./detectionsSlice";
 
 type ControlInfo = {
   iconName: ValidIconName
+  subIconName?: ValidIconName
   selectIsDisabled?: (state: RootState) => boolean,
   selectIsActivated?: (state: RootState) => boolean,
   action: (dispatch: AppDispatch) => void
@@ -44,24 +45,26 @@ export const CONTROL_INFO_S = {
     description: "Pause if playing, start playing if paused",
   } as ControlInfo,
   speed_up: {
-    iconName: "fast_forward",
+    iconName: "speed",
+    subIconName: "south_east",
     action: dispatch => {void(dispatch(videoChangePlaybackRateOneStep(false)))},
     selectIsDisabled: state => selectPlaybackRate(state) === PLAYBACK_RATES.at(-1)!,
     description: "Increase playback speed"
   } as ControlInfo,
   speed_down: {
-    iconName: "play_arrow",
+    iconName: "speed",
+    subIconName: "north_west",
     action: dispatch => {void(dispatch(videoChangePlaybackRateOneStep(true)))},
     selectIsDisabled: state => selectPlaybackRate(state) === PLAYBACK_RATES.at(0)!,
     description: "Decrease playback speed"
   } as ControlInfo,
   next_frame: {
-    iconName: "next",
+    iconName: "navigate_next",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberDiffAndPause(1)))},
     description: "Next frame"
   } as ControlInfo,
   previous_frame: {
-    iconName: "previous",
+    iconName: "navigate_before",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberDiffAndPause(-1)))},
     description: "Previous frame"
   } as ControlInfo,
@@ -78,18 +81,19 @@ export const CONTROL_INFO_S = {
     description: "Previous frame with detection"
   } as ControlInfo,
   restart: {
-    iconName: "restart",
+    iconName: "restart_alt",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberAndPause(0)))},
     description: "Restart video"
   } as ControlInfo,
 } as const
 
 const makeSelector = (
-  selector: undefined | ((state: RootState) => boolean)
+  selector: undefined | ((state: RootState) => boolean),
+  stateIfNoPlayerState: boolean,
 ): ((state: RootState) => boolean) => {
   return state => {
     if (!state.videoPlayer.playerState) {
-      return true
+      return stateIfNoPlayerState
     }
     if (!selector) {
       return false
@@ -100,24 +104,29 @@ const makeSelector = (
 
 const Button: FunctionComponent<{controlInfo: ControlInfo}> = ({controlInfo: action}) => {
   const dispatch = useAppDispatch()
-  const disabled = useSelector(makeSelector(action.selectIsDisabled))
-  const activated = useSelector(makeSelector(action.selectIsActivated))
+  const disabled = useSelector(makeSelector(action.selectIsDisabled, true))
+  const activated = useSelector(makeSelector(action.selectIsActivated, false))
 
 
   return <button
     disabled={disabled}
     className={joinedStringFromDict({
-      activated: activated
+      [css.activated]: activated
     })} onClick={() => {if (!disabled) {action.action(dispatch)}}}>
     <Icon iconName={action.iconName} />
+    {action.subIconName && <div className={[css.subIcon, css.topRight].join(" ")}>
+      <Icon iconName={action.subIconName} />
+    </div>}
   </button>
 }
 
 const PlayerInfoDetails: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
+  const currentDateTime = useSelector(selectCurrentFrameDateTime)
 
   return <div>
-    Framenumber: {currentFrameNumber}
+    <div>Framenumber: {currentFrameNumber}</div>
+    <div>Timestamp: {currentDateTime?.date.toISOString()}</div>
   </div>
 }
 

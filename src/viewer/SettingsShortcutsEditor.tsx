@@ -43,7 +43,8 @@ export const SettingsShortcutsEditor = <T extends Types>({
   update: Partial<{key: ShortcutsType<T>[number][0], action: ShortcutsType<T>[number][1]}>
   ) => {
     setLocalShortcuts(localShortcuts => {
-      const newShortcuts = localShortcuts.splice(index, 1, [
+      const newShortcuts = [...localShortcuts] as typeof localShortcuts
+      newShortcuts.splice(index, 1, [
       "key" in update ? update.key! : localShortcuts[index][0],
       "action" in update ? update.action! : localShortcuts[index][1],
       ]) as ShortcutsType<T>

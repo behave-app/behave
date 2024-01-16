@@ -1,3 +1,4 @@
+import { xxh64sum } from 'src/lib/fileutil'
 import type * as LibAVTypes from '../../public/app/bundled/libavjs/dist/libav.types'
 import type {FileTreeLeaf} from "../lib/FileTree.js"
 import {getNumberOfFrames} from "../lib/video.js"
@@ -10,10 +11,12 @@ declare global {
 
 const PROGRESSFILENAME = "__progress__"
 
-export function getOutputFilename(inputfilename: string): string {
-  const parts = inputfilename.split(".")
+export async function getOutputFilename(file: File): Promise<string> {
+  const parts = file.name.split(".")
   const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
-  return [...baseparts, "mp4"].join(".")
+  const hash = await xxh64sum(file)
+  const filename = [...baseparts, hash, "mp4"].join(".")
+  return filename
 }
 
 
@@ -25,7 +28,7 @@ export async function convert(
   const numberOfFrames = await getNumberOfFrames(input)
   const reportedFramedPerFrame = input.name.endsWith(".MTS") ? 2 : 1  // TODO better check for interlaced
 
-  const outputname = getOutputFilename(input.name)
+  const outputname = await getOutputFilename(input)
   const libav = await window.LibAV.LibAV({noworker: false, nothreads: true});
   try {
     await libav.mkreadaheadfile(input.name, input)

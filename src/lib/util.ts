@@ -123,6 +123,12 @@ export async function* readLines(
   }
 }
 
+
+export function TSAssertType<T>(_: unknown): asserts _ is T {}
+
+export type ArrayElement<ArrayType extends readonly unknown[]> =
+  ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
+
 export function joinedStringFromDict(dict: Record<string, boolean>, sep?: string): string {
   return Object.entries(dict)
     .filter(([_k, v]) => v).map(([k]) => k).join(sep ?? " ")

@@ -1,6 +1,6 @@
 import { FunctionComponent } from 'preact'
 import { useMemo, useState, useCallback } from 'preact/hooks';
-import { assert, binIndices, range, joinedStringFromDict } from "../lib/util.js"
+import { assert, binIndices, range, joinedStringFromDict, TSAssertType } from "../lib/util.js"
 import { selectCurrentFrameNumber, videoSeekToFrameNumberAndPause } from './videoPlayerSlice.js';
 import { useSelector } from 'react-redux';
 import { selectDetectionInfo } from './detectionsSlice.js';
@@ -38,21 +38,21 @@ as well as "allIncludingInvisibleLine"
 type HeightLine = {width: number, cnt: number}[]
 const allIncludingInvisibleLine = Symbol("allIncludingInvisibleLine")
 type HeightLineByKlass = Map<
-  number | typeof allIncludingInvisibleLine, HeightLine>
+  `${number}` | typeof allIncludingInvisibleLine, HeightLine>
 
 const COLOUR_FOR_KLASS_OR_ALL: Record<
   Parameters<HeightLineByKlass["get"]>[0], `hsl(${number}, ${number}%, ${number}%)`
 > = {
   [allIncludingInvisibleLine]: "hsl(0, 0%, 85%)",
-  ...range(255).map(i=> {
+  ...Object.fromEntries(range(255).map(i=> {
     const h = [0, 1, 2, 6, 7].reduce((prev, pos, index) => prev + (
       180 / (1 << index) * (i & 1 << pos ? 1: 0)), 0)
     const s = 100 - [3, 5].reduce((prev, pos, index) => prev + (
       50 / (1 << index) * (i & 1 << pos ? 1: 0)), 0)
     const l = 40 + [4].reduce((prev, pos, index) => prev + (
       40 / (1 << index) * (i & 1 << pos ? 1: 0)), 0)
-    return `hsl(${h}, ${s}%, ${l}%)`
-  })
+    return [i.toString(), `hsl(${h}, ${s}%, ${l}%)`]
+  }))
 } as const
 
 const heightLineToPathD = (line: HeightLine): string => {
@@ -133,16 +133,16 @@ export const DetectionBarDetections: FunctionComponent = () => {
       // put them in the order of display (from back to front)
       [allIncludingInvisibleLine, [{cnt: 0, width: 0}]],
       ...allKlasses.reverse().map(key => [key, [{cnt:0, width: 0}]]),
-    ] as Array<[number | typeof allIncludingInvisibleLine, HeightLine]>)
+    ] as Array<[`${number}` | typeof allIncludingInvisibleLine, HeightLine]>)
 
-    for (const detectionsForFrame of detectionInfo.detections) {
-      const indicesByKlass = binIndices(detectionsForFrame
-        .filter(d => d.confidence >= confidenceCutoff).map(d => d.klass))
+    for (const {detections} of detectionInfo.framesInfo) {
+      const indicesByKlass = binIndices(detections
+        .filter(d => d.confidence >= confidenceCutoff).map(d => d.klass.toString()))
       for (const klass of heightLines.keys()) {
         const newCount = (
           klass === allIncludingInvisibleLine
-            ? detectionsForFrame.length
-            : (indicesByKlass.get(klass as number) ?? []).length)
+            ? detections.length
+            : (indicesByKlass.get(klass) ?? []).length)
         const lastEntry = heightLines.get(klass)!.at(-1)!
         if (lastEntry.cnt === newCount) {
           lastEntry.width += 1
@@ -176,27 +176,26 @@ export const DetectionBarDetections: FunctionComponent = () => {
           "--y": `${hoverInfo.y}px`,
         } : {}}
       >
-        {hoverInfo && <>
+        {hoverInfo && detectionInfo.framesInfo[hoverInfo.frameNumber] && <>
         Frame {hoverInfo.frameNumber}: <ul>{(() => {
-          const detections = detectionInfo.detections[hoverInfo.frameNumber]
+          const detections = detectionInfo.framesInfo[hoverInfo.frameNumber].detections
           if (detections === undefined) {
             return ""
           }
             if (detections.length === 0) {
               return <li>no detections</li>
             }
-          const indicesByKlass = binIndices(detections.map(d => d.klass))
+          const indicesByKlass = binIndices(detections.map(d => d.klass.toString()))
           const indicesByKlassWitinConfidence = binIndices(
-          detections.filter(d => d.confidence >= confidenceCutoff)
-          .map(d => d.klass))
-          return Object.keys(detectionInfo.modelKlasses).map(klassKeyStr => {
-            const klassKey = parseInt(klassKeyStr)!
-            const nrDetections = indicesByKlass.get(klassKey)?.length ?? 0
-            if (nrDetections === 0) {
+              detections.filter(d => d.confidence >= confidenceCutoff)
+                .map(d => d.klass.toString()))
+            return Object.keys(detectionInfo.modelKlasses).map(klassKey => {
+              TSAssertType<`${number}`>(klassKey)
+              const nrDetections = indicesByKlass.get(klassKey)?.length ?? 0
+              if (nrDetections === 0) {
                 return <></>
               }
-            const nrDetectionsWithinConfidence = indicesByKlassWitinConfidence.get(
-
+              const nrDetectionsWithinConfidence = indicesByKlassWitinConfidence.get(
                 klassKey)?.length ?? 0
               return <li>{detectionInfo.modelKlasses[klassKey]}
                 : <span style={{color: COLOUR_FOR_KLASS_OR_ALL[klassKey]}}>

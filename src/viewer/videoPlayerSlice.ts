@@ -105,12 +105,13 @@ export const videoPlayerSlice = createAppSlice({
         }
         const currentFrameNumber = selectCurrentFrameNumber(getState() as RootState)
         const [searchIn, offset] = searchBackwards
-          ? [detectionInfo.detections.slice(0, currentFrameNumber), 0]
-          : [detectionInfo.detections.slice(currentFrameNumber + 1),
+          ? [detectionInfo.framesInfo.slice(0, currentFrameNumber), 0]
+          : [detectionInfo.framesInfo.slice(currentFrameNumber + 1),
             currentFrameNumber + 1]
         const functionName = searchBackwards ? "findLastIndex" : "findIndex"
         let newFrameNumber = searchIn[functionName](
-          detections => detections.some(d => d.confidence >= confidenceCutoff),
+          frameInfo => frameInfo.detections.some(
+            d => d.confidence >= confidenceCutoff),
         )
         if (newFrameNumber === -1) {
           newFrameNumber = searchBackwards ? 0 : detectionInfo.totalNumberOfFrames

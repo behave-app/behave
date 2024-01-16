@@ -37,11 +37,11 @@ export const CONTROL_INFO_S = {
   pause: {
     iconName: "pause",
     action: dispatch => {void(dispatch(videoPause()))},
-    description: "Start or resume play. If already playing, do nothing"
+    description: "Pause play. If already paused, do nothing"
   } as ControlInfo,
   play_pause: {
     iconName: "play_pause",
-    action: dispatch => {void(dispatch(videoTogglePlayPause))},
+    action: dispatch => {void(dispatch(videoTogglePlayPause()))},
     description: "Pause if playing, start playing if paused",
   } as ControlInfo,
   speed_up: {

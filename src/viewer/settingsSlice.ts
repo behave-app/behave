@@ -1,8 +1,9 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { CONTROL_INFO_S } from './PlayerInfo.js'
 import { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key.js"
 import { getDuplicateIndices } from 'src/lib/util'
+import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForVideoShortcut } from './appSlice.js'
 
 
 type VideoAction = keyof typeof CONTROL_INFO_S
@@ -91,8 +92,8 @@ const exampleSubjectShortcuts: SubjectShortcutGroups = {
   groups: [{
     name: "example",
     shortcuts: [
-      [{code: "KeyA"}, "Subject A"],
-      [{code: "KeyB"}, "Subject B"],
+      [{modifiers: ["shiftKey"], code: "KeyA"}, "Subject A"],
+      [{modifiers: ["shiftKey"], code: "KeyB"}, "Subject B"],
     ]
   }]
 }
@@ -181,6 +182,66 @@ export const {
 
 export const selectSettings = (state: RootState) => state.settings
 export const selectConfidenceCutoff = (state: RootState) => state.settings.confidenceCutoff
+export const selectActiveVideoShortcuts = (state: RootState) => state.settings.videoShortcuts
+export const selectActiveSubjectShortcuts = (state: RootState) => state.settings.subjectShortcutsGroups.groups[state.settings.subjectShortcutsGroups.selectedIndex].shortcuts
+
+export const selectActiveBehaviourShortcuts = (state: RootState) => state.settings.behaviourShortcutsGroups.groups[state.settings.behaviourShortcutsGroups.selectedIndex].shortcuts
+
+type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
+export const selectVideoShortcutMap = createSelector(
+[selectActiveVideoShortcuts],
+(videoShortcuts) => {
+    return new Map([
+      ...videoShortcuts
+      .filter(([key]) => key !== null)
+      .map(([key, action]) => (
+        [keyToString(key!), {type: "video", key, action}] as
+        [string, VideoShortcutItem]
+      )),
+    ])
+})
+
+type SubjectShortcutItem = {type: "subject", key: SubjectShortcut[0], action: SubjectShortcut[1]}
+export const selectSubjectShortcutMap = createSelector(
+[selectActiveSubjectShortcuts],
+(subjectShortcuts) => {
+    return new Map([
+      ...subjectShortcuts
+      .filter(([key]) => key !== null)
+      .map(([key, action]) => (
+        [keyToString(key!), {type: "subject", key, action}] as
+        [string, SubjectShortcutItem]
+      )),
+    ])
+})
+
+type BehaviourShortcutItem = {type: "behaviour", key: BehaviourShortcut[0], action: BehaviourShortcut[1]}
+export const selectBehaviourShortcutMap = createSelector(
+[selectActiveBehaviourShortcuts],
+(behaviourShortcuts) => {
+    return new Map([
+      ...behaviourShortcuts
+      .filter(([key]) => key !== null)
+      .map(([key, action]) => (
+        [keyToString(key!), {type: "behaviour", key, action}] as
+        [string, BehaviourShortcutItem]
+      )),
+    ])
+})
+
+export const selectActiveShortcuts = createSelector(
+  [selectIsWaitingForVideoShortcut, selectSubjectShortcutMap,
+  selectIsWaitingForBehaviourShortcut, selectVideoShortcutMap,
+  selectSubjectShortcutMap, selectBehaviourShortcutMap],
+  (doVideo, doSubject, doBehaviour,
+  videoShortcuts, subjectShortcuts, behaviourSubjects) => {
+    return new Map<string, VideoShortcutItem | SubjectShortcutItem | BehaviourShortcutItem>([
+      ...(doVideo ? videoShortcuts.entries() : []) as [string, VideoShortcutItem][],
+      ...(doSubject ? subjectShortcuts.entries() : [] as [string, SubjectShortcutItem][]),
+      ...(doBehaviour ? behaviourSubjects.entries() : [] as [string, BehaviourShortcutItem][]),
+      ])
+})
+
 
 export function noDuplicateKeysInShortcuts(
   shortcuts: ReadonlyArray<VideoShortcut | SubjectShortcut | BehaviourShortcut>

@@ -128,7 +128,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
     if (svgRect === null) {
       return [null, null]
     }
-    const allKlasses = Object.keys(detectionInfo.modelKlasses).map(i => parseInt(i))
+    const allKlasses = Object.keys(detectionInfo.modelKlasses)
     const heightLines: HeightLineByKlass = new Map([
       // put them in the order of display (from back to front)
       [allIncludingInvisibleLine, [{cnt: 0, width: 0}]],

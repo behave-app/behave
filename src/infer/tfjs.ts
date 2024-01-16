@@ -162,11 +162,8 @@ export async function convert(
     ...detectionInfo,
     totalNumberOfFrames: framenr
   }
-  console.log("done")
   await video.deinit()
   const stringData = detectionInfoToString(completeDetectionInfo)
-  console.log({stringData})
-  console.log(`Now writing ${stringData.length} bytes of data`);
   const textEncoder = new TextEncoder()
   await outputstream.write(textEncoder.encode(stringData))
   console.log("Done writing")

@@ -128,11 +128,13 @@ export const SettingsShortcutsEditor = <T extends Types>({
               {actions
                 ? <select
                   onChange={e => updateLocalShortcuts(index, {action: getValue(e)})}
+                  onFocus={() => setRecordKey(undefined)}
                   value={action ?? Object.keys(actions)[0]}>
                   {Object.entries(actions).map(
                     ([key, value]) => <option value={key}>{value}</option>)}
                 </select>
                 : <input
+                  onFocus={() => setRecordKey(undefined)}
                   onChange={e => updateLocalShortcuts(index, {action: getValue(e)})}
                   value={action ?? ""} />
               }

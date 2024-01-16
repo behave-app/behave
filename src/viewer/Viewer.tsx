@@ -8,6 +8,7 @@ import { Settings } from "./Settings.js";
 import { selectShowSettingsScreen } from "./appSlice";
 import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
+import { ShortcutHandler } from "./ShortcutHandler";
 
 export const Viewer: FunctionComponent = () => {
   const showSettingsScreen = useSelector(selectShowSettingsScreen)
@@ -19,5 +20,6 @@ export const Viewer: FunctionComponent = () => {
     <DetectionBar />
     <Behaviour />
     {showSettingsScreen && <Settings />}
+    <ShortcutHandler />
   </div>
 }

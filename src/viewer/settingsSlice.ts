@@ -30,6 +30,7 @@ const defaultVideoShortcuts: VideoShortcuts = [
   [{code: "KeyZ"}, "speed_down"],
   [{code: "KeyX"}, "play_pause"],
   [{code: "KeyC"}, "speed_up"],
+  [{modifiers: ["shiftKey"], code: "Slash"}, "key_shortcut_help_toggle"],
 ]
 
 type Subject = string
@@ -190,16 +191,16 @@ export const selectActiveBehaviourShortcuts = (state: RootState) => state.settin
 export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
 export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>
 
-export const selectBehaviourLayout = (_state: RootState): BehaveLayout => [
+export const selectBehaviourLayout = createSelector([], () => [
   {width: 2, type: "frameNumber"},
   {width: 5, type: "dateTime:%d-%m-%Y"},
   {width: 5, type: "dateTime:%H:%M:%S"},
   {width: 10, type: "subject"},
   {width: 15, type: "behaviour"},
   {width: "*", type: "comments:comments"},
-]
+])
 
-type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
+export type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
 export const selectVideoShortcutMap = createSelector(
 [selectActiveVideoShortcuts],
 (videoShortcuts) => {
@@ -213,7 +214,7 @@ export const selectVideoShortcutMap = createSelector(
     ])
 })
 
-type SubjectShortcutItem = {type: "subject", key: SubjectShortcut[0], action: SubjectShortcut[1]}
+export type SubjectShortcutItem = {type: "subject", key: SubjectShortcut[0], action: SubjectShortcut[1]}
 export const selectSubjectShortcutMap = createSelector(
 [selectActiveSubjectShortcuts],
 (subjectShortcuts) => {
@@ -227,7 +228,7 @@ export const selectSubjectShortcutMap = createSelector(
     ])
 })
 
-type BehaviourShortcutItem = {type: "behaviour", key: BehaviourShortcut[0], action: BehaviourShortcut[1]}
+export type BehaviourShortcutItem = {type: "behaviour", key: BehaviourShortcut[0], action: BehaviourShortcut[1]}
 export const selectBehaviourShortcutMap = createSelector(
 [selectActiveBehaviourShortcuts],
 (behaviourShortcuts) => {
@@ -301,6 +302,7 @@ export function noInvalidSettings(settings: SettingsState): "ok" | {
   subjectShortcutsGroupsProblem?: true
   behaviourShortcutsGroupsProblem?: true
   videoControlsAndShortcutControlsOverlap?: Key[]
+  videoControlsAndBehaviourControlsOverlap?: Key[]
   subjectControlsAndBehaviourControlsOverlap?: Key[]
 } {
   const result: Exclude<ReturnType<typeof noInvalidSettings>, "ok"> = {}
@@ -351,6 +353,13 @@ export function noInvalidSettings(settings: SettingsState): "ok" | {
   )
   if (subjectAndBehaviourOverlap.length) {
     result.subjectControlsAndBehaviourControlsOverlap = subjectAndBehaviourOverlap
+  }
+  const videoAndBehaviourOverlap = checkCombinedOverlap(
+    settings.videoShortcuts,
+    (settings.behaviourShortcutsGroups.groups[settings.behaviourShortcutsGroups.selectedIndex] ?? {shortcuts: []}).shortcuts,
+  )
+  if (videoAndBehaviourOverlap.length) {
+    result.videoControlsAndBehaviourControlsOverlap = videoAndBehaviourOverlap
   }
   if (Object.keys(result).length) {
     return result

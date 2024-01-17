@@ -150,16 +150,11 @@ const GroupedShortcuts = <T extends "subject" | "behaviour">({
 
   return <>
     <h3>{capitalize(shortcutsType)} shortcuts</h3>
-    {shortcutsType === "subject" ? <div className={css.explanation}>
-      Define keys that will select a subject, and thereby start behaviour input.
+    <div className={css.explanation}>
+      {shortcutsType === "subject" ? <>Define keys that will select a subject, and thereby start behaviour input.</> : <><>Define keys that will select a behaviour, and thereby finish behaviour input.</></>}
       Multiple groups can be made, only one group can be active.
-      Note that there can not be an overlap between these keys and video player shortcuts.
-    </div> : <div className={css.explanation}>
-        Define keys that will select a behaviour, to be pressed after a subject is selected.
-        Multiple groups can be made, only one group can be active.
-        Note that it <em>is</em> allowed to have an overlap between these keys and video playback or subject shortcut keys,
-        however the advise is not to have this overlap.
-      </div>}
+      Note that there can not be an overlap between active keys; i.e. the video shortcuts, the selected subject shortcuts group and the selected behaviour shortcuts group can not have the same key defined multiple times (for the simple reason that the program will not know what to do if the key in pressed in that case).
+    </div>
     <div>
       <table className={css.shortcutGroups}>
         <thead>
@@ -364,6 +359,14 @@ export const Settings: FunctionComponent = () => {
                 this is not allowed since the system will not know what action you meant:
                 <ul>
                   {validSettings.subjectControlsAndBehaviourControlsOverlap.map(
+                    key => <li>{keyToStrings(key).map(k => <kbd>{k}</kbd>)}</li>)}
+                </ul>
+              </div> : <></>}
+              {validSettings.videoControlsAndBehaviourControlsOverlap ?<div>
+                The following keys are defined both as video shortcuts as as behaviour shortcuts;
+                this is not allowed since the system will not know what action you meant:
+                <ul>
+                  {validSettings.videoControlsAndBehaviourControlsOverlap.map(
                     key => <li>{keyToStrings(key).map(k => <kbd>{k}</kbd>)}</li>)}
                 </ul>
               </div> : <></>}

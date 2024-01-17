@@ -1,66 +1,175 @@
 import { FunctionComponent } from "preact"
-import { selectActiveShortcuts } from "./settingsSlice"
+import { selectBehaviourShortcutMap, selectSubjectShortcutMap, selectVideoShortcutMap } from "./settingsSlice"
 import { useSelector } from "react-redux"
-import { useEffect } from "react"
-import { store, useAppDispatch } from "./store"
-import { keyFromEvent, keyToString } from "src/lib/key"
-import { CONTROL_INFO_S, makeSelector } from "./PlayerInfo"
-import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectSelectedSubject } from "./appSlice"
+import { Button } from "./PlayerInfo"
+import { useEffect, useMemo, useState } from "react"
+import { useAppDispatch } from "./store"
+import { keyFromEvent, Key, areEqualKeys, keyToStrings } from "src/lib/key"
+import { CONTROL_INFO_S, ControlInfo } from "./PlayerInfo"
+import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut, selectShowKeyShortcutHelp } from "./appSlice"
 import { behaviourInfoLineAdded, selectBehaviourInfo, selectBehaviourInfoLinesInsertIndexForCurrentFrame, selectBehaviourLineWithoutBehaviour } from "./behaviourSlice"
 import { videoPause } from "./videoPlayerSlice"
+import * as css from "./shortcuthandler.module.css"
+import { joinedStringFromDict } from "src/lib/util"
 
-export const ShortcutHandler: FunctionComponent = () => {
-  const activeShortcuts = useSelector(selectActiveShortcuts)
-  const dispatch = useAppDispatch()
-
-  useEffect(() => {
+const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: boolean) => {
+  return () => {
+    if (disabled) {
+      return
+    }
     const onKeyDown = (ev: KeyboardEvent) => {
-      const keyObject = keyFromEvent(ev)
-      if (keyObject === null) {
+      const pressedKey = keyFromEvent(ev)
+      if (pressedKey === null) {
         return
       }
-      const keyString = keyToString(keyObject)
-      if (!activeShortcuts.has(keyString)) {
+      if (!areEqualKeys(pressedKey, keyCombi)) {
         return
       }
-      const {key: _key, type, action} = activeShortcuts.get(keyString)!
-      const state = store.getState()  // TODO fix this
-      if (type === "video") {
-        const control = CONTROL_INFO_S[action]
-        if (makeSelector(control.selectIsDisabled, true)(state)) {
-          console.log(`Video action ${action} is currently disabled`)
-          return
-        }
-        control.action(dispatch)
-      } else if (type === "subject") {
-        void(dispatch(videoPause()))
-        dispatch(behaviourInputSubjectToggle(action))
-      } else if (type === "behaviour") {
-        if (!selectSelectedSubject) {
-          throw new Error("Behaviour without subject")
-        }
-        const behaviourInfo = selectBehaviourInfo(state)
-        if (!behaviourInfo) {
-          throw new Error("This should not happen")
-        }
-        const behaviourLine = selectBehaviourLineWithoutBehaviour(state)
-        if (!behaviourLine) {
-          throw new Error("Should have behaviour line")
-        }
-        [...behaviourInfo.layout.entries()].filter(
-          ([_, {type}]) => type === "behaviour")
-          .forEach(([index]) => {behaviourLine[index] = action})
-        const insertIndex = selectBehaviourInfoLinesInsertIndexForCurrentFrame(
-          state)
-        dispatch(behaviourInfoLineAdded({line: behaviourLine, insertIndex}))
-        dispatch(behaviourInputSubjectUnselected())
-      } else {
-        throw new Error("Unknown shortcut")
-      }
+      console.log("Doing action for " + keyToStrings(pressedKey).join("-"))
+      doAction()
     }
     document.documentElement.addEventListener("keydown", onKeyDown)
     return () => document.documentElement.removeEventListener("keydown", onKeyDown)
-  }, [activeShortcuts])
-  return <></>
+  }
 }
 
+function VideoShortcutKey<T>(
+  {disabled, keyCombi, action}: {disabled: boolean, keyCombi: Key, action: keyof typeof CONTROL_INFO_S}
+) {
+  const dispatch = useAppDispatch()
+  const [fired, setFired] = useState(false)
+  const controlInfo = CONTROL_INFO_S[action] as ControlInfo<T>
+
+  disabled = disabled || useSelector(controlInfo.selectIsDisabled)
+  const actionArgument = useSelector(
+    // this allows us to use selectors that would error when disabled = true
+    disabled ? (() => undefined as T): controlInfo.selectActionArgument)
+
+  const doAction = useMemo(() => () => {
+    setFired(true)
+    window.setTimeout(() => setFired(false), 0)
+    controlInfo.action(dispatch, actionArgument)
+  }, [dispatch, actionArgument, controlInfo])
+
+  useEffect(createKeyDownEffect(doAction, keyCombi, disabled), [doAction, keyCombi, disabled])
+
+  return <tr className={joinedStringFromDict({
+    [css.disabled]: disabled,
+    [css.fired]: fired
+  })}>
+    <td><button onClick={() => doAction()}>
+      {keyToStrings(keyCombi).map(k => <kbd>{k}</kbd>)}</button></td>
+    <td>
+      <Button controlInfo={controlInfo} />
+      {controlInfo.description}
+    </td>
+  </tr>
+}
+
+const SubjectShortcutKey: FunctionComponent<{disabled: boolean, keyCombi: Key, subject: string}> = ({disabled, keyCombi, subject}) => {
+  const dispatch = useAppDispatch()
+  const [fired, setFired] = useState(false)
+
+  const doAction = useMemo(() => () => {
+    setFired(true)
+    window.setTimeout(() => setFired(false), 0)
+    void(dispatch(videoPause()))
+    dispatch(behaviourInputSubjectToggle(subject))
+  }, [dispatch, subject])
+
+  useEffect(createKeyDownEffect(doAction, keyCombi, disabled), [doAction, keyCombi, disabled])
+
+  return <tr className={joinedStringFromDict({
+    [css.disabled]: disabled,
+    [css.fired]: fired
+  })}>
+    <td><button onClick={() => doAction()}>
+      {keyToStrings(keyCombi).map(k => <kbd>{k}</kbd>)}</button></td>
+    <td>
+      {subject}
+    </td>
+  </tr>
+}
+
+function BehaviourShortcutKey(
+  {disabled, keyCombi, behaviour}: {disabled: boolean, keyCombi: Key, behaviour: string}
+) {
+  const dispatch = useAppDispatch()
+  const [fired, setFired] = useState(false)
+  const line = useSelector(disabled ? () => null : selectBehaviourLineWithoutBehaviour)
+  const insertIndex = useSelector(
+    disabled ? () => -1 : selectBehaviourInfoLinesInsertIndexForCurrentFrame)
+  const behaviourInfo = useSelector(selectBehaviourInfo)
+
+  const doAction = useMemo(() => () => {
+    if (!behaviourInfo || !line) {
+      throw new Error("BehaviourInfo should not be null")
+    }
+    setFired(true)
+    window.setTimeout(() => setFired(false), 0)
+    const behaviourIndicesInLine = new Set(
+      [...behaviourInfo.layout.entries()].filter(
+        ([_, {type}]) => type === "behaviour")
+        .map(([index]) => index))
+    const lineWithBehaviour = line.map(
+      (word, index) => behaviourIndicesInLine.has(index) ? behaviour : word)
+    dispatch(behaviourInfoLineAdded({line: lineWithBehaviour, insertIndex}))
+    dispatch(behaviourInputSubjectUnselected())
+  }, [dispatch, behaviour, behaviourInfo, line, insertIndex])
+
+  useEffect(createKeyDownEffect(doAction, keyCombi, disabled), [doAction, keyCombi, disabled])
+
+  return <tr className={joinedStringFromDict({
+    [css.disabled]: disabled,
+    [css.fired]: fired
+  })}>
+    <td><button onClick={() => doAction()}>
+      {keyToStrings(keyCombi).map(k => <kbd>{k}</kbd>)}</button></td>
+    <td>
+      {behaviour}
+    </td>
+  </tr>
+}
+
+export const ShortcutHandler: FunctionComponent = () => {
+  const videoActive = useSelector(selectIsWaitingForVideoShortcut)
+  const subjectActive = useSelector(selectIsWaitingForSubjectShortcut)
+  const behaviourActive = useSelector(selectIsWaitingForBehaviourShortcut)
+  const videoShortcuts = useSelector(selectVideoShortcutMap)
+  const subjectShortcuts = useSelector(selectSubjectShortcutMap)
+  const behaviourShortcuts = useSelector(selectBehaviourShortcutMap)
+  const showKeyboardShortcuts = useSelector(selectShowKeyShortcutHelp)
+
+  return <div className={joinedStringFromDict({
+    [css.shortcuts]: true,
+    [css.visible]: showKeyboardShortcuts,
+  })}>
+    <div>
+      <h2>General shortcuts</h2>
+      <table>
+      <tbody>
+      {[...videoShortcuts.values()].filter(({key}) => key).map(
+        shortcut => <VideoShortcutKey disabled={!videoActive} keyCombi={shortcut.key!} action={shortcut.action} />)}
+      </tbody>
+      </table>
+    </div>
+    <div>
+      <h2>Subject shortcuts</h2>
+      <table>
+      <tbody>
+      {[...subjectShortcuts.values()].filter(({key}) => key).map(
+        shortcut => <SubjectShortcutKey disabled={!subjectActive} keyCombi={shortcut.key!} subject={shortcut.action} />)}
+      </tbody>
+      </table>
+    </div>
+    <div>
+      <h2>Behaviour shortcuts</h2>
+      <table>
+      <tbody>
+      {[...behaviourShortcuts.values()].filter(({key}) => key).map(
+        shortcut => <BehaviourShortcutKey disabled={!behaviourActive} keyCombi={shortcut.key!} behaviour={shortcut.action} />)}
+      </tbody>
+      </table>
+    </div>
+  </div>
+}

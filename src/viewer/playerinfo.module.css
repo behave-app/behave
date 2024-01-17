@@ -1,22 +1,26 @@
 .controls {
-  --button-size: 1.33em;
+  --button-size: calc(1em + 16px);
   display: grid;
   grid-template-columns: var(--button-size) var(--button-size) var(--button-size);
-    font-size: 2rem;
-  button {
-    font: unset;
-    width: var(--button-size);
-    height: var(--button-size);
-    text-align: center;
-    &.activated {
-      background-color: red;
-    }
-    position: relative;
-    .subIcon.topRight {
-      position: absolute;
-      top: 0;
-      right: 0;
-      font-size: .4em;
-    }
+  font-size: 2rem;
+  align-self: end;
+}
+
+button.control {
+  font: unset;
+  --button-size: calc(1em + 16px);
+  width: calc(var(--button-size) - 16px);
+  height: calc(var(--button-size) - 6px);
+  box-sizing: content-box;
+  text-align: center;
+  &.activated {
+    background-color: hsl(0, 0%, 70%);
+  }
+  position: relative;
+  .subIcon.topRight {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: .4em;
   }
 }

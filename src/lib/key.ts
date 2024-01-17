@@ -35,6 +35,16 @@ export function keyToString(key: Key): string {
   return keyToStrings(key).join("-")
 }
 
+export function areEqualKeys(key1: Key | null, key2: Key | null): boolean {
+  if (key1 === null && key2 === null) {
+    return true
+  }
+  if (key1 === null || key2 === null) {
+    return false
+  }
+  return keyToString(key1) === keyToString(key2)
+}
+
 export function isKey(key: unknown): key is Key {
   if (!key || typeof key !== "object") {
     return false

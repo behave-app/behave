@@ -5,6 +5,7 @@ body {
   --detectionbar-height: min(5em, 10vh);
   --behaviour-height: 5em;
   --playerinfo-width: 10em;
+  position: fixed;
 }
 
 kbd {
@@ -48,6 +49,9 @@ kbd + kbd {
 .playerinfo {
   grid-area: playerinfo;
   background-color: yellow;
+  display: grid;
+  grid-template-rows: auto auto
+
 }
 
 .detectionbar {

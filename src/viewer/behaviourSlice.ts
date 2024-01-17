@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { RootState, useAppDispatch } from './store'
 import { BehaveLayout } from './settingsSlice'
 import { selectCurrentFrameNumber } from './videoPlayerSlice'
@@ -126,23 +126,21 @@ export const selectBehaviourInfoLinesInsertIndexForCurrentFrame = (state: RootSt
   return insertLineNumber === -1 ? behaviourInfo.lines.length : insertLineNumber
 }
 
-export const selectBehaviourLineWithoutBehaviour = (
-  state: RootState,
-) => {
-  const selectedSubject = selectSelectedSubject(state)
+export const selectBehaviourLineWithoutBehaviour = createSelector(
+[selectSelectedSubject, selectBehaviourInfo, selectCurrentFrameNumber, selectCurrentFrameInfo, selectCurrentFrameDateTime],
+(selectedSubject, behaviourInfo, currentFrameNumber, currentFrameInfo, currentFrameDateTimeParts) => {
   if (!selectedSubject) {
     return null
   }
-  const behaviourInfo = selectBehaviourInfo(state)
   if (!behaviourInfo) {
     throw new Error("No BehaviourInfo");
   }
   const parts: string[] = behaviourInfo.layout.map(({type}) => {
     if (type === "frameNumber") {
-      return `${selectCurrentFrameNumber(state)}`
+      return `${currentFrameNumber}`
     }
     if (type === "pts") {
-      return `${selectCurrentFrameInfo(state).pts}`
+      return `${currentFrameInfo.pts}`
     }
     if (type === "subject") {
       return selectedSubject
@@ -154,7 +152,7 @@ export const selectBehaviourLineWithoutBehaviour = (
       return ""
     }
     if (type.startsWith("dateTime:")) {
-      const dateTimeParts = selectCurrentFrameDateTime(state)
+      const dateTimeParts = currentFrameDateTimeParts
       if (!dateTimeParts) {
         return "N/A"
       }
@@ -173,4 +171,4 @@ export const selectBehaviourLineWithoutBehaviour = (
     throw new Error("Exhausted: " + exhaustive)
   })
   return parts
-}
+})

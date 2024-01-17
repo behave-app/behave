@@ -18,104 +18,125 @@ import { AppDispatch, useAppDispatch } from "./store"
 import { RootState } from "./store.js"
 import { joinedStringFromDict } from "src/lib/util";
 import { selectCurrentFrameDateTime, selectDetectionInfo } from "./detectionsSlice";
+import { keyShortcutHelpScreenToggled, selectShowKeyShortcutHelp } from "./appSlice";
+import { selectVideoFilePotentiallyNull } from "./videoFileSlice";
 
-type ControlInfo = {
+export type ControlInfo<T> = {
   iconName: ValidIconName
   subIconName?: ValidIconName
-  selectIsDisabled?: (state: RootState) => boolean,
-  selectIsActivated?: (state: RootState) => boolean,
-  action: (dispatch: AppDispatch) => void
+  selectIsDisabled: (state: RootState) => boolean,
+  selectIsActivated: (state: RootState) => boolean,
+  selectActionArgument: (state: RootState) => T,
+  action: (dispatch: AppDispatch, actionArgument: T) => void
   description: string,
 }
 
+type OptionalControlInfoKeys = "selectIsDisabled" | "selectIsActivated" | "selectActionArgument"
+
+function fillAndWrapDefaultControlInfo<T>(
+info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
+): ControlInfo<T> {
+  return {
+    ...info,
+    selectIsActivated: state => selectPlayerState(state) !== null
+      && (info.selectIsActivated ?? (() => false))(state),
+    selectIsDisabled: state => selectPlayerState(state) === null
+      || (info.selectIsDisabled ?? (() => false))(state),
+    selectActionArgument: state => (
+      info.selectActionArgument ?? (() => undefined as T))(state),
+  }
+}
+
 export const CONTROL_INFO_S = {
-  play: {
+  play: fillAndWrapDefaultControlInfo({
     iconName: "resume",
     action: dispatch => {void(dispatch(videoPlay()))},
     description: "Start or resume play. If already playing, do nothing"
-  } as ControlInfo,
-  pause: {
+  }),
+  pause: fillAndWrapDefaultControlInfo({
     iconName: "pause",
     action: dispatch => {void(dispatch(videoPause()))},
     description: "Pause play. If already paused, do nothing"
-  } as ControlInfo,
-  play_pause: {
+  }),
+  play_pause: fillAndWrapDefaultControlInfo({
     iconName: "play_pause",
     action: dispatch => {void(dispatch(videoTogglePlayPause()))},
     description: "Pause if playing, start playing if paused",
-  } as ControlInfo,
-  speed_up: {
+  }),
+  speed_up: fillAndWrapDefaultControlInfo({
     iconName: "speed",
     subIconName: "south_east",
     action: dispatch => {void(dispatch(videoChangePlaybackRateOneStep(false)))},
     selectIsDisabled: state => selectPlaybackRate(state) === PLAYBACK_RATES.at(-1)!,
     description: "Increase playback speed"
-  } as ControlInfo,
-  speed_down: {
+  }),
+  speed_down: fillAndWrapDefaultControlInfo({
     iconName: "speed",
     subIconName: "north_west",
     action: dispatch => {void(dispatch(videoChangePlaybackRateOneStep(true)))},
     selectIsDisabled: state => selectPlaybackRate(state) === PLAYBACK_RATES.at(0)!,
     description: "Decrease playback speed"
-  } as ControlInfo,
-  next_frame: {
+  }),
+  next_frame: fillAndWrapDefaultControlInfo({
     iconName: "navigate_next",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberDiffAndPause(1)))},
     description: "Next frame"
-  } as ControlInfo,
-  previous_frame: {
+  }),
+  previous_frame: fillAndWrapDefaultControlInfo({
     iconName: "navigate_before",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberDiffAndPause(-1)))},
     description: "Previous frame"
-  } as ControlInfo,
-  next_frame_with_detection: {
+  }),
+  next_frame_with_detection: fillAndWrapDefaultControlInfo({
     iconName: "skip_next",
     selectIsDisabled: state => selectDetectionInfo(state) === null,
     action: dispatch => {void(dispatch(videoSeekToNextDetectionAndPause(false)))},
     description: "Next frame with detection"
-  } as ControlInfo,
-  previous_frame_with_detection: {
+  }),
+  previous_frame_with_detection: fillAndWrapDefaultControlInfo({
     iconName: "skip_previous",
     selectIsDisabled: state => selectDetectionInfo(state) === null,
     action: dispatch => {void(dispatch(videoSeekToNextDetectionAndPause(true)))},
     description: "Previous frame with detection"
-  } as ControlInfo,
-  restart: {
+  }),
+  restart: fillAndWrapDefaultControlInfo({
     iconName: "restart_alt",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberAndPause(0)))},
     description: "Restart video"
-  } as ControlInfo,
+  }),
+  key_shortcut_help_toggle: {
+    iconName: "indeterminate_question_box",
+    selectIsDisabled: () => false,
+    selectIsActivated: state => selectShowKeyShortcutHelp(state),
+    selectActionArgument: () => undefined,
+    action: dispatch => dispatch(keyShortcutHelpScreenToggled()),
+    description: "Show/hide the shortcut key help overlay"
+  } as ControlInfo<undefined>,
 } as const
 
-export const makeSelector = (
-  selector: undefined | ((state: RootState) => boolean),
-  stateIfNoPlayerState: boolean,
-): ((state: RootState) => boolean) => {
-  return state => {
-    if (!state.videoPlayer.playerState) {
-      return stateIfNoPlayerState
-    }
-    if (!selector) {
-      return false
-    }
-    return selector(state)
-  }
-}
-
-const Button: FunctionComponent<{controlInfo: ControlInfo}> = ({controlInfo: action}) => {
+export function Button<T>(
+  {controlInfo}: {controlInfo: ControlInfo<T>}
+) {
   const dispatch = useAppDispatch()
-  const disabled = useSelector(makeSelector(action.selectIsDisabled, true))
-  const activated = useSelector(makeSelector(action.selectIsActivated, false))
+  const disabled = useSelector(controlInfo.selectIsDisabled)
+  const activated = useSelector(controlInfo.selectIsActivated)
+  const actionArgument: T = useSelector(
+    // this allows us to use selectors that would error when disabled = true
+    disabled ? (() => undefined as T): controlInfo.selectActionArgument)
 
 
   return <button
     disabled={disabled}
+    title={controlInfo.description}
     className={joinedStringFromDict({
-      [css.activated]: activated
-    })} onClick={() => {if (!disabled) {action.action(dispatch)}}}>
-    <Icon iconName={action.iconName} />
-    {action.subIconName && <div className={[css.subIcon, css.topRight].join(" ")}>
-      <Icon iconName={action.subIconName} />
+      [css.activated]: activated,
+      [css.control]: true,
+    })} onClick={() => {if (!disabled) {
+      controlInfo.action(dispatch, actionArgument)}}}>
+    <Icon iconName={controlInfo.iconName} />
+    {controlInfo.subIconName && <div className={
+      [css.subIcon, css.topRight].join(" ")}>
+      <Icon iconName={controlInfo.subIconName} />
     </div>}
   </button>
 }
@@ -139,7 +160,7 @@ export const PlayerInfo: FunctionComponent = () => {
   const playerState = useSelector(selectPlayerState)
 
 
-  const playControl: ControlInfo = (
+  const playControl: ControlInfo<unknown> = (
     !playerState ? CONTROL_INFO_S.play_pause
       : playerState.ended ? CONTROL_INFO_S.restart
         : playerState.paused ? CONTROL_INFO_S.play
@@ -147,7 +168,9 @@ export const PlayerInfo: FunctionComponent = () => {
   )
 
   return <div className={viewercss.playerinfo}>
-    {playerState && <PlayerInfoDetails />}
+    <div>
+      {playerState && <PlayerInfoDetails />}
+    </div>
     <div className={css.controls}>
       <Button controlInfo={CONTROL_INFO_S.previous_frame_with_detection} />
       <button disabled />
@@ -158,6 +181,9 @@ export const PlayerInfo: FunctionComponent = () => {
       <Button controlInfo={CONTROL_INFO_S.speed_down} />
       <button disabled />
       <Button controlInfo={CONTROL_INFO_S.speed_up} />
+      <div />
+      <div />
+      <Button controlInfo={CONTROL_INFO_S.key_shortcut_help_toggle} />
     </div>
   </div>
 }

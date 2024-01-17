@@ -81,6 +81,13 @@ export const behaviourSlice = createSlice({
       state.behaviourInfo.lines.splice(
         action.payload.insertIndex, 0, action.payload.line)
     },
+    behaviourInfoLineRemoved: (state, action: PayloadAction<number>) => {
+      if (!state.behaviourInfo) {
+        throw new Error("No behaviour info")
+      }
+      state.behaviourInfo.lines.splice(
+        action.payload, 1)
+    },
     behaviourInfoFieldEdited: (state, action: PayloadAction<{
       lineNumber: number, fieldNumber: number, newContent: string
     }>) => {
@@ -110,8 +117,7 @@ export const behaviourSlice = createSlice({
   }
 })
 
-export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoFieldEdited, behaviourInfoUnset, currentlySelectedLineUpdated, currentlySelectedLineUnset} = behaviourSlice.actions
-
+export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoLineRemoved, behaviourInfoFieldEdited, behaviourInfoUnset, currentlySelectedLineUpdated, currentlySelectedLineUnset} = behaviourSlice.actions
 export default behaviourSlice.reducer
 
 export const selectBehaviourDirectoryPotentiallyNull = (state: RootState) => state.behaviour

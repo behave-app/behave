@@ -19,7 +19,7 @@ import { RootState } from "./store.js"
 import { joinedStringFromDict } from "src/lib/util";
 import { selectCurrentFrameDateTime, selectDetectionInfo } from "./detectionsSlice";
 import { keyShortcutHelpScreenToggled, selectShowKeyShortcutHelp } from "./appSlice";
-import { currentlySelectedLineUpdated, selectBehaviourInfo, selectSelectedBehaviourLine } from "./behaviourSlice";
+import { behaviourInfoLineRemoved, currentlySelectedLineUpdated, selectBehaviourInfo, selectSelectedBehaviourLine } from "./behaviourSlice";
 
 export type ControlInfo<T> = {
   iconName: ValidIconName
@@ -163,6 +163,25 @@ export const CONTROL_INFO_S = {
         void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
       }
     }
+  }),
+  delete_selected_behaviour_line: fillAndWrapDefaultControlInfo({
+    iconName: "disabled_by_default",
+    description: "remove the selected behaviour line",
+    selectIsDisabled: state => {
+      const behaviourInfo = selectBehaviourInfo(state)
+      if (!behaviourInfo) return true
+      const selectedBehaviourLine = selectSelectedBehaviourLine(state)!
+      return selectedBehaviourLine.rel !== "at"
+    },
+    selectActionArgument: state => ({
+      selectedBehaviourLine: selectSelectedBehaviourLine(state)!
+    }),
+    action: (dispatch, {selectedBehaviourLine}) => {
+      if (selectedBehaviourLine.rel !== "at") {
+        throw new Error("Should be 'at'")
+      }
+      dispatch(behaviourInfoLineRemoved(selectedBehaviourLine.index))
+    }
   })
 } as const
 
@@ -225,7 +244,7 @@ export const PlayerInfo: FunctionComponent = () => {
     </div>
     <div className={css.controls}>
       <Button controlInfo={CONTROL_INFO_S.previous_behaviour_line} />
-      <button disabled />
+      <Button controlInfo={CONTROL_INFO_S.delete_selected_behaviour_line} />
       <Button controlInfo={CONTROL_INFO_S.next_behaviour_line} />
       <Button controlInfo={CONTROL_INFO_S.previous_frame_with_detection} />
       <button disabled />

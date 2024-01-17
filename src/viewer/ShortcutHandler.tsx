@@ -25,7 +25,6 @@ const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: bool
       if (!areEqualKeys(pressedKey, keyCombi)) {
         return
       }
-      console.log("Doing action for " + keyToStrings(pressedKey).join("-"))
       doAction()
     }
     document.documentElement.addEventListener("keydown", onKeyDown)

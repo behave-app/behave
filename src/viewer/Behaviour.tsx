@@ -1,33 +1,47 @@
 import { FunctionComponent } from "preact"
 import * as viewercss from "./viewer.module.css"
 import { useSelector } from "react-redux"
-import { behaviourInfoCreatedNew, behaviourInfoUnset, selectBehaviourInfo, selectBehaviourInfoLinesInsertIndexForCurrentFrame, selectBehaviourLineWithoutBehaviour } from "./behaviourSlice"
+import { behaviourInfoCreatedNew, behaviourInfoUnset, currentlySelectedLineUnset, selectBehaviourInfo, selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./behaviourSlice"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectBehaviourLayout } from "./settingsSlice"
 import { useAppDispatch } from "./store"
 import { useEffect } from "react"
 import * as css from "./behaviour.module.css"
-import { selectSelectedSubject } from "./appSlice"
+import { selectCurrentFrameNumber } from "./videoPlayerSlice"
 
 const BehaviourEditor: FunctionComponent = () => {
   const behaviourInfo = useSelector(selectBehaviourInfo)!
   const dispatch = useAppDispatch()
   const insertLine = useSelector(selectBehaviourLineWithoutBehaviour)
-  const insertSpot = useSelector(selectBehaviourInfoLinesInsertIndexForCurrentFrame)
-
-  const lines = [...behaviourInfo.lines]
-  if (insertLine) {
-    lines.splice(insertSpot, 0, insertLine)
+  const currentFrameNumber = useSelector(selectCurrentFrameNumber)
+  const selectedBehaviourLine = useSelector(selectSelectedBehaviourLine)!
+  if (!selectSelectedBehaviourLine) {
+    throw new Error("error")
   }
 
+  useEffect(() => {
+    dispatch(currentlySelectedLineUnset())
+  }, [currentFrameNumber])
 
   return <table className={css.table}
     style={Object.fromEntries(behaviourInfo.layout.map(
       ({width}, index) => [`--width_${index + 1}`, width === "*" ? "auto" : `${width}em`]))}>
     <tbody>
-      {lines.map((line, index) => <tr className={insertLine && insertSpot === index ? css.aboutToBeInserted : ""}>
-        {line.map(item => <td>{item}</td>)}
-      </tr>)}
+      {behaviourInfo.lines.map((line, index) => {
+        const className = insertLine ? ""
+          : selectedBehaviourLine.index === index ? (
+            selectedBehaviourLine.rel == "at" ? css.selectedLine
+              : css.selectedLineAfter) : ""
+        return <><tr className={className}>
+          {line.map(item => <td>{item}</td>)}
+        </tr>
+          {insertLine && (selectedBehaviourLine.index === index) && 
+            <tr className={css.aboutToBeInserted}>
+              {insertLine.map(item => <td>{item}</td>)}
+            </tr>
+          }
+        </>
+      })}
     </tbody>
   </table>
 }

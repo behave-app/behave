@@ -121,6 +121,16 @@ export const selectCurrentFrameDateTime = createSelector(
   }
 )
 
+export const selectCurrentFrameInfoPotentiallyNull = createSelector(
+  // using delayed selector, because of circulair import
+  [(state) => selectCurrentFrameNumber(state), selectDetectionInfo],
+  (currentFrameNumber, detectionInfo) => {
+    if (!detectionInfo) {
+      return null
+    }
+    return detectionInfo.framesInfo[currentFrameNumber]
+  }
+)
 export const selectCurrentFrameInfo = createSelector(
   // using delayed selector, because of circulair import
   [(state) => selectCurrentFrameNumber(state), selectDetectionInfo],

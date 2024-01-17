@@ -19,7 +19,7 @@ import { RootState } from "./store.js"
 import { joinedStringFromDict } from "src/lib/util";
 import { selectCurrentFrameDateTime, selectDetectionInfo } from "./detectionsSlice";
 import { keyShortcutHelpScreenToggled, selectShowKeyShortcutHelp } from "./appSlice";
-import { selectVideoFilePotentiallyNull } from "./videoFileSlice";
+import { currentlySelectedLineUpdated, selectBehaviourInfo, selectSelectedBehaviourLine } from "./behaviourSlice";
 
 export type ControlInfo<T> = {
   iconName: ValidIconName
@@ -112,6 +112,58 @@ export const CONTROL_INFO_S = {
     action: dispatch => dispatch(keyShortcutHelpScreenToggled()),
     description: "Show/hide the shortcut key help overlay"
   } as ControlInfo<undefined>,
+  previous_behaviour_line: fillAndWrapDefaultControlInfo({
+    iconName: "vertical_align_top",
+    description: "previous behaviour line",
+    selectIsDisabled: state => {
+      const behaviourInfo = selectBehaviourInfo(state)
+      if (!behaviourInfo) return true
+      const selectedBehaviourLine = selectSelectedBehaviourLine(state)!
+      return (selectedBehaviourLine.index === 1 && selectedBehaviourLine.rel === "at") || selectedBehaviourLine.index === 0
+    },
+    selectActionArgument: state => ({
+      behaviourInfo: selectBehaviourInfo(state)!,
+      selectedBehaviourLine: selectSelectedBehaviourLine(state)!
+    }),
+    action: (dispatch, {behaviourInfo, selectedBehaviourLine}) => {
+      const newLine = Math.max(1, selectedBehaviourLine.index - (
+        selectedBehaviourLine.rel === "at" ? 1 : 0))
+      dispatch(currentlySelectedLineUpdated(newLine))
+      const frameNumberIndex = behaviourInfo.layout.findIndex(
+      ({type}) => type === "frameNumber")
+      const newFrameNumber = parseInt(
+        (behaviourInfo.lines[newLine] ?? [])[frameNumberIndex])
+      if (!isNaN(newFrameNumber)) {
+        void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
+      }
+    }
+  }),
+  next_behaviour_line: fillAndWrapDefaultControlInfo({
+    iconName: "vertical_align_bottom",
+    description: "next behaviour line",
+    selectIsDisabled: state => {
+      const behaviourInfo = selectBehaviourInfo(state)
+      if (!behaviourInfo) return true
+      const selectedBehaviourLine = selectSelectedBehaviourLine(state)!
+      return selectedBehaviourLine.index === behaviourInfo.lines.length - 1
+    },
+    selectActionArgument: state => ({
+      behaviourInfo: selectBehaviourInfo(state)!,
+      selectedBehaviourLine: selectSelectedBehaviourLine(state)!
+    }),
+    action: (dispatch, {behaviourInfo, selectedBehaviourLine}) => {
+      const newLine = Math.min(
+        behaviourInfo.lines.length - 1, selectedBehaviourLine.index + 1)
+      dispatch(currentlySelectedLineUpdated(newLine))
+      const frameNumberIndex = behaviourInfo.layout.findIndex(
+      ({type}) => type === "frameNumber")
+      const newFrameNumber = parseInt(
+        (behaviourInfo.lines[newLine] ?? [])[frameNumberIndex])
+      if (!isNaN(newFrameNumber)) {
+        void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
+      }
+    }
+  })
 } as const
 
 export function Button<T>(
@@ -172,6 +224,9 @@ export const PlayerInfo: FunctionComponent = () => {
       {playerState && <PlayerInfoDetails />}
     </div>
     <div className={css.controls}>
+      <Button controlInfo={CONTROL_INFO_S.previous_behaviour_line} />
+      <button disabled />
+      <Button controlInfo={CONTROL_INFO_S.next_behaviour_line} />
       <Button controlInfo={CONTROL_INFO_S.previous_frame_with_detection} />
       <button disabled />
       <Button controlInfo={CONTROL_INFO_S.next_frame_with_detection} />

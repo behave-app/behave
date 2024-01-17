@@ -3,7 +3,7 @@ import { RootState, useAppDispatch } from './store'
 import { BehaveLayout } from './settingsSlice'
 import { selectCurrentFrameNumber } from './videoPlayerSlice'
 import { DateTimeParts, SingleFrameInfo } from 'src/lib/detections'
-import { selectCurrentFrameDateTime, selectCurrentFrameInfo } from './detectionsSlice'
+import { selectCurrentFrameDateTime, selectCurrentFrameInfo, selectCurrentFrameInfoPotentiallyNull } from './detectionsSlice'
 import { selectSelectedSubject } from './appSlice'
 
 export type BehaviourDirectory = {
@@ -21,6 +21,7 @@ export type BehaviourInfo = {
   lastModifiedDateTime: string
   layout: BehaveLayout
   readonly: boolean
+  currentlySelectedLine: null | number
   lines: BehaviourLine[]
 }
 
@@ -62,6 +63,7 @@ export const behaviourSlice = createSlice({
         lastModifiedDateTime: action.payload.videoFileName,
         layout: action.payload.layout,
         readonly: false,
+        currentlySelectedLine: null,
         lines: [
           action.payload.layout.map(l => ["dateTime:", "comments:", ""].map(
             prefix => l.type.startsWith(prefix) ? l.type.slice(prefix.length) : "")
@@ -93,10 +95,22 @@ export const behaviourSlice = createSlice({
       line[action.payload.fieldNumber] = action.payload.newContent
     },
     behaviourInfoUnset: (state) => {state.behaviourInfo = null},
+    currentlySelectedLineUpdated: (state, action: PayloadAction<number>) => {
+      if (!state.behaviourInfo) {
+        throw new Error("No behaviour info")
+      }
+      state.behaviourInfo.currentlySelectedLine = action.payload
+    },
+    currentlySelectedLineUnset: (state) => {
+      if (!state.behaviourInfo) {
+        throw new Error("No behaviour info")
+      }
+      state.behaviourInfo.currentlySelectedLine = null
+    },
   }
 })
 
-export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoFieldEdited, behaviourInfoUnset} = behaviourSlice.actions
+export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoFieldEdited, behaviourInfoUnset, currentlySelectedLineUpdated, currentlySelectedLineUnset} = behaviourSlice.actions
 
 export default behaviourSlice.reducer
 
@@ -112,22 +126,31 @@ export const selectBehaviourDirectory = (state: RootState): BehaviourDirectory =
 }
 
 export const selectBehaviourInfo = (state: RootState) => state.behaviour.behaviourInfo
-export const selectBehaviourInfoLinesInsertIndexForCurrentFrame = (state: RootState) => {
-  const behaviourInfo = selectBehaviourInfo(state)
-  if (!behaviourInfo) {
-    throw new Error("No BehaviourInfo");
-  }
-  const currentFrameNumber = selectCurrentFrameNumber(state)
-  const frameNumberIndex = behaviourInfo.layout.findIndex(
-    ({type}) => type === "frameNumber")
-  const insertLineNumber = frameNumberIndex === -1 ? -1
-    : behaviourInfo.lines.findIndex(
-      line => parseInt(line[frameNumberIndex]) > currentFrameNumber)
-  return insertLineNumber === -1 ? behaviourInfo.lines.length : insertLineNumber
-}
+
+export const selectSelectedBehaviourLine: ((state: RootState) => null | {index: number, rel: "at" | "after"}) = createSelector(
+  [(state) => selectCurrentFrameNumber(state), selectBehaviourInfo],
+  (currentFrameNumber, behaviourInfo) => {
+    if (!behaviourInfo) {
+      return null
+    }
+    if (behaviourInfo.currentlySelectedLine !== null) {
+      return {index: behaviourInfo.currentlySelectedLine, rel: "at"}
+    }
+    const frameNumberIndex = behaviourInfo.layout.findIndex(
+      ({type}) => type === "frameNumber")
+    const firstLineIndexEqualOrLarger = frameNumberIndex === -1 ? -1
+      : behaviourInfo.lines.findIndex(
+        line => parseInt(line[frameNumberIndex]) >= currentFrameNumber)
+    return firstLineIndexEqualOrLarger === -1
+      ? {index: behaviourInfo.lines.length - 1, rel: "after"}
+      : currentFrameNumber === parseInt(
+        behaviourInfo.lines[firstLineIndexEqualOrLarger][frameNumberIndex])
+        ? {index: firstLineIndexEqualOrLarger, rel: "at"} : {index: firstLineIndexEqualOrLarger - 1, rel: "after"}
+})
+
 
 export const selectBehaviourLineWithoutBehaviour = createSelector(
-[selectSelectedSubject, selectBehaviourInfo, selectCurrentFrameNumber, selectCurrentFrameInfo, selectCurrentFrameDateTime],
+[selectSelectedSubject, selectBehaviourInfo, (state) => selectCurrentFrameNumber(state), selectCurrentFrameInfoPotentiallyNull, selectCurrentFrameDateTime],
 (selectedSubject, behaviourInfo, currentFrameNumber, currentFrameInfo, currentFrameDateTimeParts) => {
   if (!selectedSubject) {
     return null
@@ -140,7 +163,7 @@ export const selectBehaviourLineWithoutBehaviour = createSelector(
       return `${currentFrameNumber}`
     }
     if (type === "pts") {
-      return `${currentFrameInfo.pts}`
+      return currentFrameInfo ? `${currentFrameInfo.pts}` : "N/A"
     }
     if (type === "subject") {
       return selectedSubject

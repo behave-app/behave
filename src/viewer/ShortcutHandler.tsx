@@ -7,7 +7,7 @@ import { useAppDispatch } from "./store"
 import { keyFromEvent, Key, areEqualKeys, keyToStrings } from "src/lib/key"
 import { CONTROL_INFO_S, ControlInfo } from "./PlayerInfo"
 import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut, selectShowKeyShortcutHelp } from "./appSlice"
-import { behaviourInfoLineAdded, selectBehaviourInfo, selectBehaviourInfoLinesInsertIndexForCurrentFrame, selectBehaviourLineWithoutBehaviour } from "./behaviourSlice"
+import { behaviourInfoLineAdded, selectBehaviourInfo, selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./behaviourSlice"
 import { videoPause } from "./videoPlayerSlice"
 import * as css from "./shortcuthandler.module.css"
 import { joinedStringFromDict } from "src/lib/util"
@@ -98,7 +98,7 @@ function BehaviourShortcutKey(
   const [fired, setFired] = useState(false)
   const line = useSelector(disabled ? () => null : selectBehaviourLineWithoutBehaviour)
   const insertIndex = useSelector(
-    disabled ? () => -1 : selectBehaviourInfoLinesInsertIndexForCurrentFrame)
+    disabled ? () => null : selectSelectedBehaviourLine)
   const behaviourInfo = useSelector(selectBehaviourInfo)
 
   const doAction = useMemo(() => () => {
@@ -113,7 +113,8 @@ function BehaviourShortcutKey(
         .map(([index]) => index))
     const lineWithBehaviour = line.map(
       (word, index) => behaviourIndicesInLine.has(index) ? behaviour : word)
-    dispatch(behaviourInfoLineAdded({line: lineWithBehaviour, insertIndex}))
+    dispatch(behaviourInfoLineAdded({
+      line: lineWithBehaviour, insertIndex: insertIndex!.index + 1}))
     dispatch(behaviourInputSubjectUnselected())
   }, [dispatch, behaviour, behaviourInfo, line, insertIndex])
 

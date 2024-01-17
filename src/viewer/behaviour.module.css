@@ -45,4 +45,12 @@
   td:nth-of-type(10) {
     width: var(--width_10);
   }
+  tr.selectedLine {
+    background-color: hsl(140, 50%, 90%);
+    border-top: 2px solid hsl(140, 50%, 30%);
+    border-bottom: 2px solid hsl(140, 50%, 30%);
+  }
+  tr.selectedLineAfter {
+    border-bottom: 3px solid hsl(140, 50%, 30%);
+  }
 }

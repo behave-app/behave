@@ -1,8 +1,8 @@
 import { FunctionComponent, JSX } from "preact"
 import * as css from "./modalpopup.module.css"
-import { useAppDispatch } from "src/viewer/store"
+import { useAppDispatch } from "../viewer/store"
 import { useEffect } from "react"
-import { modalPopupOpened } from "src/viewer/appSlice"
+import { modalPopupOpened } from "../viewer/appSlice"
 
 export type ButtonInfo = {
   name: string

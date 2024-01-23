@@ -1,6 +1,7 @@
+// eslint-disable-next-line import/no-unresolved
 import * as LibAVTypes from "../../public/app/bundled/libavjs/dist/libav.types";
-import {Upload} from "../lib/Upload.js"
-import {FileTree, FileTreeBranch, readFileSystemHandle, findLeaf, getAllLeafPaths} from "../lib/FileTree.js"
+import {Upload} from "../lib/Upload"
+import {FileTree, FileTreeBranch, readFileSystemHandle, findLeaf, getAllLeafPaths} from "../lib/FileTree"
 import * as css from "./debugger.module.css"
 import { JSX } from "preact"
 import {useRef, useEffect, useState} from 'preact/hooks'

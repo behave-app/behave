@@ -1,11 +1,11 @@
 import "preact/debug"
 import { render } from 'preact';
 import { Provider } from 'react-redux';
-import store from './store';
-import { App } from './App.js';
+import myStore from './store';
+import { App } from './App';
 
 render(
-  <Provider store={store}>
+  <Provider store={myStore}>
     <App />
   </Provider>,
   document.body);

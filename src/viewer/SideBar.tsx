@@ -1,9 +1,9 @@
 import { FunctionComponent } from "preact"
-import { Icon } from "../lib/Icon.js"
+import { Icon } from "../lib/Icon"
 import * as viewercss from "./viewer.module.css"
 import * as css from "./sidebar.module.css"
 import { useDispatch } from "react-redux"
-import {settingsScreenShown} from "./appSlice.js"
+import {settingsScreenShown} from "./appSlice"
 
 export const SideBar: FunctionComponent = () => {
   const dispatch = useDispatch()

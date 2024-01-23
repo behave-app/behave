@@ -8,17 +8,18 @@
     "@types/react": "^17.0.69",
     "@types/react-redux": "^7.1.32",
     "@types/wicg-file-system-access": "^2023.10.4",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
     "esbuild": "^0.19.5",
+    "eslint": "^8.55.0",
+    "eslint-plugin-import": "^2.29.1",
     "hash-wasm": "^4.11.0",
     "libavjs-webcodecs-bridge": "github:Yahweasel/libavjs-webcodecs-bridge#98fb137f2b06029e376dc252c31d2f0b540a5919",
     "preact": "^10.19.2",
     "react": "npm:@preact/compat@^17.1.2",
     "react-dom": "npm:@preact/compat@^17.1.2",
     "react-redux": "^8.1.3",
-    "yaml": "^2.3.4",
-    "@typescript-eslint/eslint-plugin": "^6.13.2",
-    "@typescript-eslint/parser": "^6.13.2",
-    "eslint": "^8.55.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "yaml": "^2.3.4"
   }
 }

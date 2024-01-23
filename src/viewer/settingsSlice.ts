@@ -1,23 +1,18 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { CONTROL_INFO_S } from './PlayerInfo.js'
-import { RootState } from './store'
-import { Key, isKey, keyToString } from "../lib/key.js"
-import { getDuplicateIndices } from 'src/lib/util'
-import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut } from './appSlice.js'
+import type { ValidControlName, } from './controls'
+import type { RootState } from './store'
+import { Key, isKey, keyToString } from "../lib/key"
+import { getDuplicateIndices } from '../lib/util'
 
 
-type VideoAction = keyof typeof CONTROL_INFO_S
 
-export type VideoShortcut = [Key | null, VideoAction]
+export type VideoShortcut = [Key | null, ValidControlName]
 export type VideoShortcuts = VideoShortcut[]
 
 export function isVideoShortcuts(
   data: unknown
 ): data is VideoShortcuts {
-  if (!isSubjectShortcuts(data)) {
-    return false
-  }
-  return data.every(([_key, action]) => action in CONTROL_INFO_S)
+  throw new Error("To implement; at the moment results in cyclic import")
 }
 
 const defaultVideoShortcuts: VideoShortcuts = [
@@ -198,7 +193,7 @@ export const selectBehaviourLayout = createSelector([], () => [
   {width: 10, type: "subject"},
   {width: 15, type: "behaviour"},
   {width: "*", type: "comments:comments"},
-])
+] as BehaveLayout)
 
 export type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
 export const selectVideoShortcutMap = createSelector(
@@ -241,20 +236,6 @@ export const selectBehaviourShortcutMap = createSelector(
       )),
     ])
 })
-
-export const selectActiveShortcuts = createSelector(
-  [selectIsWaitingForVideoShortcut, selectIsWaitingForSubjectShortcut,
-  selectIsWaitingForBehaviourShortcut, selectVideoShortcutMap,
-  selectSubjectShortcutMap, selectBehaviourShortcutMap],
-  (doVideo, doSubject, doBehaviour,
-  videoShortcuts, subjectShortcuts, behaviourSubjects) => {
-    return new Map<string, VideoShortcutItem | SubjectShortcutItem | BehaviourShortcutItem>([
-      ...(doVideo ? videoShortcuts.entries() : []) as [string, VideoShortcutItem][],
-      ...(doSubject ? subjectShortcuts.entries() : [] as [string, SubjectShortcutItem][]),
-      ...(doBehaviour ? behaviourSubjects.entries() : [] as [string, BehaviourShortcutItem][]),
-      ])
-})
-
 
 export function noDuplicateKeysInShortcuts(
   shortcuts: ReadonlyArray<VideoShortcut | SubjectShortcut | BehaviourShortcut>

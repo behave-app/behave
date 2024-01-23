@@ -1,16 +1,17 @@
 import { FunctionComponent } from "preact"
 import { selectBehaviourShortcutMap, selectSubjectShortcutMap, selectVideoShortcutMap } from "./settingsSlice"
 import { useSelector } from "react-redux"
-import { Button } from "./PlayerInfo"
 import { useEffect, useMemo, useState } from "react"
 import { useAppDispatch } from "./store"
-import { keyFromEvent, Key, areEqualKeys, keyToStrings } from "src/lib/key"
-import { CONTROL_INFO_S, ControlInfo } from "./PlayerInfo"
+import { keyFromEvent, Key, areEqualKeys, keyToStrings } from "../lib/key"
+import { Button, } from "./PlayerInfo"
+import { CONTROLS, ControlInfo } from "./controls"
 import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut, selectShowKeyShortcutHelp } from "./appSlice"
-import { behaviourInfoLineAdded, selectBehaviourInfo, selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./behaviourSlice"
-import { videoPause } from "./videoPlayerSlice"
+import { behaviourInfoLineAdded, selectBehaviourInfo, } from "./behaviourSlice"
+import { videoPause } from "./videoPlayerActions"
 import * as css from "./shortcuthandler.module.css"
-import { joinedStringFromDict } from "src/lib/util"
+import { joinedStringFromDict } from "../lib/util"
+import { selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./selectors"
 
 const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: boolean) => {
   return () => {
@@ -33,11 +34,11 @@ const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: bool
 }
 
 function VideoShortcutKey<T>(
-  {disabled, keyCombi, action}: {disabled: boolean, keyCombi: Key, action: keyof typeof CONTROL_INFO_S}
+  {disabled, keyCombi, action}: {disabled: boolean, keyCombi: Key, action: keyof typeof CONTROLS}
 ) {
   const dispatch = useAppDispatch()
   const [fired, setFired] = useState(false)
-  const controlInfo = CONTROL_INFO_S[action] as ControlInfo<T>
+  const controlInfo = CONTROLS[action] as ControlInfo<T>
 
   disabled = disabled || useSelector(controlInfo.selectIsDisabled)
   const actionArgument = useSelector(

@@ -1,10 +1,10 @@
 import { FunctionComponent } from "preact"
 import * as css from "./viewer.module.css"
-import { detectionsDirectorySet, selectDetectionsDirectory, selectDetectionsDirectoryIsReady, DetectionsDirectory, detectionsInfoSet, selectDetectionInfo } from "./detectionsSlice"
+import { detectionsDirectorySet, selectDetectionsDirectoryAssertNotNull, selectDetectionsDirectoryIsReady, DetectionsDirectory, detectionsInfoSet, selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
 import { useSelector } from "react-redux"
 import { useEffect, useState } from "react"
 import { useAppDispatch } from "./store"
-import { ModalPopup } from "src/lib/ModalPopup"
+import { ModalPopup } from "../lib/ModalPopup"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { stringToDetectionInfo, } from "../lib/detections"
 import { DetectionBarDetections } from "./DetectionBarDetections"
@@ -75,7 +75,7 @@ type DetectionState = "no video" | "searching" | "no detection file found"
 
 const DetectionBarWithDirectory: FunctionComponent = () => {
   const [detectionState, setDetectionState] = useState<DetectionState>("no video")
-  const detectionsDirectory = useSelector(selectDetectionsDirectory)
+  const detectionsDirectory = useSelector(selectDetectionsDirectoryAssertNotNull)
   const videoFile = useSelector(selectVideoFilePotentiallyNull)
   const dispatch = useAppDispatch()
 
@@ -119,7 +119,7 @@ const DetectionBarWithDirectory: FunctionComponent = () => {
 }
 
 export const DetectionBar: FunctionComponent = () => {
-  const hasDetectionInfo = !!useSelector(selectDetectionInfo)
+  const hasDetectionInfo = !!useSelector(selectDetectionInfoPotentiallyNull)
   const hasDirectory = useSelector(selectDetectionsDirectoryIsReady)
 
   return <div className={css.detectionbar}>

@@ -1,12 +1,12 @@
 import { FunctionComponent } from "preact"
 import { useState, } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { Icon } from "src/lib/Icon"
-import { keyToStrings } from "src/lib/key"
-import { assert, joinedStringFromDict } from "src/lib/util"
-import { CONTROL_INFO_S } from "./PlayerInfo.js"
-import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor.js"
-import { settingsScreenHidden } from "./appSlice.js"
+import { Icon } from "../lib/Icon"
+import { keyToStrings } from "../lib/key"
+import { assert, joinedStringFromDict } from "../lib/util"
+import { CONTROLS } from "./controls"
+import { SettingsShortcutsEditor } from "./SettingsShortcutsEditor"
+import { settingsScreenHidden } from "./appSlice"
 import * as css from "./settings.module.css"
 import {
     SettingsState,
@@ -329,7 +329,7 @@ export const Settings: FunctionComponent = () => {
           </div>
           <div>
             {localSettings.videoShortcuts.filter(([key]) => key !== null).length} video shortcuts are active:
-            {localSettings.videoShortcuts.filter(([key]) => key !== null).map(([key, action]) => <div className={css.keycombination} title={CONTROL_INFO_S[action].description}>{keyToStrings(key!).map(k => <kbd>{k}</kbd>)}</div>)}
+            {localSettings.videoShortcuts.filter(([key]) => key !== null).map(([key, action]) => <div className={css.keycombination} title={CONTROLS[action].description}>{keyToStrings(key!).map(k => <kbd>{k}</kbd>)}</div>)}
           </div>
           <button onClick={() => setSubscreen({
             type: "editShortcuts",

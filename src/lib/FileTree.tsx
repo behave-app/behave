@@ -1,6 +1,6 @@
 import * as css from "./filetree.module.css"
 import { JSX } from "preact"
-import { formatTime } from "./util.js";
+import { formatTime } from "./util";
 import { CSSProperties } from "preact/compat";
 
 export type ConvertAction = (

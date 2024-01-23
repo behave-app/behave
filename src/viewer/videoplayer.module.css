@@ -8,3 +8,10 @@
   aspect-ratio: 16 / 9;
   }
 }
+
+.overlay {
+  position: absolute;
+  fill: none;
+  stroke: red;
+  stroke-width: 2px;
+}

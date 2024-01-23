@@ -1,10 +1,10 @@
-import {Upload} from "../lib/Upload.js"
-import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} from "../lib/FileTree.js"
+import {Upload} from "../lib/Upload"
+import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} from "../lib/FileTree"
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
-import {setBackend, convert, getOutputFilename} from "./tfjs.js"
-import {YoloSettingsDialog, YoloSettings} from "./YoloSettings.js"
+import {setBackend, convert, getOutputFilename} from "./tfjs"
+import {YoloSettingsDialog, YoloSettings} from "./YoloSettings"
 
 function fileFilter(file: File, extension: string): boolean {
   return !file.name.startsWith(".") && file.name.endsWith("." + extension)

@@ -1,10 +1,10 @@
 import { FunctionComponent } from "preact"
-import { CONTROL_INFO_S } from "./PlayerInfo.js"
+import { CONTROLS } from "./controls"
 import * as css from "./settingsshortcutseditor.module.css"
-import { Icon } from "src/lib/Icon"
+import { Icon } from "../lib/Icon"
 
-import { joinedStringFromDict } from "src/lib/util"
-import { keyFromEvent, keyToStrings, } from "../lib/key.js"
+import { joinedStringFromDict } from "../lib/util"
+import { keyFromEvent, keyToStrings, } from "../lib/key"
 import {
   VideoShortcuts, SubjectShortcuts, BehaviourShortcuts, noDuplicateKeysInShortcuts, } from "./settingsSlice"
 import { useState, useEffect, } from "react"
@@ -34,7 +34,7 @@ export const SettingsShortcutsEditor = <T extends Types>({
   const [localShortcuts, setLocalShortcuts] = useState<ShortcutsType<T>>(shortcuts)
   const [recordKey, setRecordKey] = useState<number>()
 
-  const actions = type === "video" ? Object.fromEntries(Object.entries(CONTROL_INFO_S)
+  const actions = type === "video" ? Object.fromEntries(Object.entries(CONTROLS)
     .map(([key, {description}]) => [key, description])
   ) : null
 

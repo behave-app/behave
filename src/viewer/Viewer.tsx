@@ -1,10 +1,10 @@
 import { FunctionComponent } from "preact"
 import * as css from "./viewer.module.css"
-import { SideBar } from "./SideBar.js";
-import { VideoPlayer } from "./VideoPlayer.js";
-import { DetectionBar } from "./DetectionBar.js";
-import { Behaviour } from "./Behaviour.js";
-import { Settings } from "./Settings.js";
+import { SideBar } from "./SideBar";
+import { VideoPlayer } from "./VideoPlayer";
+import { DetectionBar } from "./DetectionBar";
+import { Behaviour } from "./Behaviour";
+import { Settings } from "./Settings";
 import { selectShowSettingsScreen } from "./appSlice";
 import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";

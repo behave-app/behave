@@ -1,12 +1,13 @@
 import { FunctionComponent } from 'preact'
 import { useMemo, useState, useCallback } from 'preact/hooks';
-import { assert, binIndices, range, joinedStringFromDict, TSAssertType } from "../lib/util.js"
-import { selectCurrentFrameNumber, videoSeekToFrameNumberAndPause } from './videoPlayerSlice.js';
+import { assert, binIndices, range, joinedStringFromDict, TSAssertType } from "../lib/util"
+import { videoSeekToFrameNumberAndPause } from './videoPlayerActions';
 import { useSelector } from 'react-redux';
-import { selectDetectionInfo } from './detectionsSlice.js';
-import { selectConfidenceCutoff } from './settingsSlice.js';
+import { selectDetectionInfoPotentiallyNull } from './detectionsSlice';
+import { selectConfidenceCutoff } from './settingsSlice';
 import * as css from "./detectionbardetections.module.css"
-import { useAppDispatch } from './store.js';
+import { useAppDispatch } from './store';
+import { selectCurrentFrameNumber } from './selectors';
 
 type UseClientRect<T extends (HTMLElement | SVGElement)> =
   () => [[DOMRect | null, T | null], (node: T | null) => void]
@@ -92,7 +93,7 @@ const BETWEEN_LAYERS_HEIGHT = 10;
 
 export const DetectionBarDetections: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
-  const detectionInfo = useSelector(selectDetectionInfo)
+  const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const confidenceCutoff = useSelector(selectConfidenceCutoff)
   const dispatch = useAppDispatch()
   const [hoverInfo, setHoverInfo] = useState<{
@@ -103,7 +104,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
 
   const getFrameNumberFromMouseEvent = (ev: MouseEvent): number => {
     ev.preventDefault()
-    if (!svgRect) {
+    if (!svgRect || currentFrameNumber === null) {
       return NaN;
     }
     return ev.offsetY > svgRect.height / 2

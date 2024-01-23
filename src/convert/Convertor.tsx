@@ -1,9 +1,9 @@
-import {Upload} from "../lib/Upload.js"
-import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} from "../lib/FileTree.js"
+import {Upload} from "../lib/Upload"
+import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} from "../lib/FileTree"
 import * as css from "./convertor.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
-import {convert, getOutputFilename} from "./ffmpeg.js"
+import {convert, getOutputFilename} from "./ffmpeg"
 
 const NR_WORKERS = 1
 

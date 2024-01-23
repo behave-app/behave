@@ -3,11 +3,11 @@ import {setWasmPaths} from "@tensorflow/tfjs-backend-wasm"
 setWasmPaths("app/bundled/tfjs-wasm/")
 import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
-import type {FileTreeLeaf} from "../lib/FileTree.js"
-import {getNumberOfFrames, Video} from "../lib/video.js"
-import { xxh64sum } from 'src/lib/fileutil.js'
+import type {FileTreeLeaf} from "../lib/FileTree"
+import {getNumberOfFrames, Video} from "../lib/video"
+import { xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
-import { DetectionInfo, detectionInfoToString, SingleFrameInfo } from 'src/lib/detections.js'
+import { DetectionInfo, detectionInfoToString, SingleFrameInfo } from '../lib/detections'
 
 
 export async function getOutputFilename(file: File): Promise<string> {

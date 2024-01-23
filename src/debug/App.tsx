@@ -1,6 +1,6 @@
 import { render } from "preact"
 
-import {Debugger} from "./Debugger.js"
+import {Debugger} from "./Debugger"
 
 export function App() {
   return <div><Debugger /></div>

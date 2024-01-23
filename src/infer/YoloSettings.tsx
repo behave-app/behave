@@ -1,9 +1,9 @@
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
-import {YoloBackend, YoloVersion, Model, getModel, setBackend as setTFJSBackend} from "./tfjs.js"
+import {YoloBackend, YoloVersion, Model, getModel, setBackend as setTFJSBackend} from "./tfjs"
 import * as infercss from "./inferrer.module.css"
-import {getEntry, cp_r} from "../lib/fileutil.js"
-import {assert} from "../lib/util.js"
+import {getEntry, cp_r} from "../lib/fileutil"
+import {assert} from "../lib/util"
 
 const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
 const YOLO_MODEL_DIRECTORY = "YoloModelDir"

@@ -1,13 +1,12 @@
 // store.ts
 import { configureStore } from '@reduxjs/toolkit';
 import {useDispatch } from "react-redux"
-import videoFileReducer from "./videoFileSlice.js"
-import videoPlayerReducer from "./videoPlayerSlice.js"
-import appReducer from "./appSlice.js"
-import settingsReducer from "./settingsSlice.js"
-import {settingsToLocalStorage, SettingsState} from "./settingsSlice.js"
-import detectionsDirectoryReducer from './detectionsSlice.js'
-import behaviourReducer from './behaviourSlice.js'
+import videoFileReducer from "./videoFileSlice"
+import videoPlayerReducer from "./videoPlayerSlice"
+import appReducer from "./appSlice"
+import settingsReducer, {settingsToLocalStorage, SettingsState} from "./settingsSlice"
+import detectionsDirectoryReducer from './detectionsSlice'
+import behaviourReducer from './behaviourSlice'
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 export const useAppDispatch: () => AppDispatch = useDispatch

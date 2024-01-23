@@ -1,7 +1,6 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { RootState } from './store'
+import type { RootState } from './store'
 import { DetectionInfo, getPartsFromTimestamp, } from '../lib/detections'
-import { selectCurrentFrameNumber } from './videoPlayerSlice'
 
 export type DetectionsDirectory = {
   directory: FileSystemDirectoryHandle
@@ -50,16 +49,16 @@ export const selectDetectionsDirectoryPotentiallyNull = (state: RootState) => st
 export const selectDetectionsDirectoryIsReady = (state: RootState): state is RootState & {detections: {directory: DetectionsDirectory}} => {
   return state.detections.directory !== null
 }
-export const selectDetectionsDirectory = (state: RootState): DetectionsDirectory => {
+export const selectDetectionsDirectoryAssertNotNull = (state: RootState): DetectionsDirectory => {
   if (!selectDetectionsDirectoryIsReady(state)) {
     throw new Error("Wrong state")
   }
   return state.detections.directory
 }
-export const selectDetectionInfo = (state: RootState) => state.detections.detectionInfo
+export const selectDetectionInfoPotentiallyNull = (state: RootState) => state.detections.detectionInfo
 
 export const selectDateTimes = createSelector(
-  [selectDetectionInfo],
+  [selectDetectionInfoPotentiallyNull],
   (detectionInfo): null | ReturnType<typeof getPartsFromTimestamp>[] => {
     if (!detectionInfo) {
       return null
@@ -108,37 +107,6 @@ export const selectDateTimes = createSelector(
     }
     return detectionInfo.framesInfo.map(
       frameInfo => calculateTimestamp(frameInfo.pts))
-  }
-)
-
-export const selectCurrentFrameDateTime = createSelector(
-  [(state) => selectCurrentFrameNumber(state), selectDateTimes],
-  (currentFrameNumber, datetimes) => {
-    if (!datetimes) {
-      return null
-    }
-    return datetimes[currentFrameNumber]
-  }
-)
-
-export const selectCurrentFrameInfoPotentiallyNull = createSelector(
-  // using delayed selector, because of circulair import
-  [(state) => selectCurrentFrameNumber(state), selectDetectionInfo],
-  (currentFrameNumber, detectionInfo) => {
-    if (!detectionInfo) {
-      return null
-    }
-    return detectionInfo.framesInfo[currentFrameNumber]
-  }
-)
-export const selectCurrentFrameInfo = createSelector(
-  // using delayed selector, because of circulair import
-  [(state) => selectCurrentFrameNumber(state), selectDetectionInfo],
-  (currentFrameNumber, detectionInfo) => {
-    if (!detectionInfo) {
-      throw new Error("Should not be called if detectionInfo can be null")
-    }
-    return detectionInfo.framesInfo[currentFrameNumber]
   }
 )
 

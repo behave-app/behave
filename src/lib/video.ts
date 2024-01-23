@@ -1,7 +1,7 @@
 import type * as LibAVTypes from "../../public/app/bundled/libavjs/dist/libav.types";
 import {assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep} from "./util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
-import { SingleFrameInfo } from "./detections.js"
+import { SingleFrameInfo } from "./detections"
 declare global {
   interface Window {
     LibAV: LibAVTypes.LibAVWrapper;

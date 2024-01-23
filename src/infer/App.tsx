@@ -1,6 +1,6 @@
 import { render } from "preact"
 
-import {Inferrer} from "./Inferrer.js"
+import {Inferrer} from "./Inferrer"
 
 export function App() {
   return <div><Inferrer /></div>

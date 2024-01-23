@@ -1,13 +1,13 @@
 import { FunctionComponent } from "preact"
 import * as viewercss from "./viewer.module.css"
 import { useSelector } from "react-redux"
-import { behaviourInfoCreatedNew, behaviourInfoUnset, currentlySelectedLineUnset, selectBehaviourInfo, selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./behaviourSlice"
+import { behaviourInfoCreatedNew, behaviourInfoUnset, currentlySelectedLineUnset, selectBehaviourInfo, } from "./behaviourSlice"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectBehaviourLayout } from "./settingsSlice"
 import { useAppDispatch } from "./store"
 import { useEffect } from "react"
 import * as css from "./behaviour.module.css"
-import { selectCurrentFrameNumber } from "./videoPlayerSlice"
+import { selectBehaviourLineWithoutBehaviour, selectCurrentFrameNumber, selectSelectedBehaviourLine } from "./selectors"
 
 const BehaviourEditor: FunctionComponent = () => {
   const behaviourInfo = useSelector(selectBehaviourInfo)!

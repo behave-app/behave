@@ -1,7 +1,7 @@
-import { xxh64sum } from 'src/lib/fileutil'
+import { xxh64sum } from '../lib/fileutil'
 import type * as LibAVTypes from '../../public/app/bundled/libavjs/dist/libav.types'
-import type {FileTreeLeaf} from "../lib/FileTree.js"
-import {getNumberOfFrames} from "../lib/video.js"
+import type {FileTreeLeaf} from "../lib/FileTree"
+import {getNumberOfFrames} from "../lib/video"
 
 declare global {
   interface Window {

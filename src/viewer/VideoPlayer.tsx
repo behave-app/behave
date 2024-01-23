@@ -4,10 +4,11 @@ import * as viewercss from "./viewer.module.css"
 import * as css from "./videoplayer.module.css"
 import { useSelector } from "react-redux"
 import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice"
-import { ModalPopup } from "src/lib/ModalPopup.js"
+import { ModalPopup } from "../lib/ModalPopup"
 import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
-import { assert } from "src/lib/util"
+import { assert } from "../lib/util"
+import { selectVisibleDetectionsForCurrentFrame } from "./selectors"
 
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
@@ -20,6 +21,8 @@ const VideoCanvas: FunctionComponent<{
   videoFile: File
 }> = ({videoFile}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
+  const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
   const dispatch = useAppDispatch()
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
     dispatch(playerStateSet({
@@ -29,7 +32,7 @@ const VideoCanvas: FunctionComponent<{
       error: video.error,
       paused: video.paused,
       playbackRate: video.playbackRate,
-      seeking: video.seeking
+      seeking: video.seeking,
     }))
   }
 
@@ -39,9 +42,30 @@ const VideoCanvas: FunctionComponent<{
     const video = videoRef.current
     dispatch(videoPlayerElementIdSet(video.id))
     copyAndDispatchPlayerState(video)
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target !== videoRef.current) {
+          console.warn("Unexpected target: ", entry)
+          return
+        }
+        if (entry.contentBoxSize.length !== 1) {
+          console.warn("Unexpected length: ", entry)
+          return
+        }
+
+        setVideoDimensions([
+          entry.contentBoxSize[0].inlineSize,
+          entry.contentBoxSize[0].blockSize
+        ])
+
+      }
+    })
+    resizeObserver.observe(videoRef.current)
     return () => {
       dispatch(playerStateSet(null))
       dispatch(videoPlayerElementIdSet(null))
+      resizeObserver.disconnect()
+      setVideoDimensions(null)
     }
   }, [videoRef.current])
 
@@ -49,20 +73,36 @@ const VideoCanvas: FunctionComponent<{
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
 
-  return <video ref={videoRef} id="myVideoPlayer" className={css.canvas}
-    onPlay={syncState}
-    onPause={syncState}
-    onDurationChange={syncState}
-    onEnded={syncState}
-    onRateChange={syncState}
-    onError={syncState}
-    onLoadedMetadata={syncState}
-    onSeeking={syncState}
-    onSeeked={syncState}
-    onTimeUpdate={syncState}
-  >
-    <source src={URL.createObjectURL(videoFile)} />
-  </video>
+  return  <>
+    {videoDimensions && detections && <svg className={css.overlay}
+      viewBox={`0 0 ${videoDimensions[0]} ${videoDimensions[1]}`}
+      height={`${videoDimensions[1]}px`} width={`${videoDimensions[0]}px`}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {detections.map(det => <rect
+        x={`${((det.cx - det.width / 2) * 100).toFixed(3)}%`}
+        y={`${((det.cy - det.height / 2) * 100).toFixed(3)}%`}
+        width={`${(det.width * 100).toFixed(3)}%`}
+        height={`${(det.height * 100).toFixed(3)}%`}
+      />
+      )}
+    </svg>
+    }
+    <video ref={videoRef} id="myVideoPlayer" className={css.canvas}
+      onPlay={syncState}
+      onPause={syncState}
+      onDurationChange={syncState}
+      onEnded={syncState}
+      onRateChange={syncState}
+      onError={syncState}
+      onLoadedMetadata={syncState}
+      onSeeking={syncState}
+      onSeeked={syncState}
+      onTimeUpdate={syncState}
+    >
+      <source src={URL.createObjectURL(videoFile)} />
+    </video>
+  </>
 }
 
 

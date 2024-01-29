@@ -18,6 +18,7 @@ export type BehaviourInfo = {
   layout: BehaveLayout
   readonly: boolean
   currentlySelectedLine: null | number
+  currentlyEditingFieldIndex: null | number
   lines: BehaviourLine[]
 }
 
@@ -60,6 +61,7 @@ export const behaviourSlice = createSlice({
         layout: action.payload.layout,
         readonly: false,
         currentlySelectedLine: null,
+        currentlyEditingFieldIndex: null,
         lines: [
           action.payload.layout.map(l => ["dateTime:", "comments:", ""].map(
             prefix => l.type.startsWith(prefix) ? l.type.slice(prefix.length) : "")
@@ -109,11 +111,21 @@ export const behaviourSlice = createSlice({
         throw new Error("No behaviour info")
       }
       state.behaviourInfo.currentlySelectedLine = null
+      state.behaviourInfo.currentlyEditingFieldIndex = null
+    },
+    currentlyEditingFieldIndexSet: (state, action: PayloadAction<{currentlyEditingFieldIndex: number | null, currentlySelectedLine?: number}>) => {
+      if (!state.behaviourInfo) {
+        throw new Error("No behaviour info")
+      }
+      if ("currentlySelectedLine" in action.payload && action.payload.currentlySelectedLine) {
+        state.behaviourInfo.currentlySelectedLine = action.payload.currentlySelectedLine
+      }
+      state.behaviourInfo.currentlyEditingFieldIndex = action.payload.currentlyEditingFieldIndex
     },
   }
 })
 
-export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoLineRemoved, behaviourInfoFieldEdited, behaviourInfoUnset, currentlySelectedLineUpdated, currentlySelectedLineUnset} = behaviourSlice.actions
+export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoLineRemoved, behaviourInfoFieldEdited, behaviourInfoUnset, currentlySelectedLineUpdated, currentlySelectedLineUnset, currentlyEditingFieldIndexSet} = behaviourSlice.actions
 export default behaviourSlice.reducer
 
 export const selectBehaviourDirectoryPotentiallyNull = (state: RootState) => state.behaviour

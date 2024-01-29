@@ -13,6 +13,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 0.3em;
+    & > span, & > input {
+      display: block;
+      width: 100%;
+      border: 0;
+      height: 1lh;
+    }
   }
 
   td:nth-of-type(1) {

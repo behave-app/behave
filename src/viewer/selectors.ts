@@ -2,7 +2,7 @@ import { createSelector } from "@reduxjs/toolkit";
 import { selectSelectedSubject, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut } from './appSlice';
 import { selectBehaviourInfo } from "./behaviourSlice";
 import { selectDateTimes, selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from "./detectionsSlice";
-import { BehaviourShortcutItem, SubjectShortcutItem, VideoShortcutItem, selectBehaviourShortcutMap, selectConfidenceCutoff, selectSubjectShortcutMap, selectVideoShortcutMap } from './settingsSlice';
+import { BehaviourShortcutItem, SubjectShortcutItem, VideoShortcutItem, selectBehaviourShortcutMap, selectConfidenceCutoff, selectFramenumberIndexInLayout, selectSubjectShortcutMap, selectVideoShortcutMap } from './settingsSlice';
 import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 
@@ -79,16 +79,14 @@ export const selectVisibleDetectionsForCurrentFrame = createSelector(
 
 
 export const selectSelectedBehaviourLine: ((state: RootState) => null | {index: number, rel: "at" | "after"}) = createSelector(
-  [(state) => selectCurrentFrameNumber(state), selectBehaviourInfo],
-  (currentFrameNumber, behaviourInfo) => {
+  [selectCurrentFrameNumber, selectBehaviourInfo, selectFramenumberIndexInLayout],
+  (currentFrameNumber, behaviourInfo, frameNumberIndex) => {
     if (!behaviourInfo || currentFrameNumber === null) {
       return null
     }
     if (behaviourInfo.currentlySelectedLine !== null) {
       return {index: behaviourInfo.currentlySelectedLine, rel: "at"}
     }
-    const frameNumberIndex = behaviourInfo.layout.findIndex(
-      ({type}) => type === "frameNumber")
     const firstLineIndexEqualOrLarger = frameNumberIndex === -1 ? -1
       : behaviourInfo.lines.findIndex(
         line => parseInt(line[frameNumberIndex]) >= currentFrameNumber)

@@ -2,7 +2,7 @@ import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { ValidControlName, } from './controls'
 import type { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key"
-import { getDuplicateIndices } from '../lib/util'
+import { assert, getDuplicateIndices } from '../lib/util'
 
 
 
@@ -186,7 +186,7 @@ export const selectActiveBehaviourShortcuts = (state: RootState) => state.settin
 export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
 export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>
 
-export const selectBehaviourLayout = createSelector([], () => [
+export const selectBehaviourLayout = createSelector([(_state) => 1], (_one) => [
   {width: 2, type: "frameNumber"},
   {width: 5, type: "dateTime:%d-%m-%Y"},
   {width: 5, type: "dateTime:%H:%M:%S"},
@@ -194,6 +194,13 @@ export const selectBehaviourLayout = createSelector([], () => [
   {width: 15, type: "behaviour"},
   {width: "*", type: "comments:comments"},
 ] as BehaveLayout)
+
+export const selectFramenumberIndexInLayout = createSelector(
+  [selectBehaviourLayout], (behaviourLayout) => {
+    const index = behaviourLayout.findIndex(bl => bl.type === "frameNumber")
+    assert(index !== -1)
+    return index
+})
 
 export type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
 export const selectVideoShortcutMap = createSelector(

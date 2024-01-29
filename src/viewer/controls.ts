@@ -14,6 +14,7 @@ import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
 import { keyShortcutHelpScreenToggled, selectShowKeyShortcutHelp } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
+import { selectFramenumberIndexInLayout } from "./settingsSlice";
 
 export type ControlInfo<T> = {
   iconName: ValidIconName
@@ -119,14 +120,13 @@ export const CONTROLS = {
     },
     selectActionArgument: state => ({
       behaviourInfo: selectBehaviourInfo(state)!,
-      selectedBehaviourLine: selectSelectedBehaviourLine(state)!
+      selectedBehaviourLine: selectSelectedBehaviourLine(state)!,
+      frameNumberIndex: selectFramenumberIndexInLayout(state),
     }),
-    action: (dispatch, {behaviourInfo, selectedBehaviourLine}) => {
+    action: (dispatch, {behaviourInfo, selectedBehaviourLine, frameNumberIndex}) => {
       const newLine = Math.max(1, selectedBehaviourLine.index - (
         selectedBehaviourLine.rel === "at" ? 1 : 0))
       dispatch(currentlySelectedLineUpdated(newLine))
-      const frameNumberIndex = behaviourInfo.layout.findIndex(
-      ({type}) => type === "frameNumber")
       const newFrameNumber = parseInt(
         (behaviourInfo.lines[newLine] ?? [])[frameNumberIndex])
       if (!isNaN(newFrameNumber)) {
@@ -145,14 +145,13 @@ export const CONTROLS = {
     },
     selectActionArgument: state => ({
       behaviourInfo: selectBehaviourInfo(state)!,
-      selectedBehaviourLine: selectSelectedBehaviourLine(state)!
+      selectedBehaviourLine: selectSelectedBehaviourLine(state)!,
+      frameNumberIndex: selectFramenumberIndexInLayout(state),
     }),
-    action: (dispatch, {behaviourInfo, selectedBehaviourLine}) => {
+    action: (dispatch, {behaviourInfo, selectedBehaviourLine, frameNumberIndex}) => {
       const newLine = Math.min(
         behaviourInfo.lines.length - 1, selectedBehaviourLine.index + 1)
       dispatch(currentlySelectedLineUpdated(newLine))
-      const frameNumberIndex = behaviourInfo.layout.findIndex(
-      ({type}) => type === "frameNumber")
       const newFrameNumber = parseInt(
         (behaviourInfo.lines[newLine] ?? [])[frameNumberIndex])
       if (!isNaN(newFrameNumber)) {

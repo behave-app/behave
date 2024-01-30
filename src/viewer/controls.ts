@@ -11,8 +11,8 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { keyShortcutHelpScreenToggled, selectShowKeyShortcutHelp } from "./appSlice";
-import { behaviourInfoLineRemoved, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
+import { keyShortcutHelpScreenToggled, selectSelectedSubject, selectShowKeyShortcutHelp } from "./appSlice";
+import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
 import { selectFramenumberIndexInLayout } from "./settingsSlice";
 
@@ -176,6 +176,35 @@ export const CONTROLS = {
         throw new Error("Should be 'at'")
       }
       dispatch(behaviourInfoLineRemoved(selectedBehaviourLine.index))
+    }
+  }),
+  edit_comment_for_current_line: fillAndWrapDefaultControlInfo({
+    iconName: "feedback",
+    description: "edit comment for the current behaviour line",
+    selectIsDisabled: state => {
+      const line = selectSelectedBehaviourLine(state)
+      const behaviourInfo = selectBehaviourInfo(state)
+      const subjectSelected = selectSelectedSubject(state)
+      return (
+        !!subjectSelected
+        || !behaviourInfo
+        || behaviourInfo.currentlyEditingFieldIndex !== null
+        || behaviourInfo.layout.findIndex(
+            col => col.type.startsWith("comments:")) === -1
+        || !line
+        || line.rel !== "at"
+      )
+    },
+    selectActionArgument: state => ({
+      selectedBehaviourLine: selectSelectedBehaviourLine(state)!,
+      behaviourInfo: selectBehaviourInfo(state)!,
+    }),
+    action: (dispatch, {selectedBehaviourLine, behaviourInfo}) => {
+      dispatch(currentlyEditingFieldIndexSet({
+        currentlySelectedLine: selectedBehaviourLine.index,
+        currentlyEditingFieldIndex: behaviourInfo.layout.findIndex(
+            col => col.type.startsWith("comments:"))
+      }))
     }
   })
 } as const

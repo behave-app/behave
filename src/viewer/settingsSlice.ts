@@ -25,6 +25,7 @@ const defaultVideoShortcuts: VideoShortcuts = [
   [{code: "KeyZ"}, "speed_down"],
   [{code: "KeyX"}, "play_pause"],
   [{code: "KeyC"}, "speed_up"],
+  [{modifiers: ["shiftKey"], code: "Digit1"}, "edit_comment_for_current_line"],
   [{modifiers: ["shiftKey"], code: "Slash"}, "key_shortcut_help_toggle"],
 ]
 

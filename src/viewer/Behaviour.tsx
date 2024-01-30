@@ -37,6 +37,10 @@ const BehaviourEditor: FunctionComponent = () => {
   }, [currentFrameNumber, behaviourInfo.currentlyEditingFieldIndex])
 
   const startEditingField = (lineNumber: number, fieldNumber: number) => {
+    if (lineNumber === 0) {
+      console.warn("Not allowed editing the header line")
+      return 
+    }
     if (insertLine) {
       dispatch(behaviourInputSubjectUnselected())
     }
@@ -59,6 +63,10 @@ const BehaviourEditor: FunctionComponent = () => {
   }
 
   const selectLine = (lineNumber: number) => {
+    if (lineNumber === 0) {
+      console.warn("Not allowed editing the header line")
+      return 
+    }
     if (insertLine) {
       dispatch(behaviourInputSubjectUnselected())
     }

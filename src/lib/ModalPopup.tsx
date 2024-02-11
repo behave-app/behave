@@ -2,7 +2,7 @@ import { FunctionComponent, JSX } from "preact"
 import * as css from "./modalpopup.module.css"
 import { useAppDispatch } from "../viewer/store"
 import { useEffect } from "react"
-import { modalPopupOpened } from "../viewer/appSlice"
+import { modalPopupClosed, modalPopupOpened } from "../viewer/appSlice"
 
 export type ButtonInfo = {
   name: string
@@ -22,7 +22,7 @@ export const ModalPopup: FunctionComponent<Props> = ({
 
   useEffect(() => {
     dispatch(modalPopupOpened())
-    return () => {dispatch(modalPopupOpened())}
+    return () => {dispatch(modalPopupClosed())}
   }, [])
 
   return <div className={css.background}>

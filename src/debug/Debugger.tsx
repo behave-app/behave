@@ -76,8 +76,6 @@ export function Debugger2(): JSX.Element {
   </>
 }
 
-let context: AudioContext
-
 export function Debugger(): JSX.Element {
   const [results, setResults] = useState<string[]>([])
 
@@ -97,8 +95,7 @@ export function Debugger(): JSX.Element {
 
     });
     void(document.getElementsByTagName("audio")[0].play())
-    return
-      const lock = navigator.wakeLock.request("system").then((l) => {
+      const lock = navigator.wakeLock.request("screen").then((l) => {
       console.log("lock");
       return l
       }).catch((e: unknown) => console.log("error", e))
@@ -119,6 +116,9 @@ export function Debugger(): JSX.Element {
   </ul>
   </>
 }
+
+
+export let context: AudioContext
 
 export function Debugger3(): JSX.Element {
   const [results, setResults] = useState<string[]>([])

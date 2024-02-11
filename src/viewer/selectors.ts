@@ -150,3 +150,28 @@ export const selectBehaviourLineWithoutBehaviour = createSelector(
   return parts
 })
 
+const COLOURS_FOR_CLASSES = new Map([
+  ["all", "hsl(0, 0%, 70%)"],
+  ["unknown", "hsl(0, 0%, 0%)"],
+  ["0", "hsl(0, 100%, 50%)"],
+  ["1", "hsl(120, 100%, 50%)"],
+  ["2", "hsl(240, 100%, 50%)"],
+  ["3", "hsl(60, 100%, 50%)"],
+  ["4", "hsl(180, 100%, 50%)"],
+  ["5", "hsl(300, 100%, 50%)"],
+])
+
+export const selectColoursForClasses: (
+  (state: RootState) => Map<`${number}` | "all", `hsl(${number}, ${number}%, ${number}%)`>
+  ) = createSelector(
+  [selectDetectionInfoPotentiallyNull], (detectionInfo) => {
+    if (!detectionInfo) {
+      return new Map()
+    }
+    return new Map([...Object.keys(detectionInfo.modelKlasses), "all"].map((klass) => {
+      return [klass, COLOURS_FOR_CLASSES.get(klass)
+        ?? COLOURS_FOR_CLASSES.get("unknown")]
+    }))
+  }
+)
+

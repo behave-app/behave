@@ -8,7 +8,7 @@ import { ModalPopup } from "../lib/ModalPopup"
 import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert } from "../lib/util"
-import { selectVisibleDetectionsForCurrentFrame } from "./selectors"
+import { selectColoursForClasses, selectVisibleDetectionsForCurrentFrame } from "./selectors"
 
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
@@ -22,6 +22,7 @@ const VideoCanvas: FunctionComponent<{
 }> = ({videoFile}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
+  const coloursForClass = useSelector(selectColoursForClasses)
   const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
   const dispatch = useAppDispatch()
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
@@ -79,12 +80,19 @@ const VideoCanvas: FunctionComponent<{
       height={`${videoDimensions[1]}px`} width={`${videoDimensions[0]}px`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {detections.map(det => <rect
-        x={`${((det.cx - det.width / 2) * 100).toFixed(3)}%`}
-        y={`${((det.cy - det.height / 2) * 100).toFixed(3)}%`}
-        width={`${(det.width * 100).toFixed(3)}%`}
-        height={`${(det.height * 100).toFixed(3)}%`}
-      />
+      {detections.map(det => <g
+        style={{
+          "--box-colour": coloursForClass.get(`${det.klass}`),
+          "--cx": det.cx.toFixed(3),
+          "--cy": det.cy.toFixed(3),
+          "--width": det.width.toFixed(3),
+          "--height": det.height.toFixed(3),
+        }}
+      >
+        <rect className={css.box} />
+        <rect className={css.confidence_background} />
+        <text className={css.confidence_text}>{det.confidence.toFixed(2)}</text>
+      </g>
       )}
     </svg>
     }

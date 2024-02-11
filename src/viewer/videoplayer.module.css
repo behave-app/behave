@@ -11,7 +11,35 @@
 
 .overlay {
   position: absolute;
-  fill: none;
-  stroke: red;
-  stroke-width: 2px;
+  --box-stroke-width: 3px;
+  --text-width: 2.1em;
+  --text-height: 1lh;
+  font-size: .8em;
+  font-family: Arial, helvetica, sans-serif;
+  font-variant-numeric: tabular-nums;
+  .box {
+    fill: none;
+    stroke: var(--box-colour);
+    stroke-width: var(--box-stroke-width);
+    x: calc((var(--cx) - var(--width) / 2) * 100%);
+    y: calc((var(--cy) - var(--height) / 2) * 100%);
+    width: calc(var(--width) * 100% + var(--box-stroke-width) / 2);
+    height: calc(var(--height) * 100% + var(--box-stroke-width) / 2);
+  }
+  .confidence_background {
+    stroke: none;
+    fill: var(--box-colour);
+    x: calc((var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--box-stroke-width));
+    y: calc((var(--cy) + var(--height) / 2) * 100%);
+    width: var(--text-width);
+    height: var(--text-height);
+  }
+  .confidence_text {
+    stroke: none;
+    fill: white;
+    transform: translate(
+    calc((var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--box-stroke-width) + 1px),
+    calc((var(--cy) + var(--height) / 2) * 100% + .8lh)
+    );
+  }
 }

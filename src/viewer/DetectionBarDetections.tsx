@@ -7,7 +7,7 @@ import { selectDetectionInfoPotentiallyNull } from './detectionsSlice';
 import { selectConfidenceCutoff } from './settingsSlice';
 import * as css from "./detectionbardetections.module.css"
 import { useAppDispatch } from './store';
-import { selectCurrentFrameNumber } from './selectors';
+import { selectColoursForClasses, selectCurrentFrameNumber } from './selectors';
 
 type UseClientRect<T extends (HTMLElement | SVGElement)> =
   () => [[DOMRect | null, T | null], (node: T | null) => void]
@@ -40,21 +40,6 @@ type HeightLine = {width: number, cnt: number}[]
 const allIncludingInvisibleLine = Symbol("allIncludingInvisibleLine")
 type HeightLineByKlass = Map<
   `${number}` | typeof allIncludingInvisibleLine, HeightLine>
-
-const COLOUR_FOR_KLASS_OR_ALL: Record<
-  Parameters<HeightLineByKlass["get"]>[0], `hsl(${number}, ${number}%, ${number}%)`
-> = {
-  [allIncludingInvisibleLine]: "hsl(0, 0%, 85%)",
-  ...Object.fromEntries(range(255).map(i=> {
-    const h = [0, 1, 2, 6, 7].reduce((prev, pos, index) => prev + (
-      180 / (1 << index) * (i & 1 << pos ? 1: 0)), 0)
-    const s = 100 - [3, 5].reduce((prev, pos, index) => prev + (
-      50 / (1 << index) * (i & 1 << pos ? 1: 0)), 0)
-    const l = 40 + [4].reduce((prev, pos, index) => prev + (
-      40 / (1 << index) * (i & 1 << pos ? 1: 0)), 0)
-    return [i.toString(), `hsl(${h}, ${s}%, ${l}%)`]
-  }))
-} as const
 
 const heightLineToPathD = (line: HeightLine): string => {
   const path_d = ["M 0 0"]
@@ -95,6 +80,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const confidenceCutoff = useSelector(selectConfidenceCutoff)
+  const coloursForClass = useSelector(selectColoursForClasses)
   const dispatch = useAppDispatch()
   const [hoverInfo, setHoverInfo] = useState<{
     x: number, y: number, frameNumber: number} | null>(null)
@@ -199,7 +185,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
               const nrDetectionsWithinConfidence = indicesByKlassWitinConfidence.get(
                 klassKey)?.length ?? 0
               return <li>{detectionInfo.modelKlasses[klassKey]}
-                : <span style={{color: COLOUR_FOR_KLASS_OR_ALL[klassKey]}}>
+                : <span style={{color: coloursForClass.get(klassKey)}}>
                   {nrDetectionsWithinConfidence} ({nrDetections})
                 </span>
               </li>
@@ -237,7 +223,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
             {[...heightLines.entries()].map(
               ([klassOrAll, heightLine]) =>
                 <path style={{
-                  "--line-colour": COLOUR_FOR_KLASS_OR_ALL[klassOrAll] ?? "inherit",
+                  "--line-colour": coloursForClass.get(klassOrAll === allIncludingInvisibleLine ? "all" : klassOrAll) ?? "inherit",
                   "--detection-klass": klassOrAll === allIncludingInvisibleLine
                     ? "allIncludingInvisible"
                     : detectionInfo.modelKlasses[klassOrAll],

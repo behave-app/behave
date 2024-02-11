@@ -31,8 +31,8 @@
     .confidence_background {
       stroke: none;
       fill: var(--box-colour);
-      x: calc((var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--box-stroke-width));
-      y: calc((var(--cy) + var(--height) / 2) * 100%);
+      x: max(0%, min( calc(100% - var(--text-width)), calc((var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--box-stroke-width))));
+      y: calc(max(0%, min(100% - var(--text-height), (var(--cy) + var(--height) / 2) * 100%)));
       width: var(--text-width);
       height: var(--text-height);
     }
@@ -40,8 +40,8 @@
       stroke: none;
       fill: white;
       transform: translate(
-      calc((var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--box-stroke-width) + 1px),
-      calc((var(--cy) + var(--height) / 2) * 100% + .8lh)
+      calc(max(0%, min(100% - var(--text-width), (var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--box-stroke-width))) + 1px),
+      calc(max(0%, min(100%, (var(--cy) + var(--height) / 2) * 100% + .8lh)))
       );
     }
   }

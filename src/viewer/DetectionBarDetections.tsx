@@ -4,10 +4,9 @@ import { assert, binIndices, range, joinedStringFromDict, TSAssertType } from ".
 import { videoSeekToFrameNumberAndPause } from './videoPlayerActions';
 import { useSelector } from 'react-redux';
 import { selectDetectionInfoPotentiallyNull } from './detectionsSlice';
-import { selectConfidenceCutoff } from './settingsSlice';
 import * as css from "./detectionbardetections.module.css"
 import { useAppDispatch } from './store';
-import { selectColoursForClasses, selectCurrentFrameNumber } from './selectors';
+import { selectColoursForClasses, selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors';
 
 type UseClientRect<T extends (HTMLElement | SVGElement)> =
   () => [[DOMRect | null, T | null], (node: T | null) => void]
@@ -79,12 +78,13 @@ const BETWEEN_LAYERS_HEIGHT = 10;
 export const DetectionBarDetections: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
-  const confidenceCutoff = useSelector(selectConfidenceCutoff)
+  const confidenceCutoffByClass = useSelector(selectConfidenceCutoffByClass)
   const coloursForClass = useSelector(selectColoursForClasses)
   const dispatch = useAppDispatch()
   const [hoverInfo, setHoverInfo] = useState<{
     x: number, y: number, frameNumber: number} | null>(null)
   assert(detectionInfo !== null)
+  assert(confidenceCutoffByClass !== null)
 
   const [[svgRect, _svg], svgRef] = useClientRect<SVGElement>()
 
@@ -124,7 +124,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
 
     for (const {detections} of detectionInfo.framesInfo) {
       const indicesByKlass = binIndices(detections
-        .filter(d => d.confidence >= confidenceCutoff).map(d => d.klass.toString()))
+        .filter(d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!).map(d => d.klass.toString()))
       for (const klass of heightLines.keys()) {
         const newCount = (
           klass === allIncludingInvisibleLine
@@ -143,7 +143,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
       ...heightLines.get(allIncludingInvisibleLine)!.map(l => l.cnt))
     const scalingInfo = SCALES.find(([max]) => max >= maxDetections)!
     return [heightLines, scalingInfo] as [HeightLineByKlass, typeof scalingInfo]
-  }, [detectionInfo, svgRect, confidenceCutoff])
+  }, [detectionInfo, svgRect, confidenceCutoffByClass])
 
   if (
     scalingInfo == null
@@ -174,7 +174,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
             }
           const indicesByKlass = binIndices(detections.map(d => d.klass.toString()))
           const indicesByKlassWitinConfidence = binIndices(
-              detections.filter(d => d.confidence >= confidenceCutoff)
+              detections.filter(d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!)
                 .map(d => d.klass.toString()))
             return Object.keys(detectionInfo.modelKlasses).map(klassKey => {
               TSAssertType<`${number}`>(klassKey)

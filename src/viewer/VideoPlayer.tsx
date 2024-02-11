@@ -8,7 +8,7 @@ import { ModalPopup } from "../lib/ModalPopup"
 import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert } from "../lib/util"
-import { selectColoursForClasses, selectVisibleDetectionsForCurrentFrame } from "./selectors"
+import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
 
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
@@ -22,7 +22,7 @@ const VideoCanvas: FunctionComponent<{
 }> = ({videoFile}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
-  const coloursForClass = useSelector(selectColoursForClasses)
+  const settingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
   const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
   const dispatch = useAppDispatch()
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
@@ -75,14 +75,16 @@ const VideoCanvas: FunctionComponent<{
   }
 
   return  <>
-    {videoDimensions && detections && <svg className={css.overlay}
+    {videoDimensions && settingsByDetectionClass && detections && <svg className={css.overlay}
       viewBox={`0 0 ${videoDimensions[0]} ${videoDimensions[1]}`}
       height={`${videoDimensions[1]}px`} width={`${videoDimensions[0]}px`}
       xmlns="http://www.w3.org/2000/svg"
     >
       {detections.map(det => <g
+        className={css.detection}
         style={{
-          "--box-colour": coloursForClass.get(`${det.klass}`),
+          "--box-colour": settingsByDetectionClass.get(`${det.klass}`)!.colour,
+          "--box-alpha": settingsByDetectionClass.get(`${det.klass}`)!.alpha,
           "--cx": det.cx.toFixed(3),
           "--cy": det.cy.toFixed(3),
           "--width": det.width.toFixed(3),

@@ -314,15 +314,6 @@ export const Settings: FunctionComponent = () => {
       {subscreen === null
         ? <>
           <h1>Settings</h1>
-          <div>
-            Confidence:
-            <input type="range" min="0.10" max="0.95" step="0.05"
-              value={localSettings.confidenceCutoff}
-              onChange={e => setLocalSettings(settings => ({
-                ...settings,
-                confidenceCutoff: parseFloat(getValue(e))}))} />
-            {localSettings.confidenceCutoff}
-          </div>
           <h3>Video player shortcuts</h3>
           <div className={css.explanation}>
             Define keys to quickly navigate around the video (e.g. next detection, previous frame, start/pause play.

@@ -1,8 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { RootState, } from './store'
 import { selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from './detectionsSlice'
-import { selectConfidenceCutoff } from './settingsSlice'
-import { selectCurrentFrameNumber } from './selectors'
+import { selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors'
 import { assert } from '../lib/util'
 import { PLAYBACK_RATES, selectPlaybackRate } from './videoPlayerSlice'
 
@@ -88,9 +87,9 @@ export const videoSeekToNextDetectionAndPause = createAsyncThunk("videoPlayer/vi
   ): Promise<void> => {
     const state = getState() as RootState
     const detectionInfo = selectDetectionInfoPotentiallyNull(state)
-    const confidenceCutoff = selectConfidenceCutoff(state)
+    const confidenceCutoffByClass = selectConfidenceCutoffByClass(state)
     const currentFrameNumber = selectCurrentFrameNumber(getState() as RootState)
-    if (!detectionInfo || currentFrameNumber === null) {
+    if (!detectionInfo || currentFrameNumber === null || confidenceCutoffByClass === null) {
       return
     }
     const [searchIn, offset] = direction === "backwards"
@@ -100,7 +99,7 @@ export const videoSeekToNextDetectionAndPause = createAsyncThunk("videoPlayer/vi
     const functionName = direction === "backwards" ? "findLastIndex" : "findIndex"
     let newFrameNumber = searchIn[functionName](
       frameInfo => frameInfo.detections.some(
-        d => d.confidence >= confidenceCutoff),
+        d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!),
     )
     if (newFrameNumber === -1) {
       newFrameNumber = direction === "backwards" ? 0 : detectionInfo.totalNumberOfFrames

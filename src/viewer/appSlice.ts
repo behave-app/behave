@@ -1,17 +1,24 @@
 import { createSlice, PayloadAction} from '@reduxjs/toolkit'
 import type { RootState } from './store'
 
+export type SidebarPopup = "info" | "classSliders"
+
 export const appSlice = createSlice({
   name: "app",
   initialState: {
     showSettingsScreen: false,
     showKeyShortcutHelp: false,
     modalPopupOpen: false,
+    sidebarPopup: null as SidebarPopup | null,
     selectedSubject: null  as null | string
   },
   reducers: {
     settingsScreenShown: state => {state.showSettingsScreen = true},
     settingsScreenHidden: state => {state.showSettingsScreen = false},
+    sidebarPopupWasToggled: (state, {payload}: PayloadAction<SidebarPopup>) => {
+      state.sidebarPopup = (state.sidebarPopup === payload ? null : payload)
+    },
+    sidebarPopupWasClosed: state => {state.sidebarPopup = null},
     keyShortcutHelpScreenShown: state => {state.showKeyShortcutHelp = true},
     keyShortcutHelpScreenHidden: state => {state.showKeyShortcutHelp = false},
     keyShortcutHelpScreenToggled: state => {
@@ -33,8 +40,9 @@ export const appSlice = createSlice({
 
 export default appSlice.reducer
 
-export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled} = appSlice.actions
+export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed} = appSlice.actions
 
+export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
 export const selectShowSettingsScreen = (state: RootState) => state.app.showSettingsScreen
 export const selectShowKeyShortcutHelp = (state: RootState) => state.app.showKeyShortcutHelp && ! state.app.showSettingsScreen

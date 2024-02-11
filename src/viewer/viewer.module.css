@@ -1,7 +1,7 @@
 body {
   padding: 0;
   margin: 0;
-  --sidebar-width: 1.7em;
+  --sidebar-width: 2.1em;
   --detectionbar-height: min(5em, 10vh);
   --behaviour-height: 5em;
   --playerinfo-width: 10em;

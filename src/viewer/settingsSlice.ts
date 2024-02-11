@@ -134,7 +134,8 @@ export const settingsToLocalStorage = (settings: SettingsState) => {
 }
 
 const defaultSettings: SettingsState = {
-  confidenceCutoff: 0.5,
+  settingsByDetectionClass: null,
+  confidenceLocation: "outer-right-bottom",
   videoShortcuts: defaultVideoShortcuts,
   subjectShortcutsGroups: exampleSubjectShortcuts,
   behaviourShortcutsGroups: exampleBehaviourShortcuts,
@@ -153,8 +154,19 @@ const getSettingsFromLocalStorageOrDefault = (): SettingsState => {
   return defaultSettings
 }
 
+export type Colour = `hsl(${number}, ${number}%, ${number}%)`
+
+export type SettingsForDetectionClass = {
+  name: string, // classname
+  confidenceCutoff: number,
+  hide: boolean,
+  colour: Colour
+  alpha: number,
+}
+
 export type SettingsState = {
-  confidenceCutoff: number
+  settingsByDetectionClass: null | Record<`${number}`, SettingsForDetectionClass>
+  confidenceLocation: `${"outer" | "inner"}-${"left" | "center" | "right"}-${"top" | "bottom"}` | "off"
   videoShortcuts: VideoShortcuts
   subjectShortcutsGroups: BehaviourShortcutGroups
   behaviourShortcutsGroups: BehaviourShortcutGroups
@@ -166,7 +178,40 @@ export const settingsSlice = createSlice({
   reducers: {
     settingsUpdated: (_state, action: PayloadAction<SettingsState>) => {
       return action.payload
-    }
+    },
+    settingsByDetectionClassUpdated: (state, {payload}: PayloadAction<SettingsState["settingsByDetectionClass"]>) => {
+      state.settingsByDetectionClass = payload
+    },
+    confidenceCutoffUpdated: (state, {payload: {klass, newConfidenceCutoff}}: PayloadAction<{klass: `${number}`, newConfidenceCutoff: number}>) => {
+      if (!state.settingsByDetectionClass) {
+        console.error("No settingsByDetectionClass");
+        return
+      }
+      state.settingsByDetectionClass[klass].confidenceCutoff = Math.min(
+        0.95, Math.max(newConfidenceCutoff, 0.1))
+    },
+    alphaUpdated: (state, {payload: {klass, newAlpha}}: PayloadAction<{klass: `${number}`, newAlpha: number}>) => {
+      if (!state.settingsByDetectionClass) {
+        console.error("No settingsByDetectionClass");
+        return
+      }
+      state.settingsByDetectionClass[klass].alpha = Math.min(
+        1, Math.max(newAlpha, 0.0))
+    },
+    colourUpdated: (state, {payload: {klass, newColour}}: PayloadAction<{klass: `${number}`, newColour: Colour}>) => {
+      if (!state.settingsByDetectionClass) {
+        console.error("No settingsByDetectionClass");
+        return
+      }
+      state.settingsByDetectionClass[klass].colour = newColour
+    },
+    hideToggled: (state, {payload: {klass}}: PayloadAction<{klass: `${number}`}>) => {
+      if (!state.settingsByDetectionClass) {
+        console.error("No settingsByDetectionClass");
+        return
+      }
+      state.settingsByDetectionClass[klass].hide = !state.settingsByDetectionClass[klass].hide
+    },
   }
 })
 
@@ -175,10 +220,16 @@ export default settingsSlice.reducer
 
 export const {
   settingsUpdated,
+  settingsByDetectionClassUpdated,
+  confidenceCutoffUpdated,
+  alphaUpdated,
+  hideToggled,
+  colourUpdated,
 } = settingsSlice.actions
 
 export const selectSettings = (state: RootState) => state.settings
-export const selectConfidenceCutoff = (state: RootState) => state.settings.confidenceCutoff
+export const selectSettingsByDetectionClass = (state: RootState) => state.settings.settingsByDetectionClass
+export const selectConfidenceLocation = (state: RootState) => state.settings.confidenceLocation
 export const selectActiveVideoShortcuts = (state: RootState) => state.settings.videoShortcuts
 export const selectActiveSubjectShortcuts = (state: RootState) => state.settings.subjectShortcutsGroups.groups[state.settings.subjectShortcutsGroups.selectedIndex].shortcuts
 

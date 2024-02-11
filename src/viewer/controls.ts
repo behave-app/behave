@@ -11,9 +11,9 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { keyShortcutHelpScreenToggled, selectSelectedSubject, selectShowKeyShortcutHelp } from "./appSlice";
+import { keyShortcutHelpScreenToggled, selectSelectedSubject, selectShowKeyShortcutHelp, selectSidebarPopup, settingsScreenShown, sidebarPopupWasToggled } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
-import { selectSelectedBehaviourLine } from "./selectors";
+import { selectRealOrDefaultSettingsByDetectionClass, selectSelectedBehaviourLine } from "./selectors";
 import { selectFramenumberIndexInLayout } from "./settingsSlice";
 
 export type ControlInfo<T> = {
@@ -32,19 +32,39 @@ function fillAndWrapDefaultControlInfo<T>(
 info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
 ): ControlInfo<T> {
   return {
-    ...info,
     selectIsActivated: state => selectPlayerState(state) !== null
       && (info.selectIsActivated ?? (() => false))(state),
     selectIsDisabled: state => selectPlayerState(state) === null
       || (info.selectIsDisabled ?? (() => false))(state),
     selectActionArgument: state => (
       info.selectActionArgument ?? (() => undefined as T))(state),
+    ...info,
   }
 }
 
 
 
 export const CONTROLS = {
+  showInfo: fillAndWrapDefaultControlInfo({
+    iconName: "info",
+    action: dispatch => dispatch(sidebarPopupWasToggled("info")),
+    description: "Show overlay with general information",
+    selectIsActivated: state => selectSidebarPopup(state) === "info",
+    selectIsDisabled: () => false,
+  }),
+  classSliders: fillAndWrapDefaultControlInfo({
+    iconName: "sliders",
+    action: dispatch => dispatch(sidebarPopupWasToggled("classSliders")),
+    description: "Show overlay where confidence sliders per class can be set",
+    selectIsActivated: state => selectSidebarPopup(state) === "classSliders",
+    selectIsDisabled: state => selectRealOrDefaultSettingsByDetectionClass(state) === null,
+  }),
+  showSettings: fillAndWrapDefaultControlInfo({
+    iconName: "settings",
+    action: dispatch => dispatch(settingsScreenShown()),
+    description: "Show settings screen",
+    selectIsDisabled: () => false,
+  }),
   play: fillAndWrapDefaultControlInfo({
     iconName: "resume",
     action: dispatch => {void(dispatch(videoPlay()))},

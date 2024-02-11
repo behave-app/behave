@@ -4,7 +4,7 @@ import {useDispatch } from "react-redux"
 import videoFileReducer from "./videoFileSlice"
 import videoPlayerReducer from "./videoPlayerSlice"
 import appReducer from "./appSlice"
-import settingsReducer, {settingsToLocalStorage, SettingsState} from "./settingsSlice"
+import settingsReducer, {settingsToLocalStorage, InternalSettingsState} from "./settingsSlice"
 import detectionsDirectoryReducer from './detectionsSlice'
 import behaviourReducer from './behaviourSlice'
 export type RootState = ReturnType<typeof store.getState>
@@ -51,7 +51,7 @@ export const store = configureStore({
 });
 
 let debouceTimeout: number | undefined = undefined
-let savedSettings: SettingsState = store.getState().settings
+let savedSettings: InternalSettingsState = store.getState().settings
 
 store.subscribe(() => {
   if (debouceTimeout !== undefined) {

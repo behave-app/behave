@@ -147,9 +147,10 @@ export const DetectionBarDetections: FunctionComponent = () => {
 
   if (
     scalingInfo == null
-  || currentFrameNumber == null
-  || heightLines == null
-  || svgRect == null
+      || currentFrameNumber == null
+      || heightLines == null
+      || svgRect == null
+      || coloursForClass === null
   ) {
     return <div className={css.detectionBanner}><svg ref={svgRef}></svg></div>
   } else {

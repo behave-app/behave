@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useAppDispatch } from "./store"
 import { keyFromEvent, Key, areEqualKeys, keyToStrings } from "../lib/key"
 import { Button, } from "./PlayerInfo"
-import { CONTROLS, ControlInfo } from "./controls"
+import { CONTROLS, ControlInfo, ValidControlName } from "./controls"
 import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut, selectShowKeyShortcutHelp } from "./appSlice"
 import { behaviourInfoLineAdded, selectBehaviourInfo, } from "./behaviourSlice"
 import { videoPause } from "./videoPlayerActions"
@@ -34,7 +34,7 @@ const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: bool
 }
 
 function VideoShortcutKey<T>(
-  {disabled, keyCombi, action}: {disabled: boolean, keyCombi: Key, action: keyof typeof CONTROLS}
+  {disabled, keyCombi, action}: {disabled: boolean, keyCombi: Key, action: ValidControlName}
 ) {
   const dispatch = useAppDispatch()
   const [fired, setFired] = useState(false)

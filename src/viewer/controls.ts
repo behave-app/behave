@@ -32,11 +32,11 @@ function fillAndWrapDefaultControlInfo<T>(
 info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
 ): ControlInfo<T> {
   return {
-    selectIsActivated: state => selectPlayerState(state) !== null
+    selectIsActivated: (state: RootState) => selectPlayerState(state) !== null
       && (info.selectIsActivated ?? (() => false))(state),
-    selectIsDisabled: state => selectPlayerState(state) === null
+    selectIsDisabled: (state: RootState) => selectPlayerState(state) === null
       || (info.selectIsDisabled ?? (() => false))(state),
-    selectActionArgument: state => (
+    selectActionArgument: (state: RootState) => (
       info.selectActionArgument ?? (() => undefined as T))(state),
     ...info,
   }

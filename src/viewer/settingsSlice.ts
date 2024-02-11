@@ -1,10 +1,13 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { ValidControlName, } from './controls'
 import type { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key"
 import { assert, getDuplicateIndices } from '../lib/util'
+import type { ValidControlName } from './controls'
 
 
+
+type InternalVideoShortcut = [Key | null, string]
+type InternalVideoShortcuts = InternalVideoShortcut[]
 
 export type VideoShortcut = [Key | null, ValidControlName]
 export type VideoShortcuts = VideoShortcut[]
@@ -127,13 +130,13 @@ const exampleBehaviourShortcuts: BehaviourShortcutGroups = {
 
 const LOCAL_STORAGE_SETTINGS_KEY = "Behave_Settings_v1"
 
-export const settingsToLocalStorage = (settings: SettingsState) => {
+export const settingsToLocalStorage = (settings: InternalSettingsState) => {
   const settingsJSON = JSON.stringify(settings)
   window.localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, settingsJSON)
   console.debug("Settings saved to localStorage")
 }
 
-const defaultSettings: SettingsState = {
+const defaultSettings: InternalSettingsState = {
   settingsByDetectionClass: null,
   confidenceLocation: "outer-right-bottom",
   videoShortcuts: defaultVideoShortcuts,
@@ -141,12 +144,12 @@ const defaultSettings: SettingsState = {
   behaviourShortcutsGroups: exampleBehaviourShortcuts,
 }
 
-const getSettingsFromLocalStorageOrDefault = (): SettingsState => {
+const getSettingsFromLocalStorageOrDefault = (): InternalSettingsState => {
   const settingsJSON = window.localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY)
   if (settingsJSON !== null) {
     try {
     console.debug("Settings retrieved from localStorage")
-      return JSON.parse(settingsJSON) as SettingsState
+      return JSON.parse(settingsJSON) as InternalSettingsState
     } catch (e) {
       console.warn("Problem unserializing settings, using default settings")
     }
@@ -164,22 +167,31 @@ export type SettingsForDetectionClass = {
   alpha: number,
 }
 
-export type SettingsState = {
+
+/**
+ * OK, we need this internal settings state, to avoid some nasty annoying
+  * circular reference.
+  * VideoShortcut depends on keyof CONTROLS, however in order to get those keys,
+  * the system wants to get all the data (even though the keys are const....
+*/
+export type InternalSettingsState = {
   settingsByDetectionClass: null | Record<`${number}`, SettingsForDetectionClass>
   confidenceLocation: `${"outer" | "inner"}-${"left" | "center" | "right"}-${"top" | "bottom"}` | "off"
-  videoShortcuts: VideoShortcuts
+  videoShortcuts: InternalVideoShortcuts
   subjectShortcutsGroups: BehaviourShortcutGroups
   behaviourShortcutsGroups: BehaviourShortcutGroups
 }
+
+export type SettingsState = Omit<InternalSettingsState, "videoShortcuts"> & {videoShortcuts: VideoShortcuts}
 
 export const settingsSlice = createSlice({
   name: "settings",
   initialState: getSettingsFromLocalStorageOrDefault(),
   reducers: {
-    settingsUpdated: (_state, action: PayloadAction<SettingsState>) => {
+    settingsUpdated: (_state, action: PayloadAction<InternalSettingsState>) => {
       return action.payload
     },
-    settingsByDetectionClassUpdated: (state, {payload}: PayloadAction<SettingsState["settingsByDetectionClass"]>) => {
+    settingsByDetectionClassUpdated: (state, {payload}: PayloadAction<null | Record<`${number}`, SettingsForDetectionClass>>) => {
       state.settingsByDetectionClass = payload
     },
     confidenceCutoffUpdated: (state, {payload: {klass, newConfidenceCutoff}}: PayloadAction<{klass: `${number}`, newConfidenceCutoff: number}>) => {
@@ -227,7 +239,7 @@ export const {
   colourUpdated,
 } = settingsSlice.actions
 
-export const selectSettings = (state: RootState) => state.settings
+export const selectSettings = (state: RootState) => state.settings as SettingsState
 export const selectSettingsByDetectionClass = (state: RootState) => state.settings.settingsByDetectionClass
 export const selectConfidenceLocation = (state: RootState) => state.settings.confidenceLocation
 export const selectActiveVideoShortcuts = (state: RootState) => state.settings.videoShortcuts

@@ -7,12 +7,12 @@ import { Button } from "./PlayerInfo"
 import { CONTROLS } from "./controls"
 import { Icon } from "../lib/Icon"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
-import { selectConfidenceCutoffByClass, selectRealOrDefaultSettingsByDetectionClass, selectSettingsByDetectionClassIsForCurrentSettings } from "./selectors"
+import { selectRealOrDefaultSettingsByDetectionClass, selectSettingsByDetectionClassIsForCurrentSettings } from "./selectors"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
 import { SettingsForDetectionClass, alphaUpdated, confidenceCutoffUpdated, hideToggled, selectSettingsByDetectionClass, settingsByDetectionClassUpdated } from "./settingsSlice"
 import { useEffect } from "react"
 import { useAppDispatch } from "./store"
-import { joinedStringFromDict } from "src/lib/util"
+import { joinedStringFromDict } from "../lib/util"
 
 export const SideBar: FunctionComponent = () => {
   const popup = useSelector(selectSidebarPopup)

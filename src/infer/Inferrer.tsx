@@ -5,6 +5,8 @@ import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {setBackend, convert, getOutputFilename} from "./tfjs"
 import {YoloSettingsDialog, YoloSettings} from "./YoloSettings"
+import { useEffect } from "react"
+import { isCompatibleBrowser } from "../lib/util";
 
 function fileFilter(file: File, extension: string): boolean {
   return !file.name.startsWith(".") && file.name.endsWith("." + extension)
@@ -39,6 +41,15 @@ export function Inferrer(): JSX.Element {
       setFiles)
     setState("done")
   }
+  useEffect(() => {
+    if (!isCompatibleBrowser()) {
+      alert(
+        "This application has only been tested to run on Chrome 121 and higher. "
+        + "If you continue on your current browser, things may not work."
+      )
+    }
+
+  }, [])
 
 
   return <>

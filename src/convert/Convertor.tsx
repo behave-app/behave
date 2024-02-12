@@ -4,6 +4,8 @@ import * as css from "./convertor.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {convert, getOutputFilename} from "./ffmpeg"
+import { useEffect } from "react"
+import { isCompatibleBrowser } from "../lib/util";
 
 const NR_WORKERS = 1
 
@@ -34,6 +36,15 @@ export function Convertor(): JSX.Element {
       setFiles)
     setState("done")
   }
+  useEffect(() => {
+    if (!isCompatibleBrowser()) {
+      alert(
+        "This application has only been tested to run on Chrome 121 and higher. "
+        + "If you continue on your current browser, things may not work."
+      )
+    }
+
+  }, [])
 
   return <>
     <h1>Video file convertor</h1>

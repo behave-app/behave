@@ -123,6 +123,18 @@ export async function* readLines(
   }
 }
 
+export function isCompatibleBrowser(): boolean {
+  const userAgentString = navigator.userAgent;
+  const chromeVersionMatch = userAgentString.match(/Chrome\/(\d+)/);
+
+  if (chromeVersionMatch) {
+    const versionNumber = parseInt(chromeVersionMatch[1], 10);
+    return versionNumber >= 121;
+  }
+
+  return false;
+}
+
 
 export function TSAssertType<T>(_: unknown): asserts _ is T {}
 

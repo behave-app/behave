@@ -168,6 +168,7 @@ export type SettingsForDetectionClass = {
 }
 
 
+export type ConfidenceLocation = `${"outer" | "inner"}-${"left" | "center" | "right"}-${"top" | "bottom"}` | "off"
 /**
  * OK, we need this internal settings state, to avoid some nasty annoying
   * circular reference.
@@ -176,7 +177,7 @@ export type SettingsForDetectionClass = {
 */
 export type InternalSettingsState = {
   settingsByDetectionClass: null | Record<`${number}`, SettingsForDetectionClass>
-  confidenceLocation: `${"outer" | "inner"}-${"left" | "center" | "right"}-${"top" | "bottom"}` | "off"
+  confidenceLocation: ConfidenceLocation
   videoShortcuts: InternalVideoShortcuts
   subjectShortcutsGroups: BehaviourShortcutGroups
   behaviourShortcutsGroups: BehaviourShortcutGroups
@@ -224,6 +225,9 @@ export const settingsSlice = createSlice({
       }
       state.settingsByDetectionClass[klass].hide = !state.settingsByDetectionClass[klass].hide
     },
+    confidenceLocationUpdated: (state, action: PayloadAction<ConfidenceLocation>) => {
+      state.confidenceLocation = action.payload
+    }
   }
 })
 
@@ -237,6 +241,7 @@ export const {
   alphaUpdated,
   hideToggled,
   colourUpdated,
+  confidenceLocationUpdated,
 } = settingsSlice.actions
 
 export const selectSettings = (state: RootState) => state.settings as SettingsState

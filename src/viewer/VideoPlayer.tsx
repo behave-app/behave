@@ -7,8 +7,9 @@ import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice"
 import { ModalPopup } from "../lib/ModalPopup"
 import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
-import { assert } from "../lib/util"
+import { assert, joinedStringFromDict } from "../lib/util"
 import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
+import { selectConfidenceLocation } from "./settingsSlice"
 
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
@@ -23,6 +24,7 @@ const VideoCanvas: FunctionComponent<{
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
   const settingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
+  const confidenceLocation = useSelector(selectConfidenceLocation)
   const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
   const dispatch = useAppDispatch()
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
@@ -74,6 +76,8 @@ const VideoCanvas: FunctionComponent<{
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
 
+  const [outer_inner, horizontal, vertical] = confidenceLocation === "off" ? [null, null, null] : confidenceLocation.split("-")
+
   return  <>
     {videoDimensions && settingsByDetectionClass && detections && <svg className={css.overlay}
       viewBox={`0 0 ${videoDimensions[0]} ${videoDimensions[1]}`}
@@ -81,7 +85,18 @@ const VideoCanvas: FunctionComponent<{
       xmlns="http://www.w3.org/2000/svg"
     >
       {detections.map(det => <g
-        className={css.detection}
+        className={joinedStringFromDict({
+          [css.detection]: true,
+          [css.hide]: false, //TODO
+          [css.hide_confidence]: confidenceLocation === "off",
+          [css.top]: vertical === "top",
+          [css.bottom]: vertical === "bottom",
+          [css.left]: horizontal === "left",
+          [css.center]: horizontal === "center",
+          [css.right]: horizontal === "right",
+          [css.outer]: outer_inner === "outer",
+          [css.inner]: outer_inner === "inner",
+        })}
         style={{
           "--box-colour": settingsByDetectionClass.get(`${det.klass}`)!.colour,
           "--box-alpha": settingsByDetectionClass.get(`${det.klass}`)!.alpha,

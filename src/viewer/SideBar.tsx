@@ -9,7 +9,7 @@ import { Icon } from "../lib/Icon"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectRealOrDefaultSettingsByDetectionClass, selectSettingsByDetectionClassIsForCurrentSettings } from "./selectors"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { SettingsForDetectionClass, alphaUpdated, confidenceCutoffUpdated, hideToggled, selectSettingsByDetectionClass, settingsByDetectionClassUpdated } from "./settingsSlice"
+import { ConfidenceLocation, SettingsForDetectionClass, alphaUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClass, settingsByDetectionClassUpdated } from "./settingsSlice"
 import { useEffect } from "react"
 import { useAppDispatch } from "./store"
 import { joinedStringFromDict } from "../lib/util"
@@ -69,6 +69,7 @@ const ClassSliders: FunctionComponent = () => {
   const realOrDefaultSettingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const isUpToDate = useSelector(selectSettingsByDetectionClassIsForCurrentSettings)
+  const confidenceLocation = useSelector(selectConfidenceLocation)
   const dispatch = useAppDispatch()
   useEffect(() => {
     if (!isUpToDate && realOrDefaultSettingsByDetectionClass) {
@@ -99,6 +100,19 @@ const ClassSliders: FunctionComponent = () => {
 
   return <>
     <h2>Settings per detection class</h2>
+    Confidence location:
+    <select onChange={e => dispatch(confidenceLocationUpdated(
+      e.currentTarget.value as ConfidenceLocation))}
+      value={confidenceLocation}>
+      <option value="off">off</option>
+      {["outer", "inner"].flatMap(oi => ["left", "center", "right"].flatMap(lcr => [
+        "top", "bottom"].map(
+        tb => <option value={`${oi}-${lcr}-${tb}` as ConfidenceLocation}>
+            {oi}-{lcr}-{tb}
+        </option>
+      )))}
+
+    </select>
     <table className={css.class_sliders}>
       <thead>
         <tr>

@@ -17,6 +17,7 @@ const BehaviourEditor: FunctionComponent = () => {
   const [editingValue, setEditingValue] = useState("")
   const behaviourInfo = useSelector(selectBehaviourInfo)!
   const dispatch = useAppDispatch()
+  const tableRef = useRef<HTMLTableElement>(null)
   const insertLine = useSelector(selectBehaviourLineWithoutBehaviour)
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
   const selectedBehaviourLine = useSelector(selectSelectedBehaviourLine)!
@@ -25,6 +26,20 @@ const BehaviourEditor: FunctionComponent = () => {
   if (!selectSelectedBehaviourLine) {
     throw new Error("error")
   }
+
+  useEffect(() => {
+    if (!tableRef.current) {
+      return
+    }
+    const tr = tableRef.current.querySelector([
+      "." + css.selectedLine,
+      "." + css.selectedLineAfter,
+      "." + css.aboutToBeInserted,
+    ].join(", "))
+    if (tr) {
+      tr.scrollIntoView({behavior: "smooth", "block": "center"})
+    }
+  }, [selectedBehaviourLine, insertLine, tableRef.current])
 
   useEffect(() => {
     if (behaviourInfo.currentlySelectedLine
@@ -109,7 +124,7 @@ const BehaviourEditor: FunctionComponent = () => {
       newContent: editingValue
     }))
     dispatch(currentlyEditingFieldIndexSet({currentlyEditingFieldIndex: null}))
-
+    setEditingValue("")
   }
 
   useEffect(() => {
@@ -119,6 +134,7 @@ const BehaviourEditor: FunctionComponent = () => {
   }, [behaviourInfo.currentlyEditingFieldIndex, behaviourInfo.currentlySelectedLine])
 
   return <table className={css.table}
+    ref={tableRef}
     style={Object.fromEntries(behaviourInfo.layout.map(
       ({width}, index) => [`--width_${index + 1}`, width === "*" ? "auto" : `${width}em`]))}>
     <tbody>

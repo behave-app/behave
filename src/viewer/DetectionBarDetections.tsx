@@ -158,6 +158,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
     return <div className={css.detectionBanner}>
       <div className={joinedStringFromDict({
         [css.hoverInfo]: true,
+        [css.rightside]: !!hoverInfo && hoverInfo.x > svgRect.width / 2,
         [css.active]: hoverInfo !== null
       })} style={hoverInfo ? {
           "--x": `${hoverInfo.x}px`,

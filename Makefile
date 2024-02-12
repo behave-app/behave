@@ -1,5 +1,6 @@
 DOCKER ?= nerdctl.lima
 DOCKER_TMPDIR ?= /tmp/lima/
+ENVIRONMENT ?= development
 LIBAVJS_VERSION := 4.8.6.0.1
 LIBAVJS_COMMIT := $(shell cat libav.js/commit.txt | tr -d '\n')
 LIBAVJS_BASE_FILES := \
@@ -52,7 +53,7 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@./node_modules/eslint/bin/eslint.js src
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
-	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/
+	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\"
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"))) > $@.part
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part
 	@ mv $@.part $@

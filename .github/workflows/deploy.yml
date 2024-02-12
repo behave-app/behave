@@ -29,7 +29,7 @@ jobs:
         # is unchanged.
         run: make -t public/app/bundled/libavjs/version.txt || true
       - name: Build
-        run: DOCKER="docker buildx" DOCKER_TMPDIR=/tmp make lint all
+        run: DOCKER="docker buildx" DOCKER_TMPDIR=/tmp ENVIRONMENT=production make lint all
       - name: Set AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

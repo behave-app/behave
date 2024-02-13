@@ -9,7 +9,9 @@ import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert, joinedStringFromDict } from "../lib/util"
 import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
-import { selectConfidenceLocation } from "./settingsSlice"
+import { Colour, ConfidenceLocation, selectConfidenceLocation } from "./settingsSlice"
+import { DetectionsForFrame } from "../lib/detections"
+import { selectHideDetectionBoxes } from "./appSlice"
 
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
@@ -26,6 +28,7 @@ const VideoCanvas: FunctionComponent<{
   const settingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
   const confidenceLocation = useSelector(selectConfidenceLocation)
   const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
+  const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
   const dispatch = useAppDispatch()
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
     dispatch(playerStateSet({
@@ -76,40 +79,17 @@ const VideoCanvas: FunctionComponent<{
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
 
-  const [outer_inner, horizontal, vertical] = confidenceLocation === "off" ? [null, null, null] : confidenceLocation.split("-")
-
   return  <>
-    {videoDimensions && settingsByDetectionClass && detections && <svg className={css.overlay}
+    {videoDimensions && settingsByDetectionClass && detections && !hideDetectionBoxes && <svg className={css.overlay}
       viewBox={`0 0 ${videoDimensions[0]} ${videoDimensions[1]}`}
       height={`${videoDimensions[1]}px`} width={`${videoDimensions[0]}px`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {detections.map(det => <g
-        className={joinedStringFromDict({
-          [css.detection]: true,
-          [css.hide]: false, //TODO
-          [css.hide_confidence]: confidenceLocation === "off",
-          [css.top]: vertical === "top",
-          [css.bottom]: vertical === "bottom",
-          [css.left]: horizontal === "left",
-          [css.center]: horizontal === "center",
-          [css.right]: horizontal === "right",
-          [css.outer]: outer_inner === "outer",
-          [css.inner]: outer_inner === "inner",
-        })}
-        style={{
-          "--box-colour": settingsByDetectionClass.get(`${det.klass}`)!.colour,
-          "--box-alpha": settingsByDetectionClass.get(`${det.klass}`)!.alpha,
-          "--cx": det.cx.toFixed(3),
-          "--cy": det.cy.toFixed(3),
-          "--width": det.width.toFixed(3),
-          "--height": det.height.toFixed(3),
-        }}
-      >
-        <rect className={css.box} />
-        <rect className={css.confidence_background} />
-        <text className={css.confidence_text}>{det.confidence.toFixed(2)}</text>
-      </g>
+      {detections.map(detection => <Detection
+        detection={detection} confidenceLocation={confidenceLocation}
+        colour={settingsByDetectionClass.get(`${detection.klass}`)!.colour}
+        alpha={settingsByDetectionClass.get(`${detection.klass}`)!.alpha}
+        />
       )}
     </svg>
     }
@@ -203,4 +183,41 @@ export const VideoPlayer: FunctionComponent = () => {
       : <DummyCanvas message={dragState=="dragging" ? "Drop file here" : "Start by dropping in a video file"} />
     }
   </div>
+}
+
+type DetectionProps = {
+  detection: DetectionsForFrame[0]
+  colour: Colour
+  confidenceLocation: ConfidenceLocation
+  alpha: number
+}
+export const Detection: FunctionComponent<DetectionProps> = (
+  {detection, colour, confidenceLocation, alpha}) => {
+  const [outer_inner, horizontal, vertical] = confidenceLocation === "off" ? [null, null, null] : confidenceLocation.split("-")
+  return <g
+    className={joinedStringFromDict({
+      [css.detection]: true,
+      [css.hide]: false, //TODO
+      [css.hide_confidence]: confidenceLocation === "off",
+      [css.top]: vertical === "top",
+      [css.bottom]: vertical === "bottom",
+      [css.left]: horizontal === "left",
+      [css.center]: horizontal === "center",
+      [css.right]: horizontal === "right",
+      [css.outer]: outer_inner === "outer",
+      [css.inner]: outer_inner === "inner",
+    })}
+    style={{
+      "--box-colour": colour,
+      "--box-alpha": alpha,
+      "--cx": detection.cx.toFixed(3),
+      "--cy": detection.cy.toFixed(3),
+      "--width": detection.width.toFixed(3),
+      "--height": detection.height.toFixed(3),
+    }}
+  >
+    <rect className={css.box} />
+    <rect className={css.confidence_background} />
+    <text className={css.confidence_text}>{detection.confidence.toFixed(2)}</text>
+  </g>
 }

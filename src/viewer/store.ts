@@ -58,6 +58,7 @@ store.subscribe(() => {
     // already queued, doing nothing
     return
   }
+  (window as unknown as {store: typeof store}).store = store
   if (store.getState().settings === savedSettings) {
     // no change, doing nothing
     return

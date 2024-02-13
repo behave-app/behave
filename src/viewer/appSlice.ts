@@ -10,7 +10,8 @@ export const appSlice = createSlice({
     showKeyShortcutHelp: false,
     modalPopupOpen: false,
     sidebarPopup: null as SidebarPopup | null,
-    selectedSubject: null  as null | string
+    selectedSubject: null  as null | string,
+    hideDetectionBoxes: false,
   },
   reducers: {
     settingsScreenShown: state => {state.showSettingsScreen = true},
@@ -34,13 +35,15 @@ export const appSlice = createSlice({
     },
     behaviourInputSubjectUnselected: (state) => {
       state.selectedSubject = null},
+    hideDetectionBoxesToggled: state => {
+      state.hideDetectionBoxes = !state.hideDetectionBoxes},
   }
 })
 
 
 export default appSlice.reducer
 
-export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed} = appSlice.actions
+export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled} = appSlice.actions
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
@@ -68,3 +71,4 @@ export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
     && state.behaviour.behaviourInfo
     && state.app.selectedSubject !== null
 )
+export const selectHideDetectionBoxes = (state: RootState) => state.app.hideDetectionBoxes

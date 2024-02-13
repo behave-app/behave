@@ -71,7 +71,7 @@ export const PlayerInfo: FunctionComponent = () => {
       <Button controlInfo={CONTROLS.delete_selected_behaviour_line} />
       <Button controlInfo={CONTROLS.next_behaviour_line} />
       <Button controlInfo={CONTROLS.previous_frame_with_detection} />
-      <button disabled />
+      <Button controlInfo={CONTROLS.hide_detection_boxes} />
       <Button controlInfo={CONTROLS.next_frame_with_detection} />
       <Button controlInfo={CONTROLS.previous_frame} />
       <Button controlInfo={playControl} />

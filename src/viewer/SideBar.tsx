@@ -2,7 +2,7 @@ import { FunctionComponent } from "preact"
 import * as viewercss from "./viewer.module.css"
 import * as css from "./sidebar.module.css"
 import { useSelector } from "react-redux"
-import {SidebarPopup, selectSidebarPopup} from "./appSlice"
+import {SidebarPopup, selectHideDetectionBoxes, selectSidebarPopup} from "./appSlice"
 import { Button } from "./PlayerInfo"
 import { CONTROLS } from "./controls"
 import { Icon } from "../lib/Icon"
@@ -13,6 +13,10 @@ import { ConfidenceLocation, SettingsForDetectionClass, alphaUpdated, confidence
 import { useEffect } from "react"
 import { useAppDispatch } from "./store"
 import { joinedStringFromDict } from "../lib/util"
+import { Picker } from "../lib/Picker"
+import { Detection } from "./VideoPlayer"
+import * as videoplayercss from "./videoplayer.module.css"
+
 
 export const SideBar: FunctionComponent = () => {
   const popup = useSelector(selectSidebarPopup)
@@ -70,6 +74,7 @@ const ClassSliders: FunctionComponent = () => {
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const isUpToDate = useSelector(selectSettingsByDetectionClassIsForCurrentSettings)
   const confidenceLocation = useSelector(selectConfidenceLocation)
+  const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
   const dispatch = useAppDispatch()
   useEffect(() => {
     if (!isUpToDate && realOrDefaultSettingsByDetectionClass) {
@@ -101,18 +106,37 @@ const ClassSliders: FunctionComponent = () => {
   return <>
     <h2>Settings per detection class</h2>
     Confidence location:
-    <select onChange={e => dispatch(confidenceLocationUpdated(
-      e.currentTarget.value as ConfidenceLocation))}
-      value={confidenceLocation}>
-      <option value="off">off</option>
-      {["outer", "inner"].flatMap(oi => ["left", "center", "right"].flatMap(lcr => [
-        "top", "bottom"].map(
-        tb => <option value={`${oi}-${lcr}-${tb}` as ConfidenceLocation}>
-            {oi}-{lcr}-{tb}
-        </option>
-      )))}
+    <Picker onChange={newValue => dispatch(confidenceLocationUpdated(
+      newValue as ConfidenceLocation))}
+      value={confidenceLocation}
+      nrColumns={3}
+    >
+      {([...["outer-top", "inner-top", "inner-bottom", "outer-bottom"].flatMap(vert => {
+        const [io, tb] = vert.split("-");
+        return ["left", "center", "right"].map(hori => [io, hori, tb].join("-"))
+      }
+      ), "off"] as ConfidenceLocation[]).map(
+          confidenceLocation =>
+            <div data-value={confidenceLocation} title={confidenceLocation}>
+              <svg viewBox="0 0 64 64"
+                className={joinedStringFromDict({
+                  [videoplayercss.overlay]: true,
+                  [css.confidence_location_box]: true})}>
+                <Detection 
+                  alpha={1}
+                  detection={{klass: -1, cx: 0.5, cy: 0.5,
+                    width: .7, height: .4, confidence: .73}}
+                  colour="hsl(0, 0%, 30%)"
+                  confidenceLocation={confidenceLocation}
+                />
+              </svg>
+              <span className={css.confidence_location_name}>
+                {confidenceLocation}
+              </span>
+            </div>
+        )}
 
-    </select>
+    </Picker>
     <table className={css.class_sliders}>
       <thead>
         <tr>
@@ -150,9 +174,11 @@ const ClassSliders: FunctionComponent = () => {
 
                 })()})</span>
               </td>
-              <td>
+              <td title={hideDetectionBoxes ? "Detection boxes are hidden" :
+                value.hide ? "This class is hidden" :
+                  "Make the box more (1) or less (0) visible"} >
                 <input type="range" min={0} max={1} step={0.1}
-                  disabled={value.hide}
+                  disabled={value.hide || hideDetectionBoxes}
                   value={value.alpha}
                   onChange={e => dispatch(alphaUpdated({
                     klass: key,

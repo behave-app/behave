@@ -24,6 +24,30 @@
   top: 1em;
   padding: .3em 1.5em 2.5em;
   z-index: 2;
+  :global(.picker_closed) > * {
+    & > .confidence_location_box {
+      width: 2.7em;
+      height: 2.7em;
+      position: unset;
+    }
+    & > .confidence_location_name {
+      display: block;
+      font-size: .6em;
+      white-space: nowrap;
+    }
+  }
+  :global(.picker_opened) > * {
+    & > .confidence_location_box {
+      width: 5em;
+      height: 5em;
+      position: unset;
+    }
+    & > .confidence_location_name {
+      display: block;
+      font-size: .8em;
+      white-space: nowrap;
+    }
+  }
   .class_sliders{
     tr.hidden {
     }

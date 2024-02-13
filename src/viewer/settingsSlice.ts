@@ -20,7 +20,7 @@ export function isVideoShortcuts(
 
 const defaultVideoShortcuts: VideoShortcuts = [
   [{code: "KeyQ"}, "previous_frame_with_detection"],
-  [{code: "KeyW"}, "next_frame_with_detection"],
+  [{code: "KeyW"}, "hide_detection_boxes"],
   [{code: "KeyE"}, "next_frame_with_detection"],
   [{code: "KeyA"}, "previous_frame"],
   [{code: "KeyS"}, "play_pause"],

@@ -11,7 +11,7 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { keyShortcutHelpScreenToggled, selectSelectedSubject, selectShowKeyShortcutHelp, selectSidebarPopup, settingsScreenShown, sidebarPopupWasToggled } from "./appSlice";
+import { hideDetectionBoxesToggled, keyShortcutHelpScreenToggled, selectHideDetectionBoxes, selectSelectedSubject, selectShowKeyShortcutHelp, selectSidebarPopup, settingsScreenShown, sidebarPopupWasToggled } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
 import { selectRealOrDefaultSettingsByDetectionClass, selectSelectedBehaviourLine } from "./selectors";
 import { selectFramenumberIndexInLayout } from "./settingsSlice";
@@ -116,6 +116,13 @@ export const CONTROLS = {
     action: dispatch => {void(dispatch(videoSeekToNextDetectionAndPause("backwards")))},
     description: "Previous frame with detection"
   }),
+  hide_detection_boxes: fillAndWrapDefaultControlInfo({
+    iconName: "remove_selection",
+    description: "Hide detection boxes",
+    selectIsDisabled: state => selectDetectionInfoPotentiallyNull(state) === null,
+    selectIsActivated: state => selectHideDetectionBoxes(state),
+    action: dispatch => {dispatch(hideDetectionBoxesToggled())},
+  }),
   restart: fillAndWrapDefaultControlInfo({
     iconName: "restart_alt",
     action: dispatch => {void(dispatch(videoSeekToFrameNumberAndPause(0)))},
@@ -180,7 +187,7 @@ export const CONTROLS = {
     }
   }),
   delete_selected_behaviour_line: fillAndWrapDefaultControlInfo({
-    iconName: "disabled_by_default",
+    iconName: "delete",
     description: "remove the selected behaviour line",
     selectIsDisabled: state => {
       const behaviourInfo = selectBehaviourInfo(state)

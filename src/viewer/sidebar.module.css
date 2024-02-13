@@ -49,7 +49,14 @@
     }
   }
   .class_sliders{
+    margin-top: 1.3em;
     tr.hidden {
+    }
+    th {
+      vertical-align: top;
+      .counts {
+        font-size: 0.7em;
+      }
     }
     td {
       padding: .2em .3em;
@@ -69,21 +76,20 @@
       &:nth-child(4) {
         font-family: Arial, Helvetica, sans-serif;
         font-variant: tabular-nums;
-        display: flex;
-        flex-flow: row no-wrap;
-        justify-content: space-between;
-        gap: .3em;
         .counts {
-          margin-top: .3em;
-          display: inline-block;
-          font-size: 0.9em;
+          display: block;
+          font-size: 0.7em;
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          width: 100%;
         }
 
       }
       input[type=range] {
-        margin-top: .7em;
+        margin: .7em 0;
         width: 100px;
-        display: inline-block;
+        display: block;
       }
 
     }

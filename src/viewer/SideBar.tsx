@@ -144,7 +144,7 @@ const ClassSliders: FunctionComponent = () => {
           <th>class</th>
           <th>show</th>
           <th>colour</th>
-          <th>cutoff (shown/total)</th>
+          <th>cutoff<div className={css.counts}>(shown/total)</div></th>
           <th>alpha</th>
           </tr>
           </thead>
@@ -178,7 +178,7 @@ const ClassSliders: FunctionComponent = () => {
                   value={value.confidenceCutoff}
                   onChange={e => dispatch(confidenceCutoffUpdated({
                     klass: key, newConfidenceCutoff:
-                    (e.target as HTMLInputElement).valueAsNumber}))}/>
+                    e.currentTarget.valueAsNumber}))}/>
                 <span class={css.range_value}>{value.confidenceCutoff.toFixed(2)}</span>
                 <span className={css.counts}>({(() => {
                   const counts = shownTotalByClass.get(key)!
@@ -195,7 +195,7 @@ const ClassSliders: FunctionComponent = () => {
                   value={value.alpha}
                   onChange={e => dispatch(alphaUpdated({
                     klass: key,
-                    newAlpha: (e.target as HTMLInputElement).valueAsNumber}))}/>
+                    newAlpha: e.currentTarget.valueAsNumber}))}/>
                 <span class={css.range_value}>{value.alpha.toFixed(2)}</span>
               </td>
 

@@ -22,18 +22,21 @@ export function Picker<T>(
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || !dialogRef.current) {
       return
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === "Escape") {
-        event.stopPropagation()
-        setIsOpen(false);
+    const dialog = dialogRef.current
+    const onClick = (event: MouseEvent) => {
+      const inside = event.offsetX >= 0 && event.offsetX <= dialog.clientWidth
+        && event.offsetY >= 0 && event.offsetY <= dialog.clientHeight
+      if (!inside) {
+        setIsOpen(false)
       }
+
     }
-    document.documentElement.addEventListener("keydown", onKeyDown)
-    return () => document.documentElement.removeEventListener("keydown", onKeyDown)
-  }, [isOpen])
+    dialog.addEventListener("click", onClick)
+    return () => dialog.removeEventListener("click", onClick)
+  }, [isOpen, dialogRef.current])
 
   useEffect(() => {
     if (!dialogRef.current) {
@@ -44,7 +47,7 @@ export function Picker<T>(
     } else {
       dialogRef.current.close()
     }
-  }, [isOpen])
+  }, [isOpen, dialogRef.current])
 
   return <div class={css.picker}>
     <dialog ref={dialogRef} style={{"--number-of-columns": nrColumns}}>

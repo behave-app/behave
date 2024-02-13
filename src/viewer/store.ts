@@ -63,7 +63,6 @@ store.subscribe(() => {
     // no change, doing nothing
     return
   }
-  console.log("Saving!")
   debouceTimeout = window.setTimeout(() => {
     debouceTimeout = undefined;
     savedSettings = store.getState().settings

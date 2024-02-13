@@ -110,5 +110,23 @@ export const selectDateTimes = createSelector(
   }
 )
 
-export const selectFps = (_state: RootState) => 25 /// this should come from detectionInfo
-export const selectOffset = (_state: RootState) => 0 /// this should come from detectionInfo
+export const selectFps = (state: RootState) => {
+  const detectionInfo = selectDetectionInfoPotentiallyNull(state)
+  if (!detectionInfo) {
+    return NaN
+  }
+  return detectionInfo.playbackFps
+}
+
+export const selectOffset = createSelector(
+  [selectDetectionInfoPotentiallyNull], (detectionInfo) => {
+    if (!detectionInfo) {
+      return NaN
+    }
+    const firstIframe = detectionInfo.framesInfo.findIndex(
+      fi => fi.type === "I" || fi.type === "IDR")
+    if (firstIframe === -1) {
+      return NaN
+    }
+    return firstIframe
+  })

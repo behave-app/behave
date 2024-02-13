@@ -1,0 +1,88 @@
+  :global(.picker_closed) > * {
+    & > .confidence_location_box {
+      width: 2.7em;
+      height: 2.7em;
+      position: unset;
+    }
+    & > .confidence_location_name {
+      display: block;
+      font-size: .6em;
+      white-space: nowrap;
+    }
+  }
+  :global(.picker_opened) > * {
+    & > .confidence_location_box {
+      width: 5em;
+      height: 5em;
+      position: unset;
+    }
+    & > .confidence_location_name {
+      display: block;
+      font-size: .8em;
+      white-space: nowrap;
+    }
+  }
+  .class_sliders{
+    margin-top: 1.3em;
+    tr.hidden {
+    }
+    th {
+      vertical-align: top;
+      .counts {
+        font-size: 0.7em;
+      }
+    }
+    td {
+      padding: .2em .3em;
+      position: relative;
+      .hidebox {
+        cursor: pointer;
+      }
+      .range_value {
+        font-size: .7em;
+        font-family: Arial, Helvetica, sans-serif;
+        font-variant: tabular-nums;
+        width: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      &:nth-child(4) {
+        font-family: Arial, Helvetica, sans-serif;
+        font-variant: tabular-nums;
+        .counts {
+          display: block;
+          font-size: 0.7em;
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+        }
+
+      }
+      input[type=range] {
+        margin: .7em 0;
+        width: 100px;
+        display: block;
+      }
+
+    }
+    td:not(:first-child) {
+      text-align: center;
+    }
+    .class_colour_box {
+      width: 2.5em;
+      height: 1.3lh;
+      display: inline-block;
+      background-color: var(--class-colour);
+      color: var(--class-text-colour);
+      overflow: hidden;
+      border: 1px solid black;
+      box-sizing: border-box;
+      font-size: .8em;
+      font-family: Arial, Helvetica, sans-serif;
+      font-variant: tabular-nums;
+      padding: .1em;
+    }
+  }
+

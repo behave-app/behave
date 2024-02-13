@@ -25,6 +25,7 @@ export const SideBar: FunctionComponent = () => {
     {popup && <Popup popup={popup} />}
     <div className={css.sidebar_buttons}>
       <Button controlInfo={CONTROLS.showInfo} />
+      <Button controlInfo={CONTROLS.show_controls} />
       <Button controlInfo={CONTROLS.classSliders} />
       <Button controlInfo={CONTROLS.showSettings} />
     </div>

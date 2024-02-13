@@ -140,6 +140,7 @@ export const settingsToLocalStorage = (settings: InternalSettingsState) => {
 const defaultSettings: InternalSettingsState = {
   settingsByDetectionClass: null,
   confidenceLocation: "outer-right-bottom",
+  showPlayerInfo: true,
   videoShortcuts: defaultVideoShortcuts,
   subjectShortcutsGroups: exampleSubjectShortcuts,
   behaviourShortcutsGroups: exampleBehaviourShortcuts,
@@ -177,6 +178,7 @@ export type ConfidenceLocation = `${"outer" | "inner"}-${"left" | "center" | "ri
 export type InternalSettingsState = {
   settingsByDetectionClass: null | Record<`${number}`, SettingsForDetectionClass>
   confidenceLocation: ConfidenceLocation
+  showPlayerInfo: boolean
   videoShortcuts: InternalVideoShortcuts
   subjectShortcutsGroups: BehaviourShortcutGroups
   behaviourShortcutsGroups: BehaviourShortcutGroups
@@ -226,6 +228,9 @@ export const settingsSlice = createSlice({
     },
     confidenceLocationUpdated: (state, action: PayloadAction<ConfidenceLocation>) => {
       state.confidenceLocation = action.payload
+    },
+    playerInfoToggled: state => {
+      state.showPlayerInfo = !state.showPlayerInfo
     }
   }
 })
@@ -241,6 +246,7 @@ export const {
   hideToggled,
   colourUpdated,
   confidenceLocationUpdated,
+  playerInfoToggled,
 } = settingsSlice.actions
 
 export const selectSettings = (state: RootState) => state.settings as SettingsState
@@ -248,6 +254,7 @@ export const selectSettingsByDetectionClass = (state: RootState) => state.settin
 export const selectConfidenceLocation = (state: RootState) => state.settings.confidenceLocation
 export const selectActiveVideoShortcuts = (state: RootState) => state.settings.videoShortcuts
 export const selectActiveSubjectShortcuts = (state: RootState) => state.settings.subjectShortcutsGroups.groups[state.settings.subjectShortcutsGroups.selectedIndex].shortcuts
+export const selectPlayerInfoShown = (state: RootState) => state.settings.showPlayerInfo
 
 export const selectActiveBehaviourShortcuts = (state: RootState) => state.settings.behaviourShortcutsGroups.groups[state.settings.behaviourShortcutsGroups.selectedIndex].shortcuts
 

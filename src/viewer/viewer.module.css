@@ -32,6 +32,13 @@ kbd + kbd {
   "sidebar detectionbar detectionbar"
   "sidebar behaviour behaviour"
   ;
+  &.no_controls {
+    grid-template-areas:
+    "sidebar videoplayer videoplayer"
+    "sidebar detectionbar detectionbar"
+    "sidebar behaviour behaviour"
+    ;
+  }
   height: 100vh;
   width: 100vw;
 }

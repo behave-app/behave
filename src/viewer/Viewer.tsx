@@ -10,10 +10,12 @@ import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
 import { ShortcutHandler } from "./ShortcutHandler";
 import { useEffect } from "react";
-import { isCompatibleBrowser } from "../lib/util";
+import { isCompatibleBrowser, joinedStringFromDict } from "../lib/util";
+import { selectPlayerInfoShown } from "./settingsSlice";
 
 export const Viewer: FunctionComponent = () => {
   const showSettingsScreen = useSelector(selectShowSettingsScreen)
+  const playerInfoShown = useSelector(selectPlayerInfoShown)
   useEffect(() => {
     if (!isCompatibleBrowser()) {
       alert(
@@ -24,10 +26,13 @@ export const Viewer: FunctionComponent = () => {
 
   }, [])
 
-  return <div className={css.viewer}>
+  return <div className={joinedStringFromDict({
+    [css.viewer]: true,
+    [css.no_controls]: !playerInfoShown,
+  })}>
     <SideBar />
     <VideoPlayer />
-    <PlayerInfo />
+    {playerInfoShown && <PlayerInfo />}
     <DetectionBar />
     <Behaviour />
     {showSettingsScreen && <Settings />}

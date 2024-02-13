@@ -3,6 +3,7 @@ import type { RootState } from './store'
 import { Key, isKey, keyToString } from "../lib/key"
 import { assert, getDuplicateIndices } from '../lib/util'
 import type { ValidControlName } from './controls'
+import {HSL} from "../lib/colour"
 
 
 
@@ -157,13 +158,11 @@ const getSettingsFromLocalStorageOrDefault = (): InternalSettingsState => {
   return defaultSettings
 }
 
-export type Colour = `hsl(${number}, ${number}%, ${number}%)`
-
 export type SettingsForDetectionClass = {
   name: string, // classname
   confidenceCutoff: number,
   hide: boolean,
-  colour: Colour
+  colour: HSL,
   alpha: number,
 }
 
@@ -211,7 +210,7 @@ export const settingsSlice = createSlice({
       state.settingsByDetectionClass[klass].alpha = Math.min(
         1, Math.max(newAlpha, 0.0))
     },
-    colourUpdated: (state, {payload: {klass, newColour}}: PayloadAction<{klass: `${number}`, newColour: Colour}>) => {
+    colourUpdated: (state, {payload: {klass, newColour}}: PayloadAction<{klass: `${number}`, newColour: HSL}>) => {
       if (!state.settingsByDetectionClass) {
         console.error("No settingsByDetectionClass");
         return

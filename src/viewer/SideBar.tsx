@@ -9,13 +9,14 @@ import { Icon } from "../lib/Icon"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectRealOrDefaultSettingsByDetectionClass, selectSettingsByDetectionClassIsForCurrentSettings } from "./selectors"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { ConfidenceLocation, SettingsForDetectionClass, alphaUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClass, settingsByDetectionClassUpdated } from "./settingsSlice"
+import { ConfidenceLocation, SettingsForDetectionClass, alphaUpdated, colourUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClass, settingsByDetectionClassUpdated } from "./settingsSlice"
 import { useEffect } from "react"
 import { useAppDispatch } from "./store"
 import { joinedStringFromDict } from "../lib/util"
 import { Picker } from "../lib/Picker"
 import { Detection } from "./VideoPlayer"
 import * as videoplayercss from "./videoplayer.module.css"
+import { HSL, hslEquals, hslToLuminance, hslToString } from "../lib/colour"
 
 
 export const SideBar: FunctionComponent = () => {
@@ -126,7 +127,7 @@ const ClassSliders: FunctionComponent = () => {
                   alpha={1}
                   detection={{klass: -1, cx: 0.5, cy: 0.5,
                     width: .7, height: .4, confidence: .73}}
-                  colour="hsl(0, 0%, 30%)"
+                  colour={{h: 0, s: 0, l: 30}}
                   confidenceLocation={confidenceLocation}
                 />
               </svg>
@@ -151,14 +152,26 @@ const ClassSliders: FunctionComponent = () => {
 
         {(Object.entries(settingsByDetectionClass) as [keyof typeof settingsByDetectionClass, SettingsForDetectionClass][]).map(
           ([key, value]) => (
-            <tr style={{"--class-colour": value.colour}} className={joinedStringFromDict({[css.hidden]: value.hide})}>
+            <tr className={joinedStringFromDict({[css.hidden]: value.hide})}>
               <td>{key} -- {value.name}</td>
               <td>
                 <span className={css.hidebox} onClick={() => dispatch(hideToggled({klass: key}))}>
                   <Icon iconName={value.hide ? "check_box_outline_blank" : "check_box"} />
                 </span>
               </td>
-              <td><div className={css.class_colour_box} /></td>
+              <td>
+                <Picker
+                  value={value.colour}
+                  equals={hslEquals}
+                  onChange={newColour => dispatch(colourUpdated({klass: key, newColour}))}
+                  nrColumns={4}
+                  >
+                  { [0, 60, 120, 180, 240, 300].flatMap(h =>
+                      [[25, 100], [50, 50], [50, 100], [75, 50]].map(([l, s]) =>
+                        <ColourBox data-value={{h, s, l}} colour={{h, s, l}} />
+                    ))}
+                </Picker>
+              </td>
               <td>
                 <input type="range" min={0.10} max={0.95} step={0.05}
                   disabled={value.hide}
@@ -191,4 +204,11 @@ const ClassSliders: FunctionComponent = () => {
       </tbody>
       </table>
   </>
+}
+
+const ColourBox: FunctionComponent<{colour: HSL}> = ({colour}) => {
+    return <div style={{
+              "--class-colour": hslToString(colour),
+              "--class-text-colour": hslToLuminance(colour) > .5 ? "black" : "white",
+              }} className={css.class_colour_box}>0.73</div>
 }

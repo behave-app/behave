@@ -7,6 +7,7 @@ import { selectDetectionInfoPotentiallyNull } from './detectionsSlice';
 import * as css from "./detectionbardetections.module.css"
 import { useAppDispatch } from './store';
 import { selectColoursForClasses, selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors';
+import { hslToString } from '../lib/colour';
 
 type UseClientRect<T extends (HTMLElement | SVGElement)> =
   () => [[DOMRect | null, T | null], (node: T | null) => void]
@@ -187,7 +188,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
               const nrDetectionsWithinConfidence = indicesByKlassWitinConfidence.get(
                 klassKey)?.length ?? 0
               return <li>{detectionInfo.modelKlasses[klassKey]}
-                : <span style={{color: coloursForClass.get(klassKey)}}>
+                : <span style={{color: hslToString(coloursForClass.get(klassKey)!)}}>
                   {nrDetectionsWithinConfidence} ({nrDetections})
                 </span>
               </li>
@@ -225,7 +226,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
             {[...heightLines.entries()].map(
               ([klassOrAll, heightLine]) =>
                 <path style={{
-                  "--line-colour": coloursForClass.get(klassOrAll === allIncludingInvisibleLine ? "all" : klassOrAll) ?? "inherit",
+                  "--line-colour": hslToString(coloursForClass.get(klassOrAll === allIncludingInvisibleLine ? "all" : klassOrAll)!),
                   "--detection-klass": klassOrAll === allIncludingInvisibleLine
                     ? "allIncludingInvisible"
                     : detectionInfo.modelKlasses[klassOrAll],

@@ -5,14 +5,16 @@ import * as css from "./picker.module.css"
 
 type Props<T> = {
   value: T
+  equals?: (t1: T, t2: T) => boolean
   onChange: (newValue: T) => void
   nrColumns: number
   children: ComponentChildren
 }
 
 export function Picker<T>(
-  {value, nrColumns, onChange, children: childOrChildren}: Props<T>
+  {value, equals: equalsOrUndef, nrColumns, onChange, children: childOrChildren}: Props<T>
 ): ReturnType<FunctionComponent<Props<T>>> {
+  const equals = equalsOrUndef ?? ((t1, t2) => t1 === t2)
   const children = [childOrChildren].flat(Infinity)
   assert(children.every(child => child && typeof(child) === "object" && "props" in child && "data-value" in child.props))
   TSAssertType<{props: {"data-value": T}}[]>(children)
@@ -48,7 +50,7 @@ export function Picker<T>(
     <dialog ref={dialogRef} style={{"--number-of-columns": nrColumns}}>
       <div className={css.open}>
         {children.map(child => {
-          const selected = child.props["data-value"] === value
+          const selected = equals(child.props["data-value"], value)
           return <button onClick={() => {
             setIsOpen(false);
             if (!selected) {
@@ -67,7 +69,7 @@ export function Picker<T>(
       [css.closed]: true,
       "picker_closed": true})
     } onClick={() => setIsOpen(open => !open)}>
-      {children.filter(child => child.props["data-value"] === value)}
+      {children.filter(child => equals(child.props["data-value"], value))}
     </button>
   </div>
 

@@ -9,9 +9,10 @@ import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert, joinedStringFromDict } from "../lib/util"
 import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
-import { Colour, ConfidenceLocation, selectConfidenceLocation } from "./settingsSlice"
+import { ConfidenceLocation, selectConfidenceLocation } from "./settingsSlice"
 import { DetectionsForFrame } from "../lib/detections"
 import { selectHideDetectionBoxes } from "./appSlice"
+import { HSL, hslToLuminance, hslToString } from "../lib/colour"
 
 
 const DummyCanvas: FunctionComponent<{message: string}> = ({message}) => {
@@ -187,13 +188,14 @@ export const VideoPlayer: FunctionComponent = () => {
 
 type DetectionProps = {
   detection: DetectionsForFrame[0]
-  colour: Colour
+  colour: HSL
   confidenceLocation: ConfidenceLocation
   alpha: number
 }
 export const Detection: FunctionComponent<DetectionProps> = (
   {detection, colour, confidenceLocation, alpha}) => {
   const [outer_inner, horizontal, vertical] = confidenceLocation === "off" ? [null, null, null] : confidenceLocation.split("-")
+  const textColour = hslToLuminance(colour) > .5 ? "black" : "white";
   return <g
     className={joinedStringFromDict({
       [css.detection]: true,
@@ -208,7 +210,8 @@ export const Detection: FunctionComponent<DetectionProps> = (
       [css.inner]: outer_inner === "inner",
     })}
     style={{
-      "--box-colour": colour,
+      "--box-colour": hslToString(colour),
+      "--text-colour": textColour,
       "--box-alpha": alpha,
       "--cx": detection.cx.toFixed(3),
       "--cy": detection.cy.toFixed(3),

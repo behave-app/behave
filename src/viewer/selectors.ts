@@ -5,6 +5,7 @@ import { selectDateTimes, selectDetectionInfoPotentiallyNull, selectFps, selectO
 import { BehaviourShortcutItem, SettingsForDetectionClass, SubjectShortcutItem, VideoShortcutItem, selectBehaviourShortcutMap, selectFramenumberIndexInLayout, selectSettingsByDetectionClass, selectSubjectShortcutMap, selectVideoShortcutMap } from './settingsSlice';
 import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
+import { HSL } from "../lib/colour";
 
 export const selectActiveShortcuts = createSelector(
   [selectIsWaitingForVideoShortcut, selectIsWaitingForSubjectShortcut,
@@ -20,14 +21,14 @@ export const selectActiveShortcuts = createSelector(
 })
 
 const DEFAULT_COLOURS_FOR_CLASSES = new Map([
-  ["all", "hsl(0, 0%, 70%)"],
-  ["unknown", "hsl(0, 0%, 0%)"],
-  ["0", "hsl(0, 100%, 50%)"],
-  ["1", "hsl(120, 100%, 50%)"],
-  ["2", "hsl(240, 100%, 50%)"],
-  ["3", "hsl(60, 100%, 50%)"],
-  ["4", "hsl(180, 100%, 50%)"],
-  ["5", "hsl(300, 100%, 50%)"],
+  ["all", {h: 0, s: 0, l: 70}],
+  ["unknown", {h: 0, s: 0, l: 0}],
+  ["0", {h: 0, s: 100, l: 50}],
+  ["1", {h: 120, s: 100, l: 50}],
+  ["2", {h: 240, s: 100, l: 50}],
+  ["3", {h: 60, s: 100, l: 50}],
+  ["4", {h: 180, s: 100, l: 50}],
+  ["5", {h: 300, s: 100, l: 50}],
 ])
 const DEFAULT_CONFIDENCE_CUTOFF = 0.5;
 const DEFAULT_ALPHA = 0.8;
@@ -73,7 +74,7 @@ export const selectConfidenceCutoffByClass: ((state: RootState) => (Map<`${numbe
   })
 
 export const selectColoursForClasses: (
-  (state: RootState) => null | Map<`${number}` | "all", `hsl(${number}, ${number}%, ${number}%)`>
+  (state: RootState) => null | Map<`${number}` | "all", HSL>
 ) = createSelector(
     [selectRealOrDefaultSettingsByDetectionClass], (settingsByDetectionClass) => {
       if (!settingsByDetectionClass) {
@@ -83,7 +84,7 @@ export const selectColoursForClasses: (
         ...[...settingsByDetectionClass.entries()].map(
           ([key, {colour}]) => [key, colour]),
         ["all", DEFAULT_COLOURS_FOR_CLASSES.get("all")!],
-      ] as [`${number}` | "all", `hsl(${number}, ${number}%, ${number}%)`][])
+      ] as [`${number}` | "all", HSL][])
     })
 
 export const selectCurrentFrameNumber = createSelector(

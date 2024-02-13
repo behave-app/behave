@@ -72,7 +72,7 @@
     }
     .confidence_text {
       stroke: none;
-      fill: white;
+      fill: var(--text-colour);
       transform: translate(
       calc(var(--textbox-x) + 1px),
       calc(var(--textbox-y) + var(--text-height) - .2lh)

@@ -91,12 +91,18 @@
       text-align: center;
     }
     .class_colour_box {
-      width: 1em;
-      height: 1em;
+      width: 2.5em;
+      height: 1.3lh;
       display: inline-block;
       background-color: var(--class-colour);
+      color: var(--class-text-colour);
+      overflow: hidden;
       border: 1px solid black;
       box-sizing: border-box;
+      font-size: .8em;
+      font-family: Arial, Helvetica, sans-serif;
+      font-variant: tabular-nums;
+      padding: .1em;
     }
-}
+  }
 }

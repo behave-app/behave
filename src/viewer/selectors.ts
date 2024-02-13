@@ -138,8 +138,8 @@ export const selectVisibleDetectionsForCurrentFrame = createSelector(
     if (!detectionInfo || currentFrameNumber === null || !confidenceCutoffByClass) {
       return null
     }
-    return detectionInfo.framesInfo[currentFrameNumber].detections
-      .filter(d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!)
+    return detectionInfo.framesInfo[currentFrameNumber]?.detections
+      .filter(d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!) ?? []
   }
 )
 

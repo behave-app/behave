@@ -1,11 +1,8 @@
 .picker {
   display: inline-block;
-  > dialog {
-    box-shadow: 0 0 1em black;
-    &::backdrop {
-    backdrop-filter: blur(5px) grayscale(60%);
-  }
-  }
+}
+.dialog {
+  width: min-content;
 }
 .closed {
     border-width: 2px;

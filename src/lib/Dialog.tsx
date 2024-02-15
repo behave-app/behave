@@ -2,14 +2,17 @@ import { FunctionComponent } from "preact"
 import { useEffect, useRef } from "react"
 import { joinedStringFromDict } from "./util"
 import * as css from "./dialog.module.css"
+import { CSSProperties } from "preact/compat"
 
 type Props = {
   onRequestClose: () => void
+  className?: string
+  style?: CSSProperties
   blur?: boolean
 }
 
 export const Dialog: FunctionComponent<Props> = (
-{onRequestClose: requestClose, children, blur}
+{onRequestClose: requestClose, children, blur, className, style}
 ) => {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
@@ -19,8 +22,12 @@ export const Dialog: FunctionComponent<Props> = (
     }
     const dialog = dialogRef.current
     const onClick = (event: MouseEvent) => {
+      if (event.target !== event.currentTarget) {
+        return
+      }
       const inside = event.offsetX >= 0 && event.offsetX <= dialog.clientWidth
         && event.offsetY >= 0 && event.offsetY <= dialog.clientHeight
+      console.log(dialog, dialog.clientWidth, dialog.clientHeight, event)
       if (!inside) {
         requestClose()
       }
@@ -41,9 +48,10 @@ export const Dialog: FunctionComponent<Props> = (
     dialogRef.current.showModal()
   }, [dialogRef.current])
 
-  return <dialog ref={dialogRef} className={joinedStringFromDict({
+  return <dialog ref={dialogRef} style={style} className={joinedStringFromDict({
     [css.dialog]: true,
     [css.blur]: !!blur,
+    [className ?? ""]: className !== undefined,
   })}>
   {children}
   </dialog>

@@ -6,26 +6,3 @@
   align-self: end;
 }
 
-button.control {
-  font: unset;
-  --button-padding-left-right: 0.1875em;
-  --button-padding-top-bottom: 0.03125em;
-  --button-border-width: 2px;
-  --button-size: calc(1em + var(--button-padding-left-right) * 2 + var(--button-border-width) * 2);
-  width: calc(var(--button-size) - var(--button-padding-left-right) * 2 - var(--button-border-width) * 2);
-  height: calc(var(--button-size) - var(--button-padding-top-bottom) * 2 - var(--button-border-width) * 2);
-  padding: var(--button-padding-top-bottom) var(--button-padding-left-right);
-  box-sizing: content-box;
-  /* border-width: var(--button-border-width); -- don't set this, it will override default button layout */
-  text-align: center;
-  &.activated {
-    background-color: hsl(0, 0%, 70%);
-  }
-  position: relative;
-  .subIcon.topRight {
-    position: absolute;
-    top: 0;
-    right: 0;
-    font-size: .4em;
-  }
-}

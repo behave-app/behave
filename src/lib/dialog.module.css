@@ -1,0 +1,12 @@
+.dialog {
+  box-shadow: 0 0 1em black;
+  background-color: hsl(195, 53%, 79%);
+  border-radius: 1em;
+  width: calc(100vw - 6em);
+  box-sizing: border-box;
+  padding: .3em 1.5em 2.5em;
+  z-index: 2;
+  &.blur::backdrop {
+    backdrop-filter: blur(5px) grayscale(60%);
+  }
+}

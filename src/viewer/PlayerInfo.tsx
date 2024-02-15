@@ -1,40 +1,12 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent } from "preact";
 import * as viewercss from "./viewer.module.css"
 import * as css from "./playerinfo.module.css"
-import { Icon, } from "../lib/Icon";
 import { useSelector } from "react-redux";
 import { selectPlayerState } from "./videoPlayerSlice";
-import { useAppDispatch, } from "./store"
-import { joinedStringFromDict } from "../lib/util";
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors";
 import { ControlInfo, CONTROLS } from "./controls";
+import { Button } from "./Button";
 
-export function Button<T>(
-  {controlInfo}: {controlInfo: ControlInfo<T>}
-) {
-  const dispatch = useAppDispatch()
-  const disabled = useSelector(controlInfo.selectIsDisabled)
-  const activated = useSelector(controlInfo.selectIsActivated)
-  const actionArgument: T = useSelector(
-    // this allows us to use selectors that would error when disabled = true
-    disabled ? (() => undefined as T): controlInfo.selectActionArgument)
-
-
-  return <button
-    disabled={disabled}
-    title={controlInfo.description}
-    className={joinedStringFromDict({
-      [css.activated]: activated,
-      [css.control]: true,
-    })} onClick={() => {if (!disabled) {
-      controlInfo.action(dispatch, actionArgument)}}}>
-    <Icon iconName={controlInfo.iconName} />
-    {controlInfo.subIconName && <div className={
-      [css.subIcon, css.topRight].join(" ")}>
-      <Icon iconName={controlInfo.subIconName} />
-    </div>}
-  </button>
-}
 
 const PlayerInfoDetails: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)

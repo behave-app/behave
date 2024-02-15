@@ -253,6 +253,15 @@ export const selectSettings = (state: RootState) => state.settings as SettingsSt
 export const selectSettingsByDetectionClass = (state: RootState) => state.settings.settingsByDetectionClass
 export const selectConfidenceLocation = (state: RootState) => state.settings.confidenceLocation
 export const selectActiveVideoShortcuts = (state: RootState) => state.settings.videoShortcuts
+export const selectActiveVideoShortcutsByAction = createSelector(
+[selectActiveVideoShortcuts], (shortcuts) => {
+    return shortcuts.reduce((myMap, shortcut) => {
+    const key = shortcut[0]
+    const action = shortcut[1] as ValidControlName
+    return key === null ? myMap : myMap.set(action, [...(myMap.get(action) ?? []), key])
+    }, new Map<ValidControlName, Key[]>())
+})
+
 export const selectActiveSubjectShortcuts = (state: RootState) => state.settings.subjectShortcutsGroups.groups[state.settings.subjectShortcutsGroups.selectedIndex].shortcuts
 export const selectPlayerInfoShown = (state: RootState) => state.settings.showPlayerInfo
 

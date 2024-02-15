@@ -10,18 +10,3 @@
   gap: .3em;
   padding-top: .3em;
 }
-
-.popup {
-  position: absolute;
-  background-color: hsl(195, 53%, 79%);
-  border-radius: 1em;
-  overflow: hidden;
-  left: 3em;
-  width: calc(100vw - 6em);
-  min-height: 20%;
-  max-height: 50%;
-  overflow: scroll;
-  top: 1em;
-  padding: .3em 1.5em 2.5em;
-  z-index: 2;
-}

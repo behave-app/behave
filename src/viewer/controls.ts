@@ -47,7 +47,10 @@ info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
 export const CONTROLS = {
   showInfo: fillAndWrapDefaultControlInfo({
     iconName: "info",
-    action: dispatch => dispatch(sidebarPopupWasToggled("info")),
+    action: dispatch => {
+      void(dispatch(videoPause()))
+      dispatch(sidebarPopupWasToggled("info"))
+    },
     description: "Show overlay with general information",
     selectIsActivated: state => selectSidebarPopup(state) === "info",
     selectIsDisabled: () => false,
@@ -55,7 +58,10 @@ export const CONTROLS = {
 
   classSliders: fillAndWrapDefaultControlInfo({
     iconName: "sliders",
-    action: dispatch => dispatch(sidebarPopupWasToggled("classSliders")),
+    action: dispatch => {
+      void(dispatch(videoPause()))
+      dispatch(sidebarPopupWasToggled("classSliders"))
+    },
     description: "Show overlay where confidence sliders per class can be set",
     selectIsActivated: state => selectSidebarPopup(state) === "classSliders",
     selectIsDisabled: state => selectRealOrDefaultSettingsByDetectionClass(state) === null,

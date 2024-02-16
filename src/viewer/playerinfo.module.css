@@ -1,3 +1,10 @@
+.zoom_controls {
+  --button-size: calc(1em + 16px);
+  display: grid;
+  grid-template-columns: var(--button-size) var(--button-size) var(--button-size);
+  font-size: 1rem;
+  align-self: end;
+}
 .controls {
   --button-size: calc(1em + 16px);
   display: grid;

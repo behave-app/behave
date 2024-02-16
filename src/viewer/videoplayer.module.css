@@ -9,6 +9,27 @@
   }
 }
 
+.container {
+  cursor: zoom-in;
+  width: 100%;
+  height: 100%;
+  transition: width 0.3s, height 0.3s;
+
+  &.zoom {
+    cursor: zoom-out;
+    width: 200%;
+    height: 200%;
+    position: relative;
+    &:not(.zoom_follow_mouse) {
+      transition: left 0.1s, top 0.1s;
+    }
+    left: calc((100% - var(--video-width)) * clamp(
+    0, (var(--focus-x) - .25) * 2, 1));
+    top: calc((100% - var(--video-height)) * clamp(
+    0, (var(--focus-y) - .25) * 2, 1));
+  }
+}
+
 .overlay {
   position: absolute;
   --box-stroke-width: 3px;
@@ -36,31 +57,31 @@
       --horizontal_shift: 0px;
     }
     &.bottom {
-      --preferred_y: calc((var(--cy) + var(--height) / 2) * 100% - var(--text-height) + var(--vertical_shift));
+      --preferred_y: calc((var(--cy) + var(--height) / 2) * var(--video-height) - var(--text-height) + var(--vertical_shift));
     }
     &.top {
-      --preferred_y: calc((var(--cy) - var(--height) / 2) * 100% - var(--vertical_shift));
+      --preferred_y: calc((var(--cy) - var(--height) / 2) * var(--video-height) - var(--vertical_shift));
     }
     &.left {
-      --preferred_x: calc((var(--cx) - var(--width) / 2) * 100% - var(--horizontal_shift))
+      --preferred_x: calc((var(--cx) - var(--width) / 2) * var(--video-width) - var(--horizontal_shift))
     }
     &.center {
-      --preferred_x: calc(var(--cx) * 100% - var(--text-width) / 2);
+      --preferred_x: calc(var(--cx) * var(--video-width) - var(--text-width) / 2);
     }
     &.right {
-      --preferred_x: calc((var(--cx) + var(--width) / 2) * 100% - var(--text-width) + var(--horizontal_shift));
+      --preferred_x: calc((var(--cx) + var(--width) / 2) * var(--video-width) - var(--text-width) + var(--horizontal_shift));
     }
-    --textbox-x: calc(clamp(0%, var(--preferred_x), 100% - var(--text-width)));
-    --textbox-y: calc(clamp(0%, var(--preferred_y), 100% - var(--text-height)));
+    --textbox-x: calc(clamp(0%, var(--preferred_x), var(--video-width) - var(--text-width)));
+    --textbox-y: calc(clamp(0%, var(--preferred_y), var(--video-height) - var(--text-height)));
     opacity: calc(var(--box-alpha) * 100%);
     .box {
       fill: none;
       stroke: var(--box-colour);
       stroke-width: var(--box-stroke-width);
-      x: calc((var(--cx) - var(--width) / 2) * 100% - var(--box-stroke-width) / 2);
-      y: calc((var(--cy) - var(--height) / 2) * 100% - var(--box-stroke-width) / 2);
-      width: calc(var(--width) * 100% + var(--box-stroke-width));
-      height: calc(var(--height) * 100% + var(--box-stroke-width));
+      x: calc((var(--cx) - var(--width) / 2) * var(--video-width) - var(--box-stroke-width) / 2);
+      y: calc((var(--cy) - var(--height) / 2) * var(--video-height) - var(--box-stroke-width) / 2);
+      width: calc(var(--width) * var(--video-width) + var(--box-stroke-width));
+      height: calc(var(--height) * var(--video-height) + var(--box-stroke-width));
     }
     .confidence_background {
       stroke: none;

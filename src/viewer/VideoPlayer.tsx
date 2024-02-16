@@ -11,7 +11,7 @@ import { assert, joinedStringFromDict } from "../lib/util"
 import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
 import { ConfidenceLocation, selectConfidenceLocation } from "./settingsSlice"
 import { DetectionsForFrame } from "../lib/detections"
-import { selectHideDetectionBoxes } from "./appSlice"
+import { selectHideDetectionBoxes, selectZoom, zoomFollowMouseToggle, zoomSet } from "./appSlice"
 import { HSL, hslToLuminance, hslToString } from "../lib/colour"
 
 
@@ -29,8 +29,11 @@ const VideoCanvas: FunctionComponent<{
   const settingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
   const confidenceLocation = useSelector(selectConfidenceLocation)
   const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
+  const [mouseCoords, setMouseCoords] = useState({x: 0, y: 0})
   const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
   const dispatch = useAppDispatch()
+  const zoom = useSelector(selectZoom)
+  const containerRef = useRef<HTMLDivElement>(null)
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
     dispatch(playerStateSet({
       currentTime: video.currentTime,
@@ -76,11 +79,71 @@ const VideoCanvas: FunctionComponent<{
     }
   }, [videoRef.current])
 
+  useEffect(() => {
+    if (!containerRef.current) {
+      return
+    }
+    const container = containerRef.current
+    const parent = container.parentElement
+    if (!parent) {
+      return
+    }
+    const onMouseMove = (e: MouseEvent) => {
+      setMouseCoords({
+        x: (e.clientX - container.clientLeft) / parent.clientWidth,
+        y: (e.clientY - container.clientTop) / parent.clientHeight,
+      })
+    }
+    container.addEventListener("mousemove", onMouseMove)
+    return () => container.removeEventListener("mousemove", onMouseMove)
+  }, [containerRef.current, containerRef.current?.parentElement])
+
+
+  useEffect(() => {
+    if (!containerRef.current) {
+      return
+    }
+    const container = containerRef.current
+    const myZoom = zoom
+    const onClick = (e: MouseEvent) => {
+      if (myZoom === "off") {
+        if (e.shiftKey) {
+          const x = (e.clientX - container.clientLeft) / container.clientWidth
+          const y = (e.clientY - container.clientTop) / container.clientHeight
+          const hori = x < .375 ? "left" : x > 0.625 ? "right" : "center"
+          const vert = y < .375 ? "top" : y > 0.625 ? "bottom" : "middle"
+          dispatch(zoomSet(`${vert}-${hori}`))
+        } else {
+          dispatch(zoomSet("follow_mouse"))
+        }
+      } else {
+        dispatch(zoomSet("off"))
+      }
+    }
+    container.addEventListener("click", onClick)
+    return () => container.removeEventListener("click", onClick)
+  }, [containerRef.current, zoom])
+
+
   const syncState = (e: Event) => {
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
+  const [focusX, focusY] = zoom === "off" ? ["off", "off"]
+    : zoom === "follow_mouse"
+      ? [`${mouseCoords.x.toFixed(3)}`, `${mouseCoords.y.toFixed(3)}`]
+      : [ {left: "0.25", center: "0.50", right: "0.75"}[zoom.split("-")[1]],
+        {top: "0.25", middle: "0.50", bottom: "0.75"}[zoom.split("-")[0]]]
 
-  return  <>
+  return <div ref={containerRef} className={joinedStringFromDict({
+    [css.container]: true,
+    [css.zoom]: zoom !== "off",
+    [css.zoom_follow_mouse]: zoom === "follow_mouse",
+    })} style={{
+      "--focus-x": focusX,
+      "--focus-y": focusY,
+      "--video-width": `${videoDimensions?.[0].toFixed(2)}px`,
+      "--video-height": `${videoDimensions?.[1].toFixed(2)}px`,
+    }}>
     {videoDimensions && settingsByDetectionClass && detections && !hideDetectionBoxes && <svg className={css.overlay}
       viewBox={`0 0 ${videoDimensions[0]} ${videoDimensions[1]}`}
       height={`${videoDimensions[1]}px`} width={`${videoDimensions[0]}px`}
@@ -108,7 +171,7 @@ const VideoCanvas: FunctionComponent<{
     >
       <source src={URL.createObjectURL(videoFile)} />
     </video>
-  </>
+  </div>
 }
 
 
@@ -177,7 +240,7 @@ export const VideoPlayer: FunctionComponent = () => {
     }
   }, [])
 
-  return <div className={viewercss.videoplayer}>
+  return <div className={joinedStringFromDict({[viewercss.videoplayer]: true,})}>
     {uploadError ? <ModalPopup addOkButtonCallback={() => setUploadError(null)} >{uploadError}</ModalPopup> : ""}
     {videoFile && dragState === "nodrag"
       ? <VideoCanvas videoFile={videoFile.file} />

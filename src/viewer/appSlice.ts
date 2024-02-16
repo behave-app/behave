@@ -2,6 +2,7 @@ import { createSlice, PayloadAction} from '@reduxjs/toolkit'
 import type { RootState } from './store'
 
 export type SidebarPopup = "info" | "classSliders"
+export type Zoom = "off" | "follow_mouse" | `${"top" | "middle" | "bottom"}-${"left" | "center" | "right"}`
 
 export const appSlice = createSlice({
   name: "app",
@@ -12,6 +13,7 @@ export const appSlice = createSlice({
     sidebarPopup: null as SidebarPopup | null,
     selectedSubject: null  as null | string,
     hideDetectionBoxes: false,
+    zoom: "off" as Zoom,
   },
   reducers: {
     settingsScreenShown: state => {state.showSettingsScreen = true},
@@ -37,13 +39,17 @@ export const appSlice = createSlice({
       state.selectedSubject = null},
     hideDetectionBoxesToggled: state => {
       state.hideDetectionBoxes = !state.hideDetectionBoxes},
+    zoomSet: (state, {payload}: PayloadAction<Zoom>) => {
+      state.zoom = payload},
+    zoomFollowMouseToggle: state => {
+      state.zoom = (state.zoom === "follow_mouse" ? "off" : "follow_mouse")},
   }
 })
 
 
 export default appSlice.reducer
 
-export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled} = appSlice.actions
+export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomSet, zoomFollowMouseToggle} = appSlice.actions
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
@@ -72,3 +78,4 @@ export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
     && state.app.selectedSubject !== null
 )
 export const selectHideDetectionBoxes = (state: RootState) => state.app.hideDetectionBoxes
+export const selectZoom = (state: RootState) => state.app.zoom

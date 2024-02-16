@@ -52,7 +52,7 @@ export const PlayerInfo: FunctionComponent = () => {
       <button disabled />
       <Button controlInfo={CONTROLS.speed_up} />
       <Button controlInfo={CONTROLS.edit_comment_for_current_line} />
-      <div />
+      <Button controlInfo={CONTROLS.zoom_follow_mouse_toggle} />
       <Button controlInfo={CONTROLS.key_shortcut_help_toggle} />
     </div>
   </div>

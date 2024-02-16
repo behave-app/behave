@@ -49,7 +49,7 @@ kbd + kbd {
 
 .videoplayer {
   grid-area: videoplayer;
-  overflow: scroll;
+  overflow: hidden;
 }
 .playerinfo {
   grid-area: playerinfo;

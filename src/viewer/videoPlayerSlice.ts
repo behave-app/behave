@@ -19,6 +19,8 @@ export type PlayerState = Readonly<{
   paused: boolean
   playbackRate: number
   seeking: boolean
+  videoWidth: number,
+  videoHeight: number,
 }>
 
 type VideoPlayerSettings = {
@@ -54,6 +56,14 @@ export default videoPlayerSlice.reducer
 
 export const selectPlayerState = (state: RootState) => state.videoPlayer.playerState
 
+export const selectVideoAspect = (state: RootState) => {
+  const width = state.videoPlayer.playerState?.videoWidth
+  const height = state.videoPlayer.playerState?.videoHeight
+  if (!width || !height) {
+    return null
+  }
+  return width / height
+}
 
 export const selectCurrentTime = (state: RootState) => {
   if (state.videoPlayer.playerState === null) {

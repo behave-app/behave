@@ -1,6 +1,6 @@
 .canvas {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   background-color: blue;
 
   &.dummy {
@@ -10,24 +10,22 @@
 }
 
 .container {
-  cursor: zoom-in;
-  width: 100%;
-  height: 100%;
-  transition: width 0.3s, height 0.3s;
-
-  &.zoom {
-    cursor: zoom-out;
-    width: 200%;
-    height: 200%;
-    position: relative;
-    &:not(.zoom_follow_mouse) {
-      transition: left 0.1s, top 0.1s;
-    }
-    left: calc((100% - var(--video-width)) * clamp(
-    0, (var(--focus-x) - .25) * 2, 1));
-    top: calc((100% - var(--video-height)) * clamp(
-    0, (var(--focus-y) - .25) * 2, 1));
+  .canvas {
+    width: var(--video-width);
+    height: var(--video-height);
   }
+  &.cursor_zoomin .canvas {
+    cursor: zoom-in;
+  }
+  &.cursor_zoomout .canvas {
+    cursor: zoom-out;
+  }
+  width: calc(var(--zoom) * 100%);
+  height: calc(var(--zoom) * 100%);
+  transition: width .3s, height .3s;
+  position: relative;
+  left: calc(var(--focus-x) * (1 - var(--video-zoom)));
+  top: calc(var(--focus-y) * (1 - var(--video-zoom)));
 }
 
 .overlay {

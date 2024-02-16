@@ -2,7 +2,9 @@ import { createSlice, PayloadAction} from '@reduxjs/toolkit'
 import type { RootState } from './store'
 
 export type SidebarPopup = "info" | "classSliders"
-export type Zoom = "off" | "follow_mouse" | `${"top" | "middle" | "bottom"}-${"left" | "center" | "right"}`
+export const zoomLevels = [1, 2, 3, 5] as const
+export type ZoomLevel = number
+
 
 export const appSlice = createSlice({
   name: "app",
@@ -13,7 +15,7 @@ export const appSlice = createSlice({
     sidebarPopup: null as SidebarPopup | null,
     selectedSubject: null  as null | string,
     hideDetectionBoxes: false,
-    zoom: "off" as Zoom,
+    zoom: 0 as ZoomLevel,
   },
   reducers: {
     settingsScreenShown: state => {state.showSettingsScreen = true},
@@ -39,17 +41,17 @@ export const appSlice = createSlice({
       state.selectedSubject = null},
     hideDetectionBoxesToggled: state => {
       state.hideDetectionBoxes = !state.hideDetectionBoxes},
-    zoomSet: (state, {payload}: PayloadAction<Zoom>) => {
+    zoomToggled: (state) => {
+      state.zoom = state.zoom === 0 ? 1 : 0},
+    zoomSet: (state, {payload}: PayloadAction<ZoomLevel>) => {
       state.zoom = payload},
-    zoomFollowMouseToggle: state => {
-      state.zoom = (state.zoom === "follow_mouse" ? "off" : "follow_mouse")},
   }
 })
 
 
 export default appSlice.reducer
 
-export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomSet, zoomFollowMouseToggle} = appSlice.actions
+export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomToggled, zoomSet} = appSlice.actions
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject

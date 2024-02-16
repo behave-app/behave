@@ -6,12 +6,12 @@ import { useSelector } from "react-redux"
 import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice"
 import { ModalPopup } from "../lib/ModalPopup"
 import { useRef, useState, useEffect} from 'preact/hooks'
-import { playerStateSet, videoPlayerElementIdSet } from "./videoPlayerSlice"
+import { playerStateSet, selectVideoAspect, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert, joinedStringFromDict } from "../lib/util"
 import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
 import { ConfidenceLocation, selectConfidenceLocation } from "./settingsSlice"
 import { DetectionsForFrame } from "../lib/detections"
-import { selectHideDetectionBoxes, selectZoom, zoomFollowMouseToggle, zoomSet } from "./appSlice"
+import { zoomLevels, selectHideDetectionBoxes, selectZoom, zoomSet, } from "./appSlice"
 import { HSL, hslToLuminance, hslToString } from "../lib/colour"
 
 
@@ -28,12 +28,21 @@ const VideoCanvas: FunctionComponent<{
   const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
   const settingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
   const confidenceLocation = useSelector(selectConfidenceLocation)
-  const [videoDimensions, setVideoDimensions] = useState<null | [number, number]>(null)
+  const videoAspectRatio = useSelector(selectVideoAspect)
+  const [containerDimensions, setContainerDimensions] = useState<null | {width: number, height: number, zoom: number}>(null)
   const [mouseCoords, setMouseCoords] = useState({x: 0, y: 0})
   const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
   const dispatch = useAppDispatch()
   const zoom = useSelector(selectZoom)
+  const [zoomOrigin, setZoomOrigin] = useState({x: "0px", y: "0px"})
   const containerRef = useRef<HTMLDivElement>(null)
+  const [shiftPressed, setShiftPressed] = useState(false)
+
+  const clickAction = shiftPressed
+    ? (zoom === 0 ? null : "zoom-out")
+    : zoom === zoomLevels.length - 1
+    ? "zoom-out-all" : "zoom-in"
+
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
     dispatch(playerStateSet({
       currentTime: video.currentTime,
@@ -43,8 +52,26 @@ const VideoCanvas: FunctionComponent<{
       paused: video.paused,
       playbackRate: video.playbackRate,
       seeking: video.seeking,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
     }))
   }
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      setShiftPressed(e.shiftKey)
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+      setShiftPressed(e.shiftKey)
+    }
+    document.documentElement.addEventListener("keyup", onKeyUp)
+    document.documentElement.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.documentElement.removeEventListener("keyup", onKeyUp)
+      document.documentElement.removeEventListener("keydown", onKeyDown)
+    }
+
+  }, [])
 
   useEffect(() => {
     assert(!!videoRef.current,
@@ -52,9 +79,18 @@ const VideoCanvas: FunctionComponent<{
     const video = videoRef.current
     dispatch(videoPlayerElementIdSet(video.id))
     copyAndDispatchPlayerState(video)
+    return () => {
+      dispatch(playerStateSet(null))
+      dispatch(videoPlayerElementIdSet(null))
+    }
+  }, [videoRef.current])
+
+  useEffect(() => {
+    assert(!!containerRef.current,
+      "useEffect is supposed to only run after rendering, so videoRef.current should be set")
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target !== videoRef.current) {
+        if (entry.target !== containerRef.current) {
           console.warn("Unexpected target: ", entry)
           return
         }
@@ -62,36 +98,40 @@ const VideoCanvas: FunctionComponent<{
           console.warn("Unexpected length: ", entry)
           return
         }
+        const {inlineSize: width, blockSize: height} = entry.contentBoxSize[0]
+        const parent = containerRef.current.parentElement
+        assert(!!parent && parent.matches(".videoplayer_toplevel"))
+        const zoom = Math.max(
+          width / parent.clientWidth,
+          height / parent.clientHeight,
+        )
 
-        setVideoDimensions([
-          entry.contentBoxSize[0].inlineSize,
-          entry.contentBoxSize[0].blockSize
-        ])
+        setContainerDimensions({width, height, zoom})
 
       }
     })
-    resizeObserver.observe(videoRef.current)
+    resizeObserver.observe(containerRef.current)
     return () => {
-      dispatch(playerStateSet(null))
-      dispatch(videoPlayerElementIdSet(null))
       resizeObserver.disconnect()
-      setVideoDimensions(null)
+      setContainerDimensions(null)
     }
   }, [videoRef.current])
 
   useEffect(() => {
-    if (!containerRef.current) {
-      return
-    }
     const container = containerRef.current
-    const parent = container.parentElement
-    if (!parent) {
+    if (!container) {
       return
     }
     const onMouseMove = (e: MouseEvent) => {
+      setShiftPressed(e.shiftKey)
+      const parent = container.parentElement
+      if(!parent) {
+        return
+      }
+      const bounding = parent.getBoundingClientRect()
       setMouseCoords({
-        x: (e.clientX - container.clientLeft) / parent.clientWidth,
-        y: (e.clientY - container.clientTop) / parent.clientHeight,
+        x: e.clientX - bounding.left,
+        y: e.clientY - bounding.top,
       })
     }
     container.addEventListener("mousemove", onMouseMove)
@@ -104,49 +144,60 @@ const VideoCanvas: FunctionComponent<{
       return
     }
     const container = containerRef.current
-    const myZoom = zoom
     const onClick = (e: MouseEvent) => {
-      if (myZoom === "off") {
-        if (e.shiftKey) {
-          const x = (e.clientX - container.clientLeft) / container.clientWidth
-          const y = (e.clientY - container.clientTop) / container.clientHeight
-          const hori = x < .375 ? "left" : x > 0.625 ? "right" : "center"
-          const vert = y < .375 ? "top" : y > 0.625 ? "bottom" : "middle"
-          dispatch(zoomSet(`${vert}-${hori}`))
+      if (e.shiftKey) {
+        if (zoom === 0) {
+          console.log("zoom out is no-op when at minimal zoom")
         } else {
-          dispatch(zoomSet("follow_mouse"))
+          dispatch(zoomSet(zoom - 1))
         }
       } else {
-        dispatch(zoomSet("off"))
+        if (zoom === zoomLevels.length - 1) {
+          dispatch(zoomSet(0))
+        } else {
+          dispatch(zoomSet(zoom + 1))
+        }
       }
     }
     container.addEventListener("click", onClick)
     return () => container.removeEventListener("click", onClick)
   }, [containerRef.current, zoom])
 
+  useEffect(() => {
+    if (zoom === 0) {
+      return;
+    }
+    const focusX = `${mouseCoords.x.toFixed(0)}px`
+    const focusY = `${mouseCoords.y.toFixed(0)}px`
+    setZoomOrigin({x: focusX, y: focusY})
+  }, [zoom, zoom !== 0 && mouseCoords])
 
   const syncState = (e: Event) => {
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
-  const [focusX, focusY] = zoom === "off" ? ["off", "off"]
-    : zoom === "follow_mouse"
-      ? [`${mouseCoords.x.toFixed(3)}`, `${mouseCoords.y.toFixed(3)}`]
-      : [ {left: "0.25", center: "0.50", right: "0.75"}[zoom.split("-")[1]],
-        {top: "0.25", middle: "0.50", bottom: "0.75"}[zoom.split("-")[0]]]
+
+  const haveHorizontalSpace = !!containerDimensions  && !!videoAspectRatio && containerDimensions.width / containerDimensions.height > videoAspectRatio 
+
+  const [videoWidth, videoHeight] = (!containerDimensions || !videoAspectRatio)
+  ? [0, 0] : haveHorizontalSpace
+  ? [containerDimensions.height * videoAspectRatio, containerDimensions.height]
+  : [containerDimensions.width, containerDimensions.width / videoAspectRatio]
 
   return <div ref={containerRef} className={joinedStringFromDict({
     [css.container]: true,
-    [css.zoom]: zoom !== "off",
-    [css.zoom_follow_mouse]: zoom === "follow_mouse",
+    [css.cursor_zoomin]: clickAction === "zoom-in",
+    [css.cursor_zoomout]: clickAction === "zoom-out" || clickAction === "zoom-out-all"
     })} style={{
-      "--focus-x": focusX,
-      "--focus-y": focusY,
-      "--video-width": `${videoDimensions?.[0].toFixed(2)}px`,
-      "--video-height": `${videoDimensions?.[1].toFixed(2)}px`,
+      "--zoom": zoomLevels[zoom],
+      "--focus-x": zoomOrigin.x,
+      "--focus-y": zoomOrigin.y,
+      "--video-width": `${videoWidth.toFixed(1)}px`,
+      "--video-height": `${videoHeight.toFixed(1)}px`,
+      "--video-zoom": `${containerDimensions?.zoom.toFixed(3)}`,
     }}>
-    {videoDimensions && settingsByDetectionClass && detections && !hideDetectionBoxes && <svg className={css.overlay}
-      viewBox={`0 0 ${videoDimensions[0]} ${videoDimensions[1]}`}
-      height={`${videoDimensions[1]}px`} width={`${videoDimensions[0]}px`}
+    {settingsByDetectionClass && detections && !hideDetectionBoxes && <svg className={css.overlay}
+      viewBox={`0 0 ${videoWidth} ${videoHeight}`}
+      height={`${videoHeight}px`} width={`${videoWidth}px`}
       xmlns="http://www.w3.org/2000/svg"
     >
       {detections.map(detection => <Detection
@@ -240,7 +291,7 @@ export const VideoPlayer: FunctionComponent = () => {
     }
   }, [])
 
-  return <div className={joinedStringFromDict({[viewercss.videoplayer]: true,})}>
+  return <div className={joinedStringFromDict({[viewercss.videoplayer]: true, "videoplayer_toplevel": true})}>
     {uploadError ? <ModalPopup addOkButtonCallback={() => setUploadError(null)} >{uploadError}</ModalPopup> : ""}
     {videoFile && dragState === "nodrag"
       ? <VideoCanvas videoFile={videoFile.file} />

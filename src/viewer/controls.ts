@@ -11,7 +11,7 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { Zoom, hideDetectionBoxesToggled, keyShortcutHelpScreenToggled, selectHideDetectionBoxes, selectSelectedSubject, selectShowKeyShortcutHelp, selectSidebarPopup, selectZoom, settingsScreenShown, sidebarPopupWasToggled, zoomFollowMouseToggle, zoomSet } from "./appSlice";
+import { hideDetectionBoxesToggled, keyShortcutHelpScreenToggled, selectHideDetectionBoxes, selectSelectedSubject, selectShowKeyShortcutHelp, selectSidebarPopup, selectZoom, settingsScreenShown, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
 import { selectRealOrDefaultSettingsByDetectionClass, selectSelectedBehaviourLine } from "./selectors";
 import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./settingsSlice";
@@ -41,14 +41,6 @@ info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
     ...info,
   }
 }
-
-const zoomAction = (zoom: Zoom) => fillAndWrapDefaultControlInfo({
-  iconName: "zoom_in",
-  description: "Set zoom to " + zoom,
-  selectIsActivated: state => selectZoom(state) === zoom,
-  action: dispatch => dispatch(zoomSet(zoom)),
-})
-
 
 export const CONTROLS = {
   showInfo: fillAndWrapDefaultControlInfo({
@@ -271,24 +263,13 @@ export const CONTROLS = {
     selectIsActivated: state => selectPlayerInfoShown(state),
     action: dispatch => dispatch(playerInfoToggled())
   }),
-  zoom_follow_mouse_toggle: fillAndWrapDefaultControlInfo({
+
+  zoom_toggle: fillAndWrapDefaultControlInfo({
     iconName: "zoom_in",
     description: "Toggle zoom follow mouse",
-    selectIsActivated: state => selectZoom(state) === "follow_mouse",
-    action: dispatch => dispatch(zoomFollowMouseToggle()),
+    selectIsActivated: state => selectZoom(state) > 1,
+    action: dispatch => dispatch(zoomToggled()),
   }),
-
-  zoom_off: zoomAction("off"),
-  zoom_follow_mouse: zoomAction("follow_mouse"),
-  zoom_top_left: zoomAction("top-left"),
-  zoom_top_center: zoomAction("top-center"),
-  zoom_top_right: zoomAction("top-right"),
-  zoom_middle_left: zoomAction("middle-left"),
-  zoom_middle_center: zoomAction("middle-center"),
-  zoom_middle_right: zoomAction("middle-right"),
-  zoom_bottom_left: zoomAction("bottom-left"),
-  zoom_bottom_center: zoomAction("bottom-center"),
-  zoom_bottom_right: zoomAction("bottom-right"),
 } as const
 
 export type ValidControlName = keyof typeof CONTROLS

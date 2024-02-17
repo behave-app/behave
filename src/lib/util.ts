@@ -141,6 +141,20 @@ export function TSAssertType<T>(_: unknown): asserts _ is T {}
 export type ArrayElement<ArrayType extends readonly unknown[]> =
   ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
 
+export type OptionalKeys<T> = {
+  [K in keyof T]-?: undefined extends T[K] ? K : never
+}[keyof T];
+
+export type OptionalProperties<T> = {
+  [K in OptionalKeys<T>]: Exclude<T[K], undefined>
+}
+
+export type RequiredKeys<T> = {
+  [K in keyof T]-?: object extends Pick<T, K> ? never : K
+}[keyof T];
+
+export type RequiredProperties<T> = Pick<T, RequiredKeys<T>>;
+
 export function joinedStringFromDict(dict: Record<string, boolean>, sep?: string): string {
   return Object.entries(dict)
     .filter(([_k, v]) => v).map(([k]) => k).join(sep ?? " ")

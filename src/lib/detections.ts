@@ -1,3 +1,5 @@
+import { ArrayChecker, Checker, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, getCheckerFromObject } from "./typeCheck"
+
 export type DetectionsForFrame = Array<{
       klass: number
       cx: number
@@ -40,73 +42,36 @@ export function detectionInfoToString(detectionInfo: DetectionInfo): string {
 }
 
 function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
-  if (typeof data !== "object" || data === null) {
-    return false; // Not an object
-  }
-
-  const {
-    version,
-    totalNumberOfFrames,
-    sourceFileName,
-    sourceFileXxHash64,
-    modelName,
-    modelKlasses,
-    playbackFps,
-    recordFps,
-    framesInfo,
-  } = data as Partial<DetectionInfo>;
-
-  // Check if required properties are present and have the correct types
-  if (
-    typeof version !== "number" ||
-    typeof totalNumberOfFrames !== "number" ||
-    totalNumberOfFrames < 0 ||
-    typeof sourceFileName !== "string" ||
-    typeof sourceFileXxHash64 !== "string" ||
-    typeof modelName !== "string" ||
-    typeof modelKlasses !== "object" ||
-    typeof playbackFps !== "number" ||
-    (recordFps !== null && typeof recordFps !== "number") ||
-    !Array.isArray(framesInfo)
-  ) {
-    console.log("Validation failed: Invalid properties");
-    return false;
-  }
-
-  // Check modelKlasses values
-  for (const key in modelKlasses) {
-    if (typeof key !== "string" || !/^([1-9][0-9]*)|0/.test(key) || typeof modelKlasses[key as NumberString] !== "string") {
-      console.log("Validation failed: Invalid modelKlasses");
-      return false;
+  const framesInfoCheck: Checker<SingleFrameInfo> = new ObjectChecker({
+    required: {
+      pts: 0,
+      dts: 0,
+      type: new LiteralChecker(["I", "IDR", "P", "B"]),
+      detections: new ArrayChecker(getCheckerFromObject({
+        klass: 0, cx: 0, cy: 0, width: 0, height: 0, confidence: 0})),
+    },
+    optional: {
+        timestamp: new StringChecker({valid: s => ISODATETIMESTRINGREGEX.test(s)}) as Checker<ISODateTimeString>,
+        startByte: 0
     }
-  }
+  })
 
-  // Check framesInfo structure
-  for (const frame of framesInfo) {
-    if (
-      typeof frame.pts !== "number" ||
-      typeof frame.dts !== "number" ||
-      !["I", "IDR", "P", "B"].includes(frame.type) ||
-      !Array.isArray(frame.detections) ||
-      frame.detections.some(
-            (detection) =>
-              typeof detection.klass !== "number" ||
-              typeof detection.cx !== "number" ||
-              typeof detection.cy !== "number" ||
-              typeof detection.width !== "number" ||
-              typeof detection.height !== "number" ||
-              typeof detection.confidence !== "number"
-      ) ||
-      (frame.timestamp !== undefined && !(
-          ISODATETIMESTRINGREGEX.test(frame.timestamp))) ||
-      (frame.startByte !== undefined && typeof frame.startByte !== "number")
-    ) {
-      console.log("Validation failed: Invalid framesInfo", frame);
-      return false;
-    }
-  }
+  const detectionDataFormat = getCheckerFromObject({
+    totalNumberOfFrames: 0,
+    version: new LiteralChecker(1),
+    sourceFileName: "name",
+    sourceFileXxHash64: "hash",
+    modelName: "name",
+    modelKlasses: new RecordChecker(
+      new StringChecker({valid: s => /^([1-9][0-9]*)|0$/.test(s)}),
+      new StringChecker(),
+    ),
+    playbackFps: 0,
+    recordFps: null,
+    framesInfo: new ArrayChecker(framesInfoCheck),
+  })
 
-  return true; // Passed all checks, it's a valid DetectionInfo
+  return (detectionDataFormat.isInstance(data))
 }
 
 export function stringToDetectionInfo(data: string): null | DetectionInfo {

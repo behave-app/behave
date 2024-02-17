@@ -108,31 +108,35 @@ export class NumberChecker extends Checker<number> {
   }
 }
 
-export class ArrayChecker<T> extends Checker<Array<T>> {
+export class ArrayChecker<T> extends Checker<Array<ItemWithoutCheckerRecursive<T>>> {
+  private itemChecker: Checker<ItemWithoutCheckerRecursive<T>>
   constructor(
-    private itemChecker: Checker<T>,
+    itemChecker: T,
     options?: {
-      valid?: (s: Array<T>) => boolean
+      valid?: (s: Array<ItemWithoutCheckerRecursive<T>>) => boolean
     }) {
     super({valid: options?.valid})
+    this.itemChecker = getCheckerFromObject(itemChecker)
   }
 
-  _isInstance(value: unknown): value is Array<T> {
+  _isInstance(value: unknown): value is Array<ItemWithoutCheckerRecursive<T>> {
     return Array.isArray(value) && value.every(
       el => this.itemChecker.isInstance(el))
   }
 }
 
-export class TupleChecker<T> extends Checker<Array<T>> {
+export class TupleChecker<T extends unknown[]> extends Checker<ItemWithoutCheckerRecursive<T>> {
+  private itemChecker: (T extends [...infer X] ? {[P in keyof X]: X[P] extends infer U ? Checker<U> : never} : never)
   constructor(
-    private itemChecker: Array<Checker<T>>,
+    itemChecker: T,
     options?: {
-      valid?: (s: Array<T>) => boolean
+      valid?: (s: ItemWithoutCheckerRecursive<T>) => boolean
     }) {
     super({valid: options?.valid})
+    this.itemChecker = itemChecker.map(el => getCheckerFromObject(el)) as typeof this.itemChecker
   }
 
-  _isInstance(value: unknown): value is Array<T> {
+  _isInstance(value: unknown): value is ItemWithoutCheckerRecursive<T> {
     return Array.isArray(value)
       && this.itemChecker.length === value.length
       && value.every((el, index) => this.itemChecker[index].isInstance(el))
@@ -156,7 +160,7 @@ Opt extends Record<ValidRecordKey, unknown>,
   constructor(
     data: {
       required: Req,
-      optional: Opt,
+      optional?: Opt,
     },
     options?: {
       valid?: (s: CombineReqAndOptRemoveCheckers<Req, Opt>) => boolean
@@ -164,7 +168,7 @@ Opt extends Record<ValidRecordKey, unknown>,
     }) {
     super({valid: options?.valid})
     this.requiredItemChecker = Object.fromEntries(Object.entries(data.required).map(([key, value]) => [key, getCheckerFromObject(value)])) as typeof this.requiredItemChecker
-    this.optionalItemChecker = Object.fromEntries(Object.entries(data.optional).map(([key, value]) => [key, getCheckerFromObject(value)])) as typeof this.optionalItemChecker
+    this.optionalItemChecker = Object.fromEntries(Object.entries(data.optional ?? {}).map(([key, value]) => [key, getCheckerFromObject(value)])) as typeof this.optionalItemChecker
     const usedKeys = new Set<string>(Object.keys(this.requiredItemChecker))
     for (const key in this.optionalItemChecker) {
       if (key in usedKeys) {
@@ -196,17 +200,21 @@ Opt extends Record<ValidRecordKey, unknown>,
   }
 }
 
-export class RecordChecker<K extends ValidRecordKey, V> extends Checker<Record<K, V>> {
+export class RecordChecker<K extends ValidRecordKey, V> extends Checker<Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>>> {
+  private keyChecker: Checker<ItemWithoutCheckerRecursive<K>>
+  private valueChecker: Checker<ItemWithoutCheckerRecursive<V>>
   constructor(
-    private keyChecker: Checker<K>,
-    private valueChecker: Checker<V>,
+    keyChecker: K | Checker<K>,
+    valueChecker: V,
     options?: {
-      valid?: (s: Record<K, V>) => boolean
+      valid?: (s: Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>>) => boolean
     }) {
     super({valid: options?.valid})
+    this.keyChecker = getCheckerFromObject(keyChecker)
+    this.valueChecker = getCheckerFromObject(valueChecker)
   }
 
-  _isInstance(value: unknown): value is Record<K, V> {
+  _isInstance(value: unknown): value is Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>> {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       return false;
     }

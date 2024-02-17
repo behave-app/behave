@@ -47,8 +47,8 @@ function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
       pts: 0,
       dts: 0,
       type: new LiteralChecker(["I", "IDR", "P", "B"]),
-      detections: new ArrayChecker(getCheckerFromObject({
-        klass: 0, cx: 0, cy: 0, width: 0, height: 0, confidence: 0})),
+      detections: new ArrayChecker({
+        klass: 0, cx: 0, cy: 0, width: 0, height: 0, confidence: 0}),
     },
     optional: {
         timestamp: new StringChecker({valid: s => ISODATETIMESTRINGREGEX.test(s)}) as Checker<ISODateTimeString>,

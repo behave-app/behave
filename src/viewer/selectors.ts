@@ -1,24 +1,12 @@
 import { createSelector } from "@reduxjs/toolkit";
-import { selectSelectedSubject, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut } from './appSlice';
+import { selectSelectedSubject } from './appSlice';
 import { selectBehaviourInfo } from "./behaviourSlice";
 import { selectDateTimes, selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from "./detectionsSlice";
-import { BehaviourShortcutItem, SettingsForDetectionClass, SubjectShortcutItem, VideoShortcutItem, selectBehaviourShortcutMap, selectFramenumberIndexInLayout, selectSettingsByDetectionClass, selectSubjectShortcutMap, selectVideoShortcutMap } from './settingsSlice';
+import { SettingsForDetectionClass, selectFramenumberIndexInLayout, selectSettingsByDetectionClass } from './generalSettingsSlice';
 import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 import { HSL } from "../lib/colour";
 
-export const selectActiveShortcuts = createSelector(
-  [selectIsWaitingForVideoShortcut, selectIsWaitingForSubjectShortcut,
-  selectIsWaitingForBehaviourShortcut, selectVideoShortcutMap,
-  selectSubjectShortcutMap, selectBehaviourShortcutMap],
-  (doVideo, doSubject, doBehaviour,
-  videoShortcuts, subjectShortcuts, behaviourSubjects) => {
-    return new Map<string, VideoShortcutItem | SubjectShortcutItem | BehaviourShortcutItem>([
-      ...(doVideo ? videoShortcuts.entries() : []) as [string, VideoShortcutItem][],
-      ...(doSubject ? subjectShortcuts.entries() : [] as [string, SubjectShortcutItem][]),
-      ...(doBehaviour ? behaviourSubjects.entries() : [] as [string, BehaviourShortcutItem][]),
-      ])
-})
 
 const DEFAULT_COLOURS_FOR_CLASSES = new Map([
   ["all", {h: 0, s: 0, l: 70}],

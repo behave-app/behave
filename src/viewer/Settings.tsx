@@ -17,7 +17,7 @@ import {
     selectSettings,
     settingsUpdated,
   VideoShortcuts,
-} from "./settingsSlice"
+} from "./generalSettingsSlice"
 
 type Types = "video" | "behaviour" | "subject"
 

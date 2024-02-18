@@ -21,16 +21,13 @@
   font-family: Arial, helvetica, sans-serif;
   padding: 0 2em;
 
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: .7em;
-  flex-direction: row;
-  align-content: flex-start;
+  --column-gap: .7em;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20em, 1fr));
+  column-gap: var(--column-gap);
   .item {
     display: flex;
     box-sizing: border-box;
-    flex: 1 1 20em;
-    display: flex;
     flex-wrap: nowrap;
     overflow: hidden;
     .button {
@@ -84,7 +81,8 @@
   }
   h3 {}
   .shortcuts {
-    li {
+    li .editing_key {
+      background-color: yellow;
     }
   }
 }

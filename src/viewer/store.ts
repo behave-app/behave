@@ -1,24 +1,32 @@
 // store.ts
 import { configureStore } from '@reduxjs/toolkit';
 import {useDispatch } from "react-redux"
-import videoFileReducer from "./videoFileSlice"
-import videoPlayerReducer from "./videoPlayerSlice"
-import appReducer from "./appSlice"
-import settingsReducer, {settingsToLocalStorage, InternalSettingsState} from "./settingsSlice"
-import detectionsDirectoryReducer from './detectionsSlice'
-import behaviourReducer from './behaviourSlice'
+import {videoFileSlice} from "./videoFileSlice"
+import {videoPlayerSlice} from "./videoPlayerSlice"
+import {detectionsDirectorySlice} from './detectionsSlice'
+import {behaviourSlice} from './behaviourSlice'
+import {appSlice} from './appSlice';
+import {settingsReducer} from './settingsSlice';
+import { shortcutsToLocalStorage } from './shortcutsSlice';
+import { generalSettingsToLocalStorage } from './generalSettingsSlice';
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 export const useAppDispatch: () => AppDispatch = useDispatch
 
+export type ATConfig = {
+  state: RootState
+  dispatch: AppDispatch
+}
+
+
 export const store = configureStore({
   reducer: {
-    app: appReducer,
+    [appSlice.name]: appSlice.reducer,
     settings: settingsReducer,
-    detections: detectionsDirectoryReducer,
-    behaviour: behaviourReducer,
-    videoFile: videoFileReducer,
-    videoPlayer: videoPlayerReducer,
+    [detectionsDirectorySlice.name]: detectionsDirectorySlice.reducer,
+    [behaviourSlice.name]: behaviourSlice.reducer,
+    [videoFileSlice.name]: videoFileSlice.reducer,
+    [videoPlayerSlice.name]: videoPlayerSlice.reducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware({
     immutableCheck: {
@@ -50,24 +58,66 @@ export const store = configureStore({
   })
 });
 
-let debouceTimeout: number | undefined = undefined
-let savedSettings: InternalSettingsState = store.getState().settings
+type Callback<T> = {
+  selector: (state: RootState) => T
+  callbackFn: (selected: T) => void
+  debouce: boolean
+  lastSavedState: T
+  debouceTimeout: undefined | number
+}
 
-store.subscribe(() => {
-  if (debouceTimeout !== undefined) {
+function createCallback<T>(
+el: Omit<Callback<T>, "lastSavedState" | "debouceTimeout">
+): Callback<T> {
+return {
+    ...el,
+    lastSavedState: el.selector(store.getState()),
+    debouceTimeout: undefined
+}
+}
+
+const callbacks = {
+  shortcuts: createCallback({
+    selector: state=> state.settings.shortcuts,
+    callbackFn: shortcutsToLocalStorage,
+    debouce: true
+  }),
+  general: createCallback({
+    selector: state=> state.settings.general,
+    callbackFn: generalSettingsToLocalStorage,
+    debouce: true
+  }),
+} as const
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function checkCallback(callback: Callback<any>) {
+  if (callback.debouceTimeout !== undefined) {
     // already queued, doing nothing
     return
   }
-  (window as unknown as {store: typeof store}).store = store
-  if (store.getState().settings === savedSettings) {
-    // no change, doing nothing
-    return
+  const saveIfChanged = () => {
+    const newState = callback.selector(store.getState())
+    if (newState === callback.lastSavedState) {
+      return
+    }
+    callback.debouceTimeout = undefined
+    callback.lastSavedState = newState
+    callback.callbackFn(newState)
   }
-  debouceTimeout = window.setTimeout(() => {
-    debouceTimeout = undefined;
-    savedSettings = store.getState().settings
-    settingsToLocalStorage(savedSettings)
-  }, 100)
+  if (callback.debouce) {
+    if (callback.debouceTimeout !== undefined) {
+      // already debouncing
+      return
+    } else {
+      callback.debouceTimeout = window.setTimeout(saveIfChanged, 100)
+    }
+  } else {
+    saveIfChanged()
+  }
+}
+
+store.subscribe(() => {
+  Object.values(callbacks).forEach(c => checkCallback(c))
 })
 
 export default store;

@@ -18,17 +18,33 @@ export abstract class Checker<T> {
 }
 
 export class LiteralChecker<T extends boolean | string | number | null | undefined | symbol> extends Checker<T> {
-  private items: Array<T>
+  private items: Set<T>
   constructor(
     itemOrItems: T | Array<T>,
     options?: {
       valid?: (s: T) => boolean
     }) {
     super({valid: options?.valid})
-    this.items = Array.isArray(itemOrItems) ? itemOrItems : [itemOrItems]
+    this.items = new Set(Array.isArray(itemOrItems) ? itemOrItems : [itemOrItems])
   }
   _isInstance(value: unknown): value is T {
-    return this.items.some(item => item === value)
+    return this.items.has(value as T)
+  }
+}
+
+// NOTE: supporting non-string keys opens a whole new can or worms!
+export class KeyOfChecker<T extends Record<string, unknown>> extends Checker<keyof T> {
+  private items: Set<keyof T>
+  constructor(
+    object: T,
+    options?: {
+      valid?: (s: keyof T) => boolean
+    }) {
+    super({valid: options?.valid})
+    this.items = new Set(Object.keys(object))
+  }
+  _isInstance(value: unknown): value is keyof T {
+    return this.items.has(value as keyof T)
   }
 }
 
@@ -60,8 +76,18 @@ export class StringChecker extends Checker<string> {
   constructor(
     options?: {
       valid?: (s: string) => boolean
+      regexp?: RegExp
     }) {
-    super({valid: options?.valid})
+    const valid = (s: string): boolean => {
+      if (options?.regexp && s.match(options.regexp)?.at(0) === s) {
+        return false
+      }
+      if (options?.valid && !options.valid(s)) {
+        return false
+      }
+      return true
+    }
+    super({valid: valid})
   }
   _isInstance(value: unknown): value is string {
     return typeof value === "string"
@@ -203,9 +229,10 @@ Opt extends Record<ValidRecordKey, unknown>,
 export class RecordChecker<K extends ValidRecordKey, V> extends Checker<Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>>> {
   private keyChecker: Checker<ItemWithoutCheckerRecursive<K>>
   private valueChecker: Checker<ItemWithoutCheckerRecursive<V>>
-  constructor(
+  constructor({keyChecker, valueChecker}: {
     keyChecker: K | Checker<K>,
     valueChecker: V,
+  },
     options?: {
       valid?: (s: Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>>) => boolean
     }) {
@@ -222,6 +249,22 @@ export class RecordChecker<K extends ValidRecordKey, V> extends Checker<Record<I
       ([key, val]) => this.keyChecker.isInstance(key) && this.valueChecker.isInstance(val))
   }
 }
+
+export class UnionChecker<T extends unknown[]> extends Checker<ItemWithoutCheckerRecursive<T[number]>> {
+  private checkers: Checker<ItemWithoutCheckerRecursive<T[number]>>[]
+  constructor(
+    checkers: T,
+    options?: {valid?: (s: ItemWithoutCheckerRecursive<T[number]>) => boolean},
+  ) {
+  super({valid: options?.valid})
+  this.checkers = checkers.map(checker => getCheckerFromObject(checker)) as typeof this.checkers
+  }
+
+  _isInstance(value: unknown): value is ItemWithoutCheckerRecursive<T[number]> {
+    return this.checkers.some(checker => checker.isInstance(value))
+  }
+}
+
 
 type ItemWithoutCheckerRecursive<T> = (
 T extends Checker<infer C>

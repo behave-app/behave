@@ -4,21 +4,19 @@ import { SideBar } from "./SideBar";
 import { VideoPlayer } from "./VideoPlayer";
 import { DetectionBar } from "./DetectionBar";
 import { Behaviour } from "./Behaviour";
-import { Settings } from "./Settings";
 import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
 import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { isCompatibleBrowser, joinedStringFromDict } from "../lib/util";
-import { selectPlayerInfoShown } from "./settingsSlice";
-import { selectShowSettingsScreen, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { selectPlayerInfoShown } from "./generalSettingsSlice";
+import { selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Info } from "./Info"
 import { Dialog } from "../lib/Dialog"
 import { useAppDispatch } from "./store"
 
 export const Viewer: FunctionComponent = () => {
-  const showSettingsScreen = useSelector(selectShowSettingsScreen)
   const playerInfoShown = useSelector(selectPlayerInfoShown)
   useEffect(() => {
     if (!isCompatibleBrowser()) {
@@ -40,7 +38,6 @@ export const Viewer: FunctionComponent = () => {
     {playerInfoShown && <PlayerInfo />}
     <DetectionBar />
     <Behaviour />
-    {showSettingsScreen && <Settings />}
   </div>
 }
 

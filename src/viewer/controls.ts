@@ -14,7 +14,7 @@ import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
 import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSelectedSubject, selectSidebarPopup, selectZoom, settingsScreenShown, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
-import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./settingsSlice";
+import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./generalSettingsSlice";
 
 export type ControlInfo<T> = {
   iconName: ValidIconName
@@ -280,5 +280,3 @@ export const CONTROLS = {
 } as const
 
 export type ValidControlName = keyof typeof CONTROLS
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _CONTROLS: Record<ValidControlName, ControlInfo<any>> = CONTROLS

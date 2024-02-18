@@ -96,6 +96,10 @@ export function getDuplicateIndices(keys: unknown[]): number[][] {
   return [...binIndices(keys).values()].filter(v => v.length > 1)
 }
 
+export function elementsAreUnique(elements: unknown[]): boolean {
+  return new Set(elements).size === elements.length
+}
+
 export async function* readLines(
   file: File
 ): AsyncGenerator<string, void, undefined> {
@@ -158,4 +162,14 @@ export type RequiredProperties<T> = Pick<T, RequiredKeys<T>>;
 export function joinedStringFromDict(dict: Record<string, boolean>, sep?: string): string {
   return Object.entries(dict)
     .filter(([_k, v]) => v).map(([k]) => k).join(sep ?? " ")
+}
+
+export function ObjectKeys<K extends string, V>(
+  obj: Record<K, V>): ReadonlyArray<K> {
+  return Object.keys(obj) as unknown as ReadonlyArray<K>
+}
+
+export function ObjectEntries<K extends string, V>(
+  obj: Record<K, V>): ReadonlyArray<[K, V]> {
+  return Object.entries(obj) as unknown as ReadonlyArray<[K, V]>
 }

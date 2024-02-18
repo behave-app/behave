@@ -9,7 +9,7 @@ import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, selectVideoAspect, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert, joinedStringFromDict } from "../lib/util"
 import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
-import { ConfidenceLocation, selectConfidenceLocation } from "./settingsSlice"
+import { ConfidenceLocation, selectConfidenceLocation } from "./generalSettingsSlice"
 import { DetectionsForFrame } from "../lib/detections"
 import { zoomLevels, selectHideDetectionBoxes, selectZoom, zoomSet, } from "./appSlice"
 import { HSL, hslToLuminance, hslToString } from "../lib/colour"

@@ -1,16 +1,16 @@
 import { Icon, } from "../lib/Icon";
 import { useAppDispatch, } from "./store"
-import { joinedStringFromDict } from "../lib/util";
-import { ControlInfo, CONTROLS} from "./controls";
+import { joinedStringFromDict, ObjectEntries } from "../lib/util";
+import { ControlInfo, CONTROLS } from "./controls";
 import { useSelector } from "react-redux";
 import * as css from "./button.module.css"
 import { createSelector } from "@reduxjs/toolkit";
-import { selectGeneralShortcutsByAction } from "./settingsSlice";
 import { keyToStrings } from "../lib/key";
+import { selectActiveGeneralShortcutGroup } from "./shortcutsSlice";
 
 const selectShortcutKeysByControlinfo = createSelector(
-  [selectGeneralShortcutsByAction], (keysByAction) => {
-    return new Map([...keysByAction.entries()].map(([action, keys]) => {
+  [selectActiveGeneralShortcutGroup], (group) => {
+    return new Map(ObjectEntries(group.shortcuts).map(([action, keys]) => {
       return [CONTROLS[action], keys]
     }))
   }

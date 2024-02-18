@@ -5,13 +5,17 @@ import { VideoPlayer } from "./VideoPlayer";
 import { DetectionBar } from "./DetectionBar";
 import { Behaviour } from "./Behaviour";
 import { Settings } from "./Settings";
-import { selectShowSettingsScreen } from "./appSlice";
 import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
-import { ShortcutHandler } from "./ShortcutHandler";
+import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { isCompatibleBrowser, joinedStringFromDict } from "../lib/util";
 import { selectPlayerInfoShown } from "./settingsSlice";
+import { selectShowSettingsScreen, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { ClassSliders } from "./ClassSliders"
+import { Info } from "./Info"
+import { Dialog } from "../lib/Dialog"
+import { useAppDispatch } from "./store"
 
 export const Viewer: FunctionComponent = () => {
   const showSettingsScreen = useSelector(selectShowSettingsScreen)
@@ -30,12 +34,33 @@ export const Viewer: FunctionComponent = () => {
     [css.viewer]: true,
     [css.no_controls]: !playerInfoShown,
   })}>
+    <Popup />
     <SideBar />
     <VideoPlayer />
     {playerInfoShown && <PlayerInfo />}
     <DetectionBar />
     <Behaviour />
     {showSettingsScreen && <Settings />}
-    <ShortcutHandler />
   </div>
+}
+
+const Popup: FunctionComponent = () => {
+  const popup = useSelector(selectSidebarPopup)
+  const dispatch = useAppDispatch()
+  return popup && <Dialog onRequestClose={() => dispatch(sidebarPopupWasClosed())}>
+    {(() => {
+      switch (popup) {
+        case "info":
+          return <Info />
+        case "classSliders":
+          return <ClassSliders />
+        case "keyShortcuts":
+          return <KeyShortcuts />
+        default: {
+          const exhaust: never = popup
+          throw new Error(`Exhausted: ${exhaust}`)
+        }
+      }
+    })()}
+  </Dialog>
 }

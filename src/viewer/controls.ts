@@ -11,9 +11,9 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { hideDetectionBoxesToggled, keyShortcutHelpScreenToggled, selectHideDetectionBoxes, selectSelectedSubject, selectShowKeyShortcutHelp, selectSidebarPopup, selectZoom, settingsScreenShown, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
+import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSelectedSubject, selectSidebarPopup, selectZoom, settingsScreenShown, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
-import { selectRealOrDefaultSettingsByDetectionClass, selectSelectedBehaviourLine } from "./selectors";
+import { selectSelectedBehaviourLine } from "./selectors";
 import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./settingsSlice";
 
 export type ControlInfo<T> = {
@@ -42,30 +42,46 @@ info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
   }
 }
 
-export const CONTROLS = {
-  showInfo: fillAndWrapDefaultControlInfo({
-    iconName: "info",
+function createPopupControl<T>(props: {
+  iconName: ValidIconName,
+  name?: string,
+  popupName: SidebarPopup,
+  } & Partial<ControlInfo<T>>) {
+  const {name, popupName, ...rest} = props
+
+  return fillAndWrapDefaultControlInfo({
+    description: `Show ${name ?? popupName} popup`,
     action: dispatch => {
       void(dispatch(videoPause()))
-      dispatch(sidebarPopupWasToggled("info"))
+      dispatch(sidebarPopupWasToggled(popupName))
     },
-    description: "Show overlay with general information",
-    selectIsActivated: state => selectSidebarPopup(state) === "info",
+    selectIsActivated: state => selectSidebarPopup(state) === popupName,
     selectIsDisabled: () => false,
+    ...rest
+})
+}
+
+export const CONTROLS = {
+  show_info: createPopupControl({
+    iconName: "info",
+    popupName: "info"
   }),
 
-  classSliders: fillAndWrapDefaultControlInfo({
+  class_sliders: createPopupControl({
     iconName: "sliders",
-    action: dispatch => {
-      void(dispatch(videoPause()))
-      dispatch(sidebarPopupWasToggled("classSliders"))
-    },
-    description: "Show overlay where confidence sliders per class can be set",
-    selectIsActivated: state => selectSidebarPopup(state) === "classSliders",
-    selectIsDisabled: state => selectRealOrDefaultSettingsByDetectionClass(state) === null,
+    popupName: "classSliders",
+    name: "settings for detections",
   }),
 
-  showSettings: fillAndWrapDefaultControlInfo({
+
+  key_shortcut_help_toggle: createPopupControl({
+    iconName: "indeterminate_question_box",
+    name: "key shortcuts help and customization",
+    popupName: "keyShortcuts",
+  }),
+
+
+  show_settings: fillAndWrapDefaultControlInfo({
     iconName: "settings",
     action: dispatch => dispatch(settingsScreenShown()),
     description: "Show settings screen",
@@ -144,15 +160,6 @@ export const CONTROLS = {
     action: dispatch => {void(dispatch(videoSeekToFrameNumberAndPause(0)))},
     description: "Restart video"
   }),
-
-  key_shortcut_help_toggle: {
-    iconName: "indeterminate_question_box",
-    selectIsDisabled: () => false,
-    selectIsActivated: state => selectShowKeyShortcutHelp(state),
-    selectActionArgument: () => undefined,
-    action: dispatch => dispatch(keyShortcutHelpScreenToggled()),
-    description: "Show/hide the shortcut key help overlay"
-  } as ControlInfo<undefined>,
 
   previous_behaviour_line: fillAndWrapDefaultControlInfo({
     iconName: "vertical_align_top",
@@ -273,3 +280,5 @@ export const CONTROLS = {
 } as const
 
 export type ValidControlName = keyof typeof CONTROLS
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _CONTROLS: Record<ValidControlName, ControlInfo<any>> = CONTROLS

@@ -1,0 +1,90 @@
+.show_on_hover_buttons {
+    display: flex;
+    & > :not(.show_on_hover) {
+      flex-grow: 1;
+      flex-shrink: 1;
+    }
+    & > .show_on_hover {
+      flex: 0 0 2em;
+      opacity: 0;
+      transition: opacity .2s;
+      border: none;
+      background-color: unset;
+    }
+    &:hover > .show_on_hover {
+      opacity: 1;
+    }
+
+}
+
+.shortcut_list {
+  font-family: Arial, helvetica, sans-serif;
+  padding: 0 2em;
+
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: .7em;
+  flex-direction: row;
+  align-content: flex-start;
+  .item {
+    display: flex;
+    box-sizing: border-box;
+    flex: 1 1 20em;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    .button {
+      &.activated {
+        background-color: hsl(0, 0%, 70%);
+      }
+      display: flex;
+      flex-wrap: nowrap;
+      overflow: hidden;
+
+      .keys {
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: fit-content 0 0;
+        max-width: 50%;
+        display: inline-block;
+        .key {
+          display: inline-block;
+          margin-left: .7em;
+          &:not(:last-child)::after {
+            content: ", ";
+          }
+        }
+      }
+    }
+    .description {
+      margin-left: .7em;
+      display: inline-block;
+      flex-grow: 2;
+      flex-shrink: 2;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-align: left;
+    }
+  }
+}
+.edit_dialog {
+  max-width: 50vw;
+  h2 {
+    display: flex;
+    align-items: center;
+    font-size: 1.5em;
+    column-gap: 1.3em;
+    .icon {
+      font-size: 2em;
+      flex: 0 0 fit-content;
+    }
+  }
+  h3 {}
+  .shortcuts {
+    li {
+    }
+  }
+}

@@ -1,17 +1,19 @@
 import { FunctionComponent } from "preact"
-import { selectBehaviourShortcutMap, selectSubjectShortcutMap, selectVideoShortcutMap } from "./settingsSlice"
+import { selectBehaviourShortcutMap, selectGeneralShortcutsByAction, selectSubjectShortcutMap, selectVideoShortcutMap } from "./settingsSlice"
 import { useSelector } from "react-redux"
 import { useEffect, useMemo, useState } from "react"
 import { useAppDispatch } from "./store"
 import { keyFromEvent, Key, areEqualKeys, keyToStrings } from "../lib/key"
 import { Button, } from "./Button"
 import { CONTROLS, ControlInfo, ValidControlName } from "./controls"
-import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectIsWaitingForVideoShortcut, selectShowKeyShortcutHelp } from "./appSlice"
+import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, } from "./appSlice"
 import { behaviourInfoLineAdded, selectBehaviourInfo, } from "./behaviourSlice"
 import { videoPause } from "./videoPlayerActions"
-import * as css from "./shortcuthandler.module.css"
-import { joinedStringFromDict } from "../lib/util"
+import * as css from "./keyshortcuts.module.css"
+import { TSAssertType, joinedStringFromDict } from "../lib/util"
 import { selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./selectors"
+import { Icon } from "src/lib/Icon"
+import { Dialog } from "src/lib/Dialog"
 
 const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: boolean) => {
   return () => {
@@ -54,8 +56,6 @@ function VideoShortcutKey<T>(
   useEffect(createKeyDownEffect(doAction, keyCombi, disabled), [doAction, keyCombi, disabled])
 
   return <tr className={joinedStringFromDict({
-    [css.disabled]: disabled,
-    [css.fired]: fired
   })}>
     <td><button onClick={() => doAction()}>
       {keyToStrings(keyCombi).map(k => <kbd>{k}</kbd>)}</button></td>
@@ -80,8 +80,6 @@ const SubjectShortcutKey: FunctionComponent<{disabled: boolean, keyCombi: Key, s
   useEffect(createKeyDownEffect(doAction, keyCombi, disabled), [doAction, keyCombi, disabled])
 
   return <tr className={joinedStringFromDict({
-    [css.disabled]: disabled,
-    [css.fired]: fired
   })}>
     <td><button onClick={() => doAction()}>
       {keyToStrings(keyCombi).map(k => <kbd>{k}</kbd>)}</button></td>
@@ -121,8 +119,6 @@ function BehaviourShortcutKey(
   useEffect(createKeyDownEffect(doAction, keyCombi, disabled), [doAction, keyCombi, disabled])
 
   return <tr className={joinedStringFromDict({
-    [css.disabled]: disabled,
-    [css.fired]: fired
   })}>
     <td><button onClick={() => doAction()}>
       {keyToStrings(keyCombi).map(k => <kbd>{k}</kbd>)}</button></td>
@@ -132,45 +128,82 @@ function BehaviourShortcutKey(
   </tr>
 }
 
-export const ShortcutHandler: FunctionComponent = () => {
-  const videoActive = useSelector(selectIsWaitingForVideoShortcut)
+const ControlShortcut: FunctionComponent<{controlKey: ValidControlName}> = (
+  {controlKey}
+) => {
+  const generalShortcutsByAction = useSelector(selectGeneralShortcutsByAction)
+  const controlInfo = CONTROLS[controlKey]
+  const shortcuts = generalShortcutsByAction.get(controlKey) ?? []
+  const disabled = useSelector(controlInfo.selectIsDisabled)
+  const activated = useSelector(controlInfo.selectIsActivated)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any  -- can fix by making this function a generic
+  const actionArgument: any = useSelector(controlInfo.selectActionArgument)
+  const dispatch = useAppDispatch()
+  const [editPopup, setEditPopup] = useState(false)
+
+  return <div className={joinedStringFromDict({
+    [css.item]: true,
+    [css.show_on_hover_buttons]: true,
+  })}>
+    <button disabled={disabled}
+      className={joinedStringFromDict({
+        [css.activated]: activated,
+        [css.button]: true,
+      })}
+      onClick={() => {if (!disabled) {
+        controlInfo.action(dispatch, actionArgument)}}}
+      title={controlInfo.description + (shortcuts.length ? " (shortcut: "
+        + shortcuts.map(key => keyToStrings(key).join("-")).map(k => "`" + k + "`").join(", ")
+        + ")": "") + (disabled ? " [disabled]" : "") + (activated ? " [active]" : "")}>
+      <Icon iconName={controlInfo.iconName} />
+      <div className={css.description}>{controlInfo.description}</div>
+      <div className={css.keys}>
+        {shortcuts.map(k => <div className={css.key}>{keyToStrings(k).map(
+          singleKey => <kbd>{singleKey}</kbd>)}</div>)}
+      </div>
+    </button>
+    <button className={css.show_on_hover} onClick={() => setEditPopup(true)}><Icon iconName="edit" /></button>
+    {editPopup && <Dialog className={css.edit_dialog} blur onRequestClose={() => setEditPopup(false)}>
+      <h2>
+        <span className={css.icon}><Icon iconName={controlInfo.iconName} /></span>
+        {controlInfo.description}
+      </h2>
+      <h3>Status</h3>
+      <div>
+        {disabled && "[disabled]"} {activated && "[active]"}
+        {!(disabled || activated) && "normal"}
+      </div>
+      <h3>Shortcut keys</h3>
+      <div className={css.shortcuts}>
+        {shortcuts.length ? <ul>
+          {shortcuts.map(shortcut => <li className={css.show_on_hover_buttons}>
+            <div>
+              {keyToStrings(shortcut).map(singleKey => <kbd>{singleKey}</kbd>)}
+            </div>
+            <button className={css.show_on_hover}><Icon iconName="edit" /></button>
+            <button className={css.show_on_hover}><Icon iconName="delete" /></button>
+          </li>)}
+        </ul> : "No shortcuts defined"}
+        <button><Icon iconName="add" /> Add shortcut</button>
+      </div>
+    </Dialog>}
+  </div>
+}
+
+export const KeyShortcuts: FunctionComponent = () => {
   const subjectActive = useSelector(selectIsWaitingForSubjectShortcut)
   const behaviourActive = useSelector(selectIsWaitingForBehaviourShortcut)
   const videoShortcuts = useSelector(selectVideoShortcutMap)
   const subjectShortcuts = useSelector(selectSubjectShortcutMap)
   const behaviourShortcuts = useSelector(selectBehaviourShortcutMap)
-  const showKeyboardShortcuts = useSelector(selectShowKeyShortcutHelp)
+  const generalShortcutsByAction = useSelector(selectGeneralShortcutsByAction)
 
-  return <div className={joinedStringFromDict({
-    [css.shortcuts]: true,
-    [css.visible]: showKeyboardShortcuts,
-  })}>
+  return <div>
     <div>
       <h2>General shortcuts</h2>
-      <table>
-      <tbody>
-      {[...videoShortcuts.values()].filter(({key}) => key).map(
-        shortcut => <VideoShortcutKey disabled={!videoActive} keyCombi={shortcut.key!} action={shortcut.action} />)}
-      </tbody>
-      </table>
-    </div>
-    <div>
-      <h2>Subject shortcuts</h2>
-      <table>
-      <tbody>
-      {[...subjectShortcuts.values()].filter(({key}) => key).map(
-        shortcut => <SubjectShortcutKey disabled={!subjectActive} keyCombi={shortcut.key!} subject={shortcut.action} />)}
-      </tbody>
-      </table>
-    </div>
-    <div>
-      <h2>Behaviour shortcuts</h2>
-      <table>
-      <tbody>
-      {[...behaviourShortcuts.values()].filter(({key}) => key).map(
-        shortcut => <BehaviourShortcutKey disabled={!behaviourActive} keyCombi={shortcut.key!} behaviour={shortcut.action} />)}
-      </tbody>
-      </table>
-    </div>
+      <div className={css.shortcut_list}>
+        {Object.keys(CONTROLS).map((key) => <ControlShortcut controlKey={key as ValidControlName} />)}
+        </div>
+      </div>
   </div>
 }

@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction} from '@reduxjs/toolkit'
 import type { RootState } from './store'
 
-export type SidebarPopup = "info" | "classSliders"
+export type SidebarPopup = "info" | "classSliders" | "keyShortcuts"
 export const zoomLevels = [1, 2, 3, 5] as const
 export type ZoomLevel = number
 
@@ -10,7 +10,6 @@ export const appSlice = createSlice({
   name: "app",
   initialState: {
     showSettingsScreen: false,
-    showKeyShortcutHelp: false,
     modalPopupOpen: false,
     sidebarPopup: null as SidebarPopup | null,
     selectedSubject: null  as null | string,
@@ -24,10 +23,6 @@ export const appSlice = createSlice({
       state.sidebarPopup = (state.sidebarPopup === payload ? null : payload)
     },
     sidebarPopupWasClosed: state => {state.sidebarPopup = null},
-    keyShortcutHelpScreenShown: state => {state.showKeyShortcutHelp = true},
-    keyShortcutHelpScreenHidden: state => {state.showKeyShortcutHelp = false},
-    keyShortcutHelpScreenToggled: state => {
-      state.showKeyShortcutHelp = !state.showKeyShortcutHelp},
     modalPopupOpened: state => {state.modalPopupOpen = true},
     modalPopupClosed: state => {state.modalPopupOpen = false},
     behaviourInputSubjectToggle: (state, action: PayloadAction<string>) => {
@@ -51,12 +46,11 @@ export const appSlice = createSlice({
 
 export default appSlice.reducer
 
-export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, keyShortcutHelpScreenShown, keyShortcutHelpScreenHidden, keyShortcutHelpScreenToggled, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomToggled, zoomSet} = appSlice.actions
+export const {settingsScreenShown, settingsScreenHidden, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomToggled, zoomSet} = appSlice.actions
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
 export const selectShowSettingsScreen = (state: RootState) => state.app.showSettingsScreen
-export const selectShowKeyShortcutHelp = (state: RootState) => state.app.showKeyShortcutHelp && ! state.app.showSettingsScreen
 export const selectModalPopupIsOpen = (state: RootState) => state.app.modalPopupOpen
 
 export const selectIsWaitingForVideoShortcut = (state: RootState) => (

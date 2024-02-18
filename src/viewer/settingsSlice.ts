@@ -252,9 +252,9 @@ export const {
 export const selectSettings = (state: RootState) => state.settings as SettingsState
 export const selectSettingsByDetectionClass = (state: RootState) => state.settings.settingsByDetectionClass
 export const selectConfidenceLocation = (state: RootState) => state.settings.confidenceLocation
-export const selectActiveVideoShortcuts = (state: RootState) => state.settings.videoShortcuts
-export const selectActiveVideoShortcutsByAction = createSelector(
-[selectActiveVideoShortcuts], (shortcuts) => {
+export const selectGeneralShortcuts = (state: RootState) => state.settings.videoShortcuts
+export const selectGeneralShortcutsByAction = createSelector(
+[selectGeneralShortcuts], (shortcuts) => {
     return shortcuts.reduce((myMap, shortcut) => {
     const key = shortcut[0]
     const action = shortcut[1] as ValidControlName
@@ -288,7 +288,7 @@ export const selectFramenumberIndexInLayout = createSelector(
 
 export type VideoShortcutItem = {type: "video", key: VideoShortcut[0], action: VideoShortcut[1]}
 export const selectVideoShortcutMap = createSelector(
-[selectActiveVideoShortcuts],
+[selectGeneralShortcuts],
 (videoShortcuts) => {
     return new Map([
       ...videoShortcuts

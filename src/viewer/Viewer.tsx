@@ -52,7 +52,7 @@ const Popup: FunctionComponent = () => {
         case "classSliders":
           return <ClassSliders />
         case "keyShortcuts":
-          return <KeyShortcuts />
+          return <KeyShortcuts onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
         default: {
           const exhaust: never = popup
           throw new Error(`Exhausted: ${exhaust}`)

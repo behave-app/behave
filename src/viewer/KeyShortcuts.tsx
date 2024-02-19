@@ -13,9 +13,11 @@ import { ObjectEntries, ObjectKeys, TSAssertType, assert, joinedStringFromDict }
 import { selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./selectors"
 import { Icon, ValidIconName } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { KeyAlreadyInUseException, ShortcutsState, createOrUpdateShortcutKey, selectActiveGeneralShortcutGroup, shortcutKeyRemoved } from "./shortcutsSlice"
+import { KeyAlreadyInUseException, ShortcutGroup, ShortcutsState, createOrUpdateShortcutKey, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup, shortcutKeyRemoved } from "./shortcutsSlice"
 import { MODIFIER_KEYS } from "../lib/defined_keys"
 import { SerializedError } from "@reduxjs/toolkit"
+import type { RootState } from "./store"
+import { addBehaviourLine } from "./reducers"
 
 // const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: boolean) => {
 //   return () => {
@@ -130,17 +132,6 @@ import { SerializedError } from "@reduxjs/toolkit"
 //   </tr>
 // }
 //
-type ControlShortcutEditPopupProps<T extends keyof ShortcutsState> = {
-  shortcutsStateKey: T
-  action: T extends "generalShortcuts" ? ValidControlName : string
-  onRequestClose: () => void
-  title: string
-  iconName: ValidIconName
-  disabled: boolean
-  activated: boolean
-  keys: ReadonlyArray<Key>
-}
-
 const keyToStringsSpecial = (key: Partial<Key>): string[] => {
   const codeMissing = !("code" in key)
   const newKey = (codeMissing ? {...key, code: "KeyA" as const} : {...key}) as Key
@@ -148,9 +139,22 @@ const keyToStringsSpecial = (key: Partial<Key>): string[] => {
   return codeMissing ? strings.slice(0, -1) : strings
 }
 
+type ControlShortcutEditPopupProps<T extends keyof ShortcutsState> = {
+  shortcutsStateKey: T
+  action: T extends "generalShortcuts" ? ValidControlName : string
+  onRequestClose: () => void
+  disabled: boolean
+  activated: boolean
+  keys: ReadonlyArray<Key>
+  title: string
+  iconName: ValidIconName
+}
+
+
 function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   {
     shortcutsStateKey, action, onRequestClose, disabled, activated, keys,
+    title, iconName,
   }: ControlShortcutEditPopupProps<T>
 ) {
   const dispatch = useAppDispatch()
@@ -253,10 +257,6 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     keysWithEdit[editKeyInfo.index] = "edit"
   }
 
-  const title = shortcutsStateKey === "generalShortcuts"
-  ? CONTROLS[action as ValidControlName].description : action
-  const iconName = shortcutsStateKey === "generalShortcuts"
-  ? CONTROLS[action as ValidControlName].iconName :null
   return <Dialog className={css.edit_dialog} blur onRequestClose={onRequestClose}>
     <h2>
       {iconName && <span className={css.icon}><Icon iconName={iconName} /></span>}
@@ -337,19 +337,65 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   </Dialog>
 }
 
+type ControlShortcutProps<T extends keyof ShortcutsState> = {
+  shortcutsStateKey: T
+  action: T extends "generalShortcuts" ? ValidControlName : string
+  onRequestClose: () => void
+}
 
-const ControlShortcut: FunctionComponent<{controlKey: ValidControlName}> = (
-  {controlKey}
-) => {
-  const generalShortcutsByAction = useSelector(selectActiveGeneralShortcutGroup)
-  const controlInfo = CONTROLS[controlKey]
-  const keys = generalShortcutsByAction.shortcuts[controlKey] ?? []
-  const disabled = useSelector(controlInfo.selectIsDisabled)
-  const activated = useSelector(controlInfo.selectIsActivated)
+function ControlShortcut<T extends keyof ShortcutsState>(
+  {shortcutsStateKey, action, onRequestClose}: ControlShortcutProps<T>
+) {
+  const shortcutsGroup = useSelector(
+    shortcutsStateKey === "generalShortcuts" ? selectActiveGeneralShortcutGroup
+    : shortcutsStateKey === "subjectShortcuts" ? selectActiveSubjectShortcutGroup
+    : selectActiveBehaviourShortcutGroup) as ShortcutGroup<T extends "generalShortcuts" ? ValidControlName : string>
+  const keys = shortcutsGroup.shortcuts[action] ?? []
+  const controlInfo = shortcutsStateKey === "generalShortcuts"
+    ? CONTROLS[action as ValidControlName] : null
+
+  const disabled = useSelector(
+    shortcutsStateKey === "generalShortcuts" ? controlInfo!.selectIsDisabled
+    : shortcutsStateKey === "subjectShortcuts"
+    ? (state: RootState) => !selectIsWaitingForSubjectShortcut(state)
+    : (state: RootState) => !selectIsWaitingForBehaviourShortcut(state))
+
+  const activated = useSelector(controlInfo?.selectIsActivated ?? (() => false))
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any  -- can fix by making this function a generic
-  const actionArgument: any = useSelector(controlInfo.selectActionArgument)
+  const actionArgument: any = useSelector(
+    controlInfo?.selectActionArgument ?? (() => undefined))
   const dispatch = useAppDispatch()
   const [editPopup, setEditPopup] = useState(false)
+
+  const title = controlInfo ? controlInfo.description : action
+  const iconName: ValidIconName = (
+    shortcutsStateKey === "generalShortcuts" ? controlInfo!.iconName
+      : shortcutsStateKey === "subjectShortcuts" ? "cruelty_free"
+        : "sprint")
+
+  const dispatchAction = async () => {
+    if (disabled) {
+      return;
+    }
+    switch (shortcutsStateKey) {
+      case "generalShortcuts":
+        controlInfo!.action(dispatch, actionArgument)
+        break
+      case "subjectShortcuts":
+        dispatch(behaviourInputSubjectToggle(action))
+        break
+      case "behaviourShortcuts":
+        void(dispatch(addBehaviourLine(action)))
+        break
+      default:
+      {
+          const exhaust : never = shortcutsStateKey
+          throw new Error(`Exhausted: ${exhaust}`)
+      }
+    }
+    onRequestClose()
+  }
 
   return <div className={joinedStringFromDict({
     [css.item]: true,
@@ -360,13 +406,12 @@ const ControlShortcut: FunctionComponent<{controlKey: ValidControlName}> = (
         [css.activated]: activated,
         [css.button]: true,
       })}
-      onClick={() => {if (!disabled) {
-        controlInfo.action(dispatch, actionArgument)}}}
-      title={controlInfo.description + (keys.length ? " (shortcut: "
+      onClick={() => dispatchAction}
+      title={title + (keys.length ? " (shortcut: "
         + keys.map(key => keyToStrings(key).join("-")).map(k => "`" + k + "`").join(", ")
         + ")": "") + (disabled ? " [disabled]" : "") + (activated ? " [active]" : "")}>
-      <Icon iconName={controlInfo.iconName} />
-      <div className={css.description}>{controlInfo.description}</div>
+      <Icon iconName={iconName} />
+      <div className={css.description}>{title}</div>
       <div className={css.keys}>
         {keys.map(key => <div className={css.key}>{keyToStrings(key).map(
           singleKey => <kbd>{singleKey}</kbd>)}</div>)}
@@ -375,24 +420,70 @@ const ControlShortcut: FunctionComponent<{controlKey: ValidControlName}> = (
     <button className={css.show_on_hover} onClick={() => setEditPopup(true)}><Icon iconName="edit" /></button>
     {editPopup && <ControlShortcutEditPopup
     onRequestClose={() => setEditPopup(false)}
-    shortcutsStateKey="generalShortcuts"
-    action={controlKey}
+    shortcutsStateKey={shortcutsStateKey}
+    action={action}
     disabled={disabled}
     activated={activated}
     keys={keys}
-    title={controlInfo.description}
-    iconName={controlInfo.iconName}
+    title={title}
+    iconName={iconName}
     />}
   </div>
 }
 
-export const KeyShortcuts: FunctionComponent = () => {
+type ShortcutListProps = {
+  onRequestClose: () => void
+  shortcutsStateKey: keyof ShortcutsState
+}
+
+type ActionType<T extends keyof ShortcutsState> = T extends "generalShortcuts" ? ValidControlName : string
+
+const ShortcutList: FunctionComponent<ShortcutListProps> = (
+  {onRequestClose, shortcutsStateKey}
+) => {
+  const shortcuts: Record<ActionType<typeof shortcutsStateKey>, unknown> = useSelector(
+    (state: RootState) => shortcutsStateKey === "generalShortcuts" ? CONTROLS
+  : shortcutsStateKey === "subjectShortcuts"
+      ? selectActiveSubjectShortcutGroup(state).shortcuts
+      : selectActiveBehaviourShortcutGroup(state).shortcuts
+  )
+
+  const subjectDisabledLine = <>All subjects are disabled at the moment. Subjects can only be chosen when a Behaviour file was opened in edit mode.</>
+  const behaviourDisabledLine = <>All behaviours are disabled at the moment. Behaviours can only be chosen after a subject is chosen. If you want a line without a subject (and only behaviour), create a subject with an empty string.</>
+
+
+  const intro = useSelector((state: RootState) =>
+    shortcutsStateKey === "generalShortcuts" ? null
+    : shortcutsStateKey === "subjectShortcuts"
+    ? (selectIsWaitingForSubjectShortcut(state) ? null : subjectDisabledLine)
+    : (selectIsWaitingForBehaviourShortcut(state) ? null : behaviourDisabledLine)
+  )
+
   return <div>
-    <div>
-      <h2>General shortcuts</h2>
+      <h2>{shortcutsStateKey === "generalShortcuts" ? "General"
+    : shortcutsStateKey === "subjectShortcuts" ? "Subject"
+    : "Behaviour"} shortcuts</h2>
+      {intro && <div className={css.intro}>{intro}</div>}
       <div className={css.shortcut_list}>
-        {Object.keys(CONTROLS).map((key) => <ControlShortcut controlKey={key as ValidControlName} />)}
+        {ObjectKeys(shortcuts).map((action) => <ControlShortcut
+          action={action}
+          shortcutsStateKey={shortcutsStateKey}
+          onRequestClose={onRequestClose}
+        />)}
         </div>
       </div>
+}
+
+type Props = {
+  onRequestClose: () => void
+}
+
+export const KeyShortcuts: FunctionComponent<Props> = ({onRequestClose}) => {
+  const shortcutsStateKeys: (keyof ShortcutsState)[] = ["generalShortcuts", "subjectShortcuts", "behaviourShortcuts"]
+  return <div>
+    {shortcutsStateKeys.map(
+      shortcutsStateKey => <ShortcutList
+        onRequestClose={onRequestClose} shortcutsStateKey={shortcutsStateKey} />)
+    }
   </div>
 }

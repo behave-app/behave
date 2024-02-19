@@ -1,6 +1,6 @@
 import { ArrayChecker, Checker, KeyOfChecker, ObjectChecker, } from "./typeCheck"
 import { MODIFIER_KEYS, KEYCODE_BY_DISPLAY } from "./defined_keys"
-import { binIndices, elementsAreUnique } from "./util"
+import { elementsAreUnique } from "./util"
 
 export class InvalidKeyError extends Error {}
 

@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import { BehaveLayout } from './settingsSlice'
+import { BehaveLayout } from './generalSettingsSlice'
 
 export type BehaviourDirectory = {
   directory: FileSystemDirectoryHandle

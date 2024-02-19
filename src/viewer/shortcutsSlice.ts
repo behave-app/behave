@@ -228,7 +228,6 @@ boolean, {
       throw new AssertError(`Called with non-existing old key: ${stateKey} ${action}`)
     }
     dispatch(shortcutKeyAddedOrReplaced({stateKey, action, newKey, oldKey}))
-
     return true
   }
 )

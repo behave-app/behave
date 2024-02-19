@@ -32,10 +32,8 @@ function fillAndWrapDefaultControlInfo<T>(
 info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
 ): ControlInfo<T> {
   return {
-    selectIsActivated: (state: RootState) => selectPlayerState(state) !== null
-      && (info.selectIsActivated ?? (() => false))(state),
-    selectIsDisabled: (state: RootState) => selectPlayerState(state) === null
-      || (info.selectIsDisabled ?? (() => false))(state),
+    selectIsActivated: (state: RootState) => selectPlayerState(state) !== null,
+    selectIsDisabled: (state: RootState) => selectPlayerState(state) === null,
     selectActionArgument: (state: RootState) => (
       info.selectActionArgument ?? (() => undefined as T))(state),
     ...info,
@@ -111,7 +109,7 @@ export const CONTROLS = {
     iconName: "speed",
     subIconName: "south_east",
     action: dispatch => {void(dispatch(videoChangePlaybackRateOneStep("faster")))},
-    selectIsDisabled: state => selectPlaybackRate(state) === PLAYBACK_RATES.at(-1)!,
+    selectIsDisabled: state => selectPlayerState(state) === null || selectPlaybackRate(state) === PLAYBACK_RATES.at(-1)!,
     description: "Increase playback speed"
   }),
 
@@ -119,7 +117,7 @@ export const CONTROLS = {
     iconName: "speed",
     subIconName: "north_west",
     action: dispatch => {void(dispatch(videoChangePlaybackRateOneStep("slower")))},
-    selectIsDisabled: state => selectPlaybackRate(state) === PLAYBACK_RATES.at(0)!,
+    selectIsDisabled: state => selectPlayerState(state) === null || selectPlaybackRate(state) === PLAYBACK_RATES.at(0)!,
     description: "Decrease playback speed"
   }),
   next_frame: fillAndWrapDefaultControlInfo({

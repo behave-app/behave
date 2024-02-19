@@ -3,6 +3,9 @@ import type {ATConfig } from "./store"
 import { selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./selectors"
 import { behaviourInfoLineAdded, selectBehaviourInfo } from "./behaviourSlice"
 import { assert } from "../lib/util"
+import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut } from "./appSlice"
+import { ShortcutsState } from "./shortcutsSlice"
+import { CONTROLS, ValidControlName } from "./controls"
 
 export const addBehaviourLine = createAsyncThunk<
 void, string , ATConfig
@@ -21,7 +24,47 @@ void, string , ATConfig
         .map(([index]) => index))
     const lineWithBehaviour = insertLine.map(
       (word, index) => behaviourIndicesInLine.has(index) ? behaviour : word)
+    dispatch(behaviourInputSubjectUnselected())
     dispatch(behaviourInfoLineAdded({
       line: lineWithBehaviour, insertIndex: insertIndex!.index + 1}))
   }
 )
+
+
+export const executeShortcutAction = createAsyncThunk<
+void, {
+  action: string, shortcutsStateKey: keyof ShortcutsState
+}, ATConfig
+>(
+  "shortcuts/handleKeyPress",
+  async ({action, shortcutsStateKey} , {getState, dispatch, rejectWithValue}) =>  {
+    const state = getState()
+    switch (shortcutsStateKey) {
+      case "generalShortcuts": {
+        const controlInfo = CONTROLS[action as ValidControlName]
+        if (controlInfo.selectIsDisabled(state)) {
+          return rejectWithValue("General action is disabled")
+        }
+        const actionparams = controlInfo.selectActionArgument(state)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        controlInfo.action(dispatch, actionparams as any)
+      } break;
+      case "subjectShortcuts": {
+        if (!selectIsWaitingForSubjectShortcut(state)) {
+          return rejectWithValue("Subject action is disabled")
+        }
+        dispatch(behaviourInputSubjectToggle(action))
+      } break;
+      case "behaviourShortcuts": {
+        if (!selectIsWaitingForBehaviourShortcut(state)) {
+          return rejectWithValue("Behaviour action is disabled")
+        }
+        void(dispatch(addBehaviourLine(action)))
+
+      } break;
+      default: {
+        const exhaust : never = shortcutsStateKey
+        throw new Error("Exhausted " + exhaust)
+      }
+    }
+  })

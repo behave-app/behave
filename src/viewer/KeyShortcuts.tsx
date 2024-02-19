@@ -17,7 +17,7 @@ import { KeyAlreadyInUseException, ShortcutGroup, ShortcutsState, createOrUpdate
 import { MODIFIER_KEYS } from "../lib/defined_keys"
 import { SerializedError } from "@reduxjs/toolkit"
 import type { RootState } from "./store"
-import { addBehaviourLine } from "./reducers"
+import { addBehaviourLine, executeShortcutAction } from "./reducers"
 
 // const createKeyDownEffect = (doAction: () => void, keyCombi: Key, disabled: boolean) => {
 //   return () => {
@@ -363,8 +363,6 @@ function ControlShortcut<T extends keyof ShortcutsState>(
   const activated = useSelector(controlInfo?.selectIsActivated ?? (() => false))
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any  -- can fix by making this function a generic
-  const actionArgument: any = useSelector(
-    controlInfo?.selectActionArgument ?? (() => undefined))
   const dispatch = useAppDispatch()
   const [editPopup, setEditPopup] = useState(false)
 
@@ -373,29 +371,6 @@ function ControlShortcut<T extends keyof ShortcutsState>(
     shortcutsStateKey === "generalShortcuts" ? controlInfo!.iconName
       : shortcutsStateKey === "subjectShortcuts" ? "cruelty_free"
         : "sprint")
-
-  const dispatchAction = async () => {
-    if (disabled) {
-      return;
-    }
-    switch (shortcutsStateKey) {
-      case "generalShortcuts":
-        controlInfo!.action(dispatch, actionArgument)
-        break
-      case "subjectShortcuts":
-        dispatch(behaviourInputSubjectToggle(action))
-        break
-      case "behaviourShortcuts":
-        void(dispatch(addBehaviourLine(action)))
-        break
-      default:
-      {
-          const exhaust : never = shortcutsStateKey
-          throw new Error(`Exhausted: ${exhaust}`)
-      }
-    }
-    onRequestClose()
-  }
 
   return <div className={joinedStringFromDict({
     [css.item]: true,
@@ -406,7 +381,13 @@ function ControlShortcut<T extends keyof ShortcutsState>(
         [css.activated]: activated,
         [css.button]: true,
       })}
-      onClick={() => dispatchAction}
+      onClick={() => {
+        if (disabled) {
+          return
+        }
+        onRequestClose()
+        void(dispatch(executeShortcutAction({shortcutsStateKey, action})))
+      }}
       title={title + (keys.length ? " (shortcut: "
         + keys.map(key => keyToStrings(key).join("-")).map(k => "`" + k + "`").join(", ")
         + ")": "") + (disabled ? " [disabled]" : "") + (activated ? " [active]" : "")}>
@@ -419,14 +400,14 @@ function ControlShortcut<T extends keyof ShortcutsState>(
     </button>
     <button className={css.show_on_hover} onClick={() => setEditPopup(true)}><Icon iconName="edit" /></button>
     {editPopup && <ControlShortcutEditPopup
-    onRequestClose={() => setEditPopup(false)}
-    shortcutsStateKey={shortcutsStateKey}
-    action={action}
-    disabled={disabled}
-    activated={activated}
-    keys={keys}
-    title={title}
-    iconName={iconName}
+      onRequestClose={() => setEditPopup(false)}
+      shortcutsStateKey={shortcutsStateKey}
+      action={action}
+      disabled={disabled}
+      activated={activated}
+      keys={keys}
+      title={title}
+      iconName={iconName}
     />}
   </div>
 }

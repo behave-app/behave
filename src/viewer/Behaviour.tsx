@@ -11,6 +11,7 @@ import { selectBehaviourLineWithoutBehaviour, selectCurrentFrameNumber, selectSe
 import { videoSeekToFrameNumberAndPause } from "./videoPlayerActions"
 import { keyFromEvent } from "../lib/key"
 import { behaviourInputSubjectUnselected } from "./appSlice"
+import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
 
 
 const BehaviourEditor: FunctionComponent = () => {
@@ -173,11 +174,12 @@ const BehaviourEditor: FunctionComponent = () => {
 
 const BehaviourCreator: FunctionComponent = () => {
   const videoFile = useSelector(selectVideoFilePotentiallyNull)
+  const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const defaultLayout = useSelector(selectBehaviourLayout)
   const dispatch = useAppDispatch()
 
-  if (!videoFile) {
-    return <div>Add video file first</div>
+  if (!videoFile || !detectionInfo) {
+    return <div>Add video file and detection file first</div>
   }
   return <div>
     <button onClick={() => dispatch(behaviourInfoCreatedNew({

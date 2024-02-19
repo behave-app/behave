@@ -2,6 +2,18 @@ import { OptionalProperties, RequiredProperties } from "./util"
 
 type ValidRecordKey = string | number | symbol
 
+class TypeCheckerError extends Error {
+  constructor (
+    path: string,
+    reason : string,
+    public readonly value: unknown,
+    public readonly errors?: ReadonlyArray<TypeCheckerError>
+  ) {
+    super(`TypeCheckerError at ${path}: ${reason}`)
+    return
+  }
+}
+
 export abstract class Checker<T> {
   private readonly valid: (value: T) => boolean
   constructor(
@@ -12,9 +24,30 @@ export abstract class Checker<T> {
   }
 
   isInstance(value: unknown): value is T {
-    return this._isInstance(value) && this.valid(value)
+    try {
+      this._assertInstance(value, "")
+      return true
+    } catch (e) {
+      if (e instanceof TypeCheckerError) {
+        console.error("Typecheck failed", e)
+        return false
+      }
+      throw e
+    }
   }
-  protected abstract _isInstance(value: unknown): value is T;
+
+  assertInstance(value: unknown): asserts value is T {
+    this._assertInstance(value, "")
+  }
+
+  _assertInstance(value: unknown, path: string): asserts value is T {
+    this._assertInstanceIgnoreValid(value, path)
+    if (!this.valid(value)) {
+      throw new TypeCheckerError(path, "valid function failed", value)
+    }
+  }
+
+  protected abstract _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is T;
 }
 
 export class LiteralChecker<T extends boolean | string | number | null | undefined | symbol> extends Checker<T> {
@@ -27,8 +60,10 @@ export class LiteralChecker<T extends boolean | string | number | null | undefin
     super({valid: options?.valid})
     this.items = new Set(Array.isArray(itemOrItems) ? itemOrItems : [itemOrItems])
   }
-  _isInstance(value: unknown): value is T {
-    return this.items.has(value as T)
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is T {
+    if (!this.items.has(value as T)) {
+      throw new TypeCheckerError(path, `${value} not in ${this.items}`, value)
+    }
   }
 }
 
@@ -43,8 +78,10 @@ export class KeyOfChecker<T extends Record<string, unknown>> extends Checker<key
     super({valid: options?.valid})
     this.items = new Set(Object.keys(object))
   }
-  _isInstance(value: unknown): value is keyof T {
-    return this.items.has(value as keyof T)
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is keyof T {
+    if (!this.items.has(value as keyof T)) {
+      throw new TypeCheckerError(path, `{$value} not in ${this.items}`, value)
+    }
   }
 }
 
@@ -55,8 +92,10 @@ export class NullChecker extends Checker<null> {
     }) {
     super({valid: options?.valid})
   }
-  _isInstance(value: unknown): value is null {
-    return value === null
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is null {
+    if (!value === null) {
+      throw new TypeCheckerError(path, `${value} is not null`, value)
+    }
   }
 }
 
@@ -67,8 +106,10 @@ export class BooleanChecker extends Checker<boolean> {
     }) {
     super({valid: options?.valid})
   }
-  _isInstance(value: unknown): value is boolean {
-    return typeof value === "boolean"
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is boolean {
+    if (!(typeof value === "boolean")) {
+      throw new TypeCheckerError(path, `${value} is not a boolean`, value)
+    }
   }
 }
 
@@ -89,8 +130,10 @@ export class StringChecker extends Checker<string> {
     }
     super({valid: valid})
   }
-  _isInstance(value: unknown): value is string {
-    return typeof value === "string"
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is string {
+    if (!(typeof value === "string")) {
+      throw new TypeCheckerError(path, `${value} is not a string`, value)
+    }
   }
 }
 
@@ -129,8 +172,10 @@ export class NumberChecker extends Checker<number> {
     super({valid: valid})
   }
 
-  _isInstance(value: unknown): value is number {
-    return typeof value === "number"
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is number {
+    if (!(typeof value === "number")) {
+      throw new TypeCheckerError(path, `${value} is not a number`, value)
+    }
   }
 }
 
@@ -145,9 +190,11 @@ export class ArrayChecker<T> extends Checker<Array<ItemWithoutCheckerRecursive<T
     this.itemChecker = getCheckerFromObject(itemChecker)
   }
 
-  _isInstance(value: unknown): value is Array<ItemWithoutCheckerRecursive<T>> {
-    return Array.isArray(value) && value.every(
-      el => this.itemChecker.isInstance(el))
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is Array<ItemWithoutCheckerRecursive<T>> {
+    if (!Array.isArray(value)) {
+      throw new TypeCheckerError(path, `${value} is not an Array`, value)
+    }
+    value.map((el, index) => this.itemChecker._assertInstance(el, `${path}[${index}]`))
   }
 }
 
@@ -162,10 +209,11 @@ export class TupleChecker<T extends unknown[]> extends Checker<ItemWithoutChecke
     this.itemChecker = itemChecker.map(el => getCheckerFromObject(el)) as typeof this.itemChecker
   }
 
-  _isInstance(value: unknown): value is ItemWithoutCheckerRecursive<T> {
-    return Array.isArray(value)
-      && this.itemChecker.length === value.length
-      && value.every((el, index) => this.itemChecker[index].isInstance(el))
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is ItemWithoutCheckerRecursive<T> {
+    if (!(Array.isArray(value) && this.itemChecker.length === value.length)) {
+      throw new TypeCheckerError(path, `${value} is not an array of length ${this.itemChecker.length}`, value)
+    }
+    value.every((el, index) => this.itemChecker[index]._assertInstance(el, `${path}.${index}`))
   }
 }
 
@@ -203,25 +251,30 @@ Opt extends Record<ValidRecordKey, unknown>,
     }
   }
 
-  _isInstance(value: unknown): value is CombineReqAndOptRemoveCheckers<Req, Opt> {
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is CombineReqAndOptRemoveCheckers<Req, Opt> {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      return false;
+      throw new TypeCheckerError(path, `${value} is not an object`, value)
     }
     if (!Object.keys(this.requiredItemChecker).every(key => key in value)) {
-      return false
+      const keys = new Set(Object.keys(this.requiredItemChecker))
+      Object.keys(value).forEach(k => keys.delete(k))
+      throw new TypeCheckerError(path, `Value is missing keys ${[...keys]}`, value)
     }
     if (!Object.keys(value).every(
       key => key in this.requiredItemChecker || this.optionalItemChecker)) {
-      return false
+      const keys = new Set(Object.keys(value))
+      Object.keys(this.requiredItemChecker).forEach(k => keys.delete(k))
+      Object.keys(this.optionalItemChecker).forEach(k => keys.delete(k))
+      throw new TypeCheckerError(path, `Value has extra keys ${[...keys]}`, value)
     }
     const combinedItemChecker = {
       ...this.requiredItemChecker,
       ...this.optionalItemChecker,
     }
-    return Object.keys(value).every(key => {
+    Object.keys(value).every(key => {
       const checker = combinedItemChecker[key]
       const val = value[key as keyof typeof value]
-      return checker.isInstance(val)
+      return checker._assertInstance(val, `${path}.${key}`)
     })
   }
 }
@@ -241,12 +294,14 @@ export class RecordChecker<K extends ValidRecordKey, V> extends Checker<Record<I
     this.valueChecker = getCheckerFromObject(valueChecker)
   }
 
-  _isInstance(value: unknown): value is Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>> {
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is Record<ItemWithoutCheckerRecursive<K>, ItemWithoutCheckerRecursive<V>> {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      return false;
+      throw new TypeCheckerError(path, `${value} is not an object`, value)
     }
-    return Object.entries(value).every(
-      ([key, val]) => this.keyChecker.isInstance(key) && this.valueChecker.isInstance(val))
+    Object.entries(value).forEach(([key, val], index) => {
+      this.keyChecker._assertInstance(key, `keyof ${index} (${path})`);
+      this.valueChecker._assertInstance(val, `${path}.${key}`)
+    })
   }
 }
 
@@ -260,8 +315,23 @@ export class UnionChecker<T extends unknown[]> extends Checker<ItemWithoutChecke
   this.checkers = checkers.map(checker => getCheckerFromObject(checker)) as typeof this.checkers
   }
 
-  _isInstance(value: unknown): value is ItemWithoutCheckerRecursive<T[number]> {
-    return this.checkers.some(checker => checker.isInstance(value))
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is ItemWithoutCheckerRecursive<T[number]> {
+    const errors: TypeCheckerError[] = []
+    for (let index = 0; index < this.checkers.length; index++) {
+      const checker = this.checkers[index]
+      try {
+        void(checker._assertInstance(value, `${path}<${index}>`))
+      } catch (e) {
+        if (e instanceof TypeCheckerError) {
+          errors.push(e)
+          continue
+        } else {
+          throw e
+        }
+      }
+      return 
+    }
+    throw new TypeCheckerError(path, "None of union paths match", value, errors)
   }
 }
 

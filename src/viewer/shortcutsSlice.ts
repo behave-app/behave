@@ -1,10 +1,9 @@
-import type { ATConfig} from './store'
-import { PayloadAction, createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
+import type { ATConfig, RootState} from './store'
+import { PayloadAction, createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { Key, areEqualKeys, keyChecker } from "../lib/key"
-import { ArrayChecker, Checker, LiteralChecker, NumberChecker, ObjectChecker, RecordChecker, StringChecker, UnionChecker, getCheckerFromObject } from '../lib/typeCheck'
+import { ArrayChecker, Checker, LiteralChecker, NumberChecker, ObjectChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck'
 import type { ValidControlName } from './controls'
-import type { RootState } from './store'
-import { ObjectEntries, TSAssertType } from '../lib/util'
+import { ObjectEntries } from '../lib/util'
 
 
 export type Shortcuts<T extends string = string> = Record<T, Key[]>

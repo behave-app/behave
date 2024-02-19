@@ -70,6 +70,7 @@ export const CONTROLS = {
   class_sliders: createPopupControl({
     iconName: "sliders",
     popupName: "classSliders",
+    selectIsDisabled: state => !selectDetectionInfoPotentiallyNull(state),
     name: "settings for detections",
   }),
 

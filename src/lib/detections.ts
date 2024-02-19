@@ -62,10 +62,10 @@ function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
     sourceFileName: "name",
     sourceFileXxHash64: "hash",
     modelName: "name",
-    modelKlasses: new RecordChecker(
-      new StringChecker({valid: s => /^([1-9][0-9]*)|0$/.test(s)}),
-      new StringChecker(),
-    ),
+    modelKlasses: new RecordChecker({
+      keyChecker: new StringChecker({regexp: /^([1-9][0-9]*)|0$/}),
+      valueChecker: new StringChecker(),
+    }),
     playbackFps: 0,
     recordFps: null,
     framesInfo: new ArrayChecker(framesInfoCheck),

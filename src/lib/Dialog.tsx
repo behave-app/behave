@@ -28,7 +28,6 @@ export const Dialog: FunctionComponent<Props> = (
       }
       const inside = event.offsetX >= 0 && event.offsetX <= dialog.clientWidth
         && event.offsetY >= 0 && event.offsetY <= dialog.clientHeight
-      console.log(dialog, dialog.clientWidth, dialog.clientHeight, event)
       if (!inside) {
         requestClose()
       }

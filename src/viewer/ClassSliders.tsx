@@ -29,9 +29,15 @@ export const ClassSliders: FunctionComponent = () => {
     }
   }, [realOrDefaultSettingsByDetectionClass, isUpToDate])
 
-  if (!settingsByDetectionClass || !detectionInfo) {
+  if (!settingsByDetectionClass) {
     return <div>
       Refreshing.....
+    </div>
+  }
+
+  if (!detectionInfo) {
+    return <div>
+      You need to load a detection file for this tab to work.
     </div>
   }
 
@@ -65,6 +71,10 @@ export const ClassSliders: FunctionComponent = () => {
           confidenceLocation =>
             <div data-value={confidenceLocation} title={confidenceLocation}>
               <svg viewBox="0 0 64 64"
+                style={{
+                "--video-width": "64px",
+                "--video-height": "64px",
+                }}
                 className={joinedStringFromDict({
                   [videoplayercss.overlay]: true,
                   [css.confidence_location_box]: true})}>

@@ -9,4 +9,8 @@
   &.blur::backdrop {
     backdrop-filter: blur(5px) grayscale(60%);
   }
+  &.error {
+    box-shadow: 0 0 1em red;
+    width: fit-content;
+  }
 }

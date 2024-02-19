@@ -179,15 +179,18 @@ const {
   shortcutKeyAddedOrReplaced,
 } = shortcutsSlice.actions
 
-export class KeyAlreadyInUseError extends Error {
-  constructor(
-    public readonly stateKey: keyof ShortcutsState,
-    public readonly action: string,
-    public readonly Key: Key,
-  ) {
-    super("Key already in use")
-  }
+export type KeyAlreadyInUseException<T extends keyof ShortcutsState = keyof ShortcutsState> = {
+  readonly stateKey: T
+  readonly action: T extends "generalShortcuts" ? ValidControlName : string
+  readonly key: Key
 }
+
+function keyAlreadyInUseException<T extends keyof ShortcutsState>(
+  exception: KeyAlreadyInUseException<T>
+): KeyAlreadyInUseException<T> {
+  return exception
+}
+
 export class AssertError extends Error {}
 
 export const createOrUpdateShortcutKey = createAsyncThunk<
@@ -199,16 +202,21 @@ boolean, {
 }, ATConfig
 >(
   "settings/shortcuts/createOrUpdateShortcutKey",
-  async ({stateKey, action, newKey, oldKey} , {getState, dispatch}) =>  {
-    if (oldKey === newKey) {
+  async ({stateKey, action, newKey, oldKey} , {getState, dispatch, rejectWithValue}) =>  {
+    if (oldKey && areEqualKeys(oldKey, newKey)) {
       return false
     }
     const state = getState().settings.shortcuts
-    ObjectEntries(state).forEach(([stateKey, shortcutGroups]) => {
+    ObjectEntries(state).forEach(([loopStateKey, shortcutGroups]) => {
       const activeGroup = getActiveGroup(shortcutGroups)
-      ObjectEntries(activeGroup.shortcuts).forEach(([action, keys]) => {
+      ObjectEntries(activeGroup.shortcuts).forEach(([loopAction, keys]) => {
         if (keys.some(key => areEqualKeys(key, newKey))) {
-          throw new KeyAlreadyInUseError(stateKey, action, newKey)
+          if (loopStateKey === stateKey && loopAction === action) {
+            dispatch(shortcutKeyRemoved(newKey))
+          } else {
+            throw rejectWithValue(keyAlreadyInUseException({
+            stateKey: loopStateKey, action: loopAction, key: newKey}))
+          }
         }
       })
     })

@@ -1,7 +1,8 @@
 export class AssertionError extends Error {}
 
-export function assert(predicate: boolean, message?: string): asserts predicate {
+export function assert(predicate: unknown, message?: string, dump?: unknown): asserts predicate {
   if (!predicate) {
+    console.error("Assertion failed: ", predicate, message, dump)
     throw new AssertionError(message ?? "Assertion failed")
   }
 }

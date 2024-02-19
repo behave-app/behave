@@ -9,10 +9,11 @@ type Props = {
   className?: string
   style?: CSSProperties
   blur?: boolean
+  type?: "error" | "normal"
 }
 
 export const Dialog: FunctionComponent<Props> = (
-{onRequestClose: requestClose, children, blur, className, style}
+{onRequestClose: requestClose, type, children, blur, className, style}
 ) => {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
@@ -51,6 +52,7 @@ export const Dialog: FunctionComponent<Props> = (
   return <dialog ref={dialogRef} style={style} className={joinedStringFromDict({
     [css.dialog]: true,
     [css.blur]: !!blur,
+    [css.error]: type === "error",
     [className ?? ""]: className !== undefined,
   })}>
   {children}

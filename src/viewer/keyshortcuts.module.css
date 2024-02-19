@@ -81,8 +81,47 @@
   }
   h3 {}
   .shortcuts {
-    li .editing_key {
-      background-color: yellow;
+    padding: 1.5em;
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    .shortcut_row {
+      display: flex;
+      flex-flow: row nowrap;
+      &:nth-child(2n) {
+          background-color: hsl(0, 0%, 0%, .05);
+      }
+      &:nth-child(2n + 1) {
+          background-color: hsl(0, 0%, 0%, .1);
+      }
+      button {
+        flex: 0 0 2em;
+        border: none;
+        background-color: unset;
+      }
+      .shortcut_key  {
+        height: 1.3lh;
+        box-sizing: border-box;
+        flex-grow: 1;
+      }
+      &.editing_key .shortcut_key {
+        background-color: hsl(0, 0%, 100%, .3);
+        border: 1px solid hsl(0, 0%, 0, .3);
+      }
     }
+  }
+  .button_row {
+    margin-top: 1.5em;
+    display: flex;
+    column-gap: 0.7em;
+    justify-content: center;
+  }
+}
+.error_popup {
+  max-width: 50vw;
+  div {
+    margin: 1.5em 0;
   }
 }

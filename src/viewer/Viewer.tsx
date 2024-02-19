@@ -15,7 +15,7 @@ import { ClassSliders } from "./ClassSliders"
 import { Info } from "./Info"
 import { Dialog } from "../lib/Dialog"
 import { useAppDispatch } from "./store"
-import { keyFromEvent, keyToString } from "src/lib/key";
+import { keyFromEvent, keyToString } from "../lib/key";
 import { createSelector } from "@reduxjs/toolkit";
 import { ShortcutGroup, ShortcutsState, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup } from "./shortcutsSlice";
 import { executeShortcutAction } from "./reducers";

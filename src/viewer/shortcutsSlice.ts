@@ -102,9 +102,9 @@ const defaultInitialState: ShortcutsState = {
 
 const LOCAL_STORAGE_SHORTCUTS_KEY = "Behave_Shortcuts"
 const LOCAL_STORAGE_SHORTCUTS_VERSION = 1 as const
-export const shortcutsToLocalStorage = (shortcutsState: ShortcutsState) => {
+export const shortcutsToLocalStorage = (shortcuts: ShortcutsState) => {
   const settingsJSON = JSON.stringify(
-    {version: LOCAL_STORAGE_SHORTCUTS_VERSION, shortcutsState}
+    {version: LOCAL_STORAGE_SHORTCUTS_VERSION, shortcuts}
   )
   window.localStorage.setItem(LOCAL_STORAGE_SHORTCUTS_KEY, settingsJSON)
   console.debug("Shortcuts saved to localStorage")
@@ -181,12 +181,17 @@ export const shortcutsSlice = createSlice({
           }
         })
       })
+    },
+    shortcutActionRemoved: (state, {payload}: PayloadAction<{shortcutsStateKey: "subjectShortcuts" | "behaviourShortcuts", action: string}>) => {
+      const activeGroup = getActiveGroup(state[payload.shortcutsStateKey])
+      delete activeGroup.shortcuts[payload.action]
     }
   }
 })
 
 export const {
   shortcutKeyRemoved,
+  shortcutActionRemoved,
 } = shortcutsSlice.actions
 
 const {

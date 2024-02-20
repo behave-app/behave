@@ -61,7 +61,7 @@
         }
       }
     }
-    .description {
+    .title {
       margin-left: .7em;
       display: inline-block;
       flex-grow: 2;
@@ -73,6 +73,15 @@
     }
   }
 }
+.title {
+  &:empty {
+    color: hsl(195, 20%, 50%, .5);
+    &::after{
+      content: "<empty>"
+    }
+  }
+}
+
 .edit_dialog {
   max-width: 50vw;
   h2 {
@@ -94,33 +103,46 @@
   h3 {}
   .shortcuts {
     padding: 1.5em;
-    display: flex;
-    flex-flow: column nowrap;
-    align-items: stretch;
     width: 100%;
     box-sizing: border-box;
-    .shortcut_row {
+    .add_button_small {
+      border: none;
+      background-color: unset;
+    }
+    .key_list {
       display: flex;
-      flex-flow: row nowrap;
-      &:nth-child(2n) {
+      flex-flow: column nowrap;
+      align-items: stretch;
+      width: 100%;
+      .shortcut_row {
+        display: flex;
+        flex-flow: row nowrap;
+        &:nth-child(2n) {
           background-color: hsl(0, 0%, 0%, .05);
-      }
-      &:nth-child(2n + 1) {
+        }
+        &:nth-child(2n + 1) {
           background-color: hsl(0, 0%, 0%, .1);
-      }
-      button {
-        flex: 0 0 2em;
-        border: none;
-        background-color: unset;
-      }
-      .shortcut_key  {
-        height: 1.3lh;
-        box-sizing: border-box;
-        flex-grow: 1;
-      }
-      &.editing_key .shortcut_key {
-        background-color: hsl(0, 0%, 100%, .3);
-        border: 1px solid hsl(0, 0%, 0, .3);
+        }
+        button {
+          flex: 0 0 2em;
+          border: none;
+          background-color: unset;
+        }
+        .shortcut_key  {
+          height: 1.3lh;
+          box-sizing: border-box;
+          flex-grow: 1;
+        }
+        &.editing_key .shortcut_key {
+          background-color: hsl(0, 0%, 100%, .8);
+          border: 1px solid hsl(0, 0%, 0%, .8);
+          &:empty{
+            color: silver;
+            &::after {
+              content: "<record keystroke>";
+            }
+          }
+        }
       }
     }
   }

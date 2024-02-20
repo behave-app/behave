@@ -9,7 +9,7 @@ import * as css from "./keyshortcuts.module.css"
 import { ObjectKeys, assert, joinedStringFromDict } from "../lib/util"
 import { Icon, ValidIconName } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutGroup, ShortcutsState, createOrUpdateAction, createOrUpdateShortcutKey, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup, shortcutKeyRemoved } from "./shortcutsSlice"
+import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutGroup, ShortcutsState, createOrUpdateAction, createOrUpdateShortcutKey, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup, shortcutActionRemoved, shortcutKeyRemoved } from "./shortcutsSlice"
 import { MODIFIER_KEYS } from "../lib/defined_keys"
 import { SerializedError } from "@reduxjs/toolkit"
 import type { RootState } from "./store"
@@ -113,6 +113,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
       return
     }
     if (key) {
+      e.preventDefault()
       trySaveNewKey(key)
     } else {
       setEditKeyInfo(editKeyInfo => {
@@ -161,7 +162,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   const trySaveNewAction = (newAction: string) => {
     dispatch(createOrUpdateAction({
       stateKey: shortcutsStateKey as "subjectShortcuts" | "behaviourShortcuts",
-      newAction: newAction,
+      newAction: newAction.trim(),
       oldAction: action === null ? undefined : action})).unwrap().then(() => {
         setEditTitleInfo(null)
         if (action === null) {
@@ -226,8 +227,10 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
       {!(disabled || activated) && "normal"}
     </div>
     <h3>Shortcut keys</h3>
-    <div className={joinedStringFromDict({[css.shortcuts]: true})}>
-      {keysWithEdit.length ? <div>
+    <div className={joinedStringFromDict({
+      [css.shortcuts]: true,
+    })}>
+      {keysWithEdit.length ? <><div className={css.key_list}>
         {keysWithEdit.map(
           (key, index) => <div className={joinedStringFromDict({
             [css.shortcut_row]: true,
@@ -242,7 +245,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
               onClick={() => {
                 setEditTitleInfo(null);
                 setEditKeyInfo(key === "edit" ? null : {
-                index, state: "doing", key: {}})}}>
+                  index, state: "doing", key: {}})}}>
               <Icon iconName="edit" />
             </button>
             <button 
@@ -253,13 +256,21 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
               <Icon iconName="delete" />
             </button>
           </div>)}
-      </div> : "No shortcuts defined"}
-          <button disabled={action === null} onClick={() => {
-          setEditTitleInfo(null);
-          setEditKeyInfo({
+      </div>
+        <button className={css.add_button_small}
+          onClick={() => {setEditTitleInfo(null); setEditKeyInfo({
             index: keys.length, state: "doing", key: {}})}} >
-            <Icon iconName="add" />
-          </button>
+          <Icon iconName="add" />
+        </button>
+      </>
+
+        : <button disabled={action === null}
+        onClick={() => {setEditTitleInfo(null); setEditKeyInfo({
+          index: keys.length, state: "doing", key: {}})}} >
+        <Icon iconName="add" /> Add your first keystroke
+      </button>
+      }
+      <hr />
     </div>
     <div className={css.button_row}>
       {editTitleInfo
@@ -271,9 +282,12 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
             Cancel
           </button>
         </> : <>
-          <button onClick={() => alert("TODO")}>
-            <Icon iconName="delete" />Delete action
-          </button>
+          {shortcutsStateKey !== "generalShortcuts" &&
+            <button onClick={() => dispatch(
+              shortcutActionRemoved({shortcutsStateKey, action: action!}))}>
+              <Icon iconName="delete" />Delete action
+            </button>
+          }
           <button disabled={action === null} onClick={onRequestClose}>Close</button>
         </>}
     </div>
@@ -328,7 +342,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
             <div className={css.button_row}>
               <button onClick={currentError.close}>close</button>
             </div>
-        </>
+          </>
       }
     </Dialog>
     }
@@ -399,7 +413,7 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
         + keys.map(key => keyToStrings(key).join("-")).map(k => "`" + k + "`").join(", ")
         + ")": "") + (disabled ? " [disabled]" : "") + (activated ? " [active]" : "")}>
       <Icon iconName={iconName} />
-      <div className={css.description}>{title}</div>
+      <div className={css.title}>{title}</div>
       <div className={css.keys}>
         {keys.map(key => <div className={css.key}>{keyToStrings(key).map(
           singleKey => <kbd>{singleKey}</kbd>)}</div>)}

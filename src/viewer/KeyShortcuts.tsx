@@ -1,6 +1,6 @@
 import { FunctionComponent } from "preact"
 import { useSelector } from "react-redux"
-import { useCallback, useEffect, useRef, useState } from "preact/hooks"
+import { useCallback, useEffect, useRef, useState, useMemo } from "preact/hooks"
 import { useAppDispatch } from "./store"
 import { keyFromEvent, Key, keyToStrings } from "../lib/key"
 import { CONTROLS, ValidControlName } from "./controls"
@@ -9,7 +9,7 @@ import * as css from "./keyshortcuts.module.css"
 import { ObjectKeys, assert, joinedStringFromDict } from "../lib/util"
 import { Icon, ValidIconName } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { KeyAlreadyInUseException, ShortcutGroup, ShortcutsState, createOrUpdateShortcutKey, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup, shortcutKeyRemoved } from "./shortcutsSlice"
+import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutGroup, ShortcutsState, createOrUpdateAction, createOrUpdateShortcutKey, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup, shortcutKeyRemoved } from "./shortcutsSlice"
 import { MODIFIER_KEYS } from "../lib/defined_keys"
 import { SerializedError } from "@reduxjs/toolkit"
 import type { RootState } from "./store"
@@ -24,8 +24,9 @@ const keyToStringsSpecial = (key: Partial<Key>): string[] => {
 
 type ControlShortcutEditPopupProps<T extends keyof ShortcutsState> = {
   shortcutsStateKey: T
-  action: T extends "generalShortcuts" ? ValidControlName : string
+  action: (T extends "generalShortcuts" ? ValidControlName : string) | null
   onRequestClose: () => void
+  onCancelNewShortcut: () => void
   disabled: boolean
   activated: boolean
   keys: ReadonlyArray<Key>
@@ -37,7 +38,8 @@ type ControlShortcutEditPopupProps<T extends keyof ShortcutsState> = {
 function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   {
     shortcutsStateKey, action, onRequestClose, disabled, activated, keys,
-    title, iconName,
+    title, iconName, onCancelNewShortcut
+
   }: ControlShortcutEditPopupProps<T>
 ) {
   const dispatch = useAppDispatch()
@@ -50,6 +52,18 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     state: "error"
     error: SerializedError | KeyAlreadyInUseException
   }))>(null)
+  const [editTitleInfo, setEditTitleInfo] = useState<null | {
+    title: string, error?: SerializedError | ActionAlreadyInUseException} >(null)
+
+  const shortcutsGroup = useSelector(
+    shortcutsStateKey === "generalShortcuts" ? selectActiveGeneralShortcutGroup
+    : shortcutsStateKey === "subjectShortcuts" ? selectActiveSubjectShortcutGroup
+    : selectActiveBehaviourShortcutGroup) as ShortcutGroup<T extends "generalShortcuts" ? ValidControlName : string>
+  useEffect(() => {
+    if (action === null) {
+      setEditTitleInfo({title: ""})
+    }
+  }, [action])
 
   const editKeyInfoRef = useRef(editKeyInfo)
   
@@ -57,7 +71,10 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     editKeyInfoRef.current = editKeyInfo
   }, [editKeyInfo])
 
-  const trySaveNewKey = useCallback((key: Key) => {
+  const trySaveNewKey = (key: Key) => {
+    if (action === null) {
+      return
+    }
     const editKeyInfo = editKeyInfoRef.current
     assert(editKeyInfo)
     dispatch(createOrUpdateShortcutKey({
@@ -65,8 +82,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
       action,
       newKey: key,
       oldKey: keys[editKeyInfo.index]
-    })).unwrap().then((res) => {
-        console.log(res)
+    })).unwrap().then(() => {
         setEditKeyInfo(null)
       }).catch((error) => {
         setEditKeyInfo(editKeyInfo => {
@@ -81,39 +97,24 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
           }
         })
       })
-  }, [])
+  }
 
 
-  const editKeyInfoState = editKeyInfo?.state
-  useEffect(() => {
-    if (editKeyInfoState !== "doing") {
+  const onKeyDown = (e: KeyboardEvent) => {
+    e.stopPropagation()
+    if (editKeyInfo?.state !== "doing") {
       return
     }
-    const onKeyDown = (e: KeyboardEvent) => {
-      const key = keyFromEvent(e)
-      if (e.code === "Escape") {
-        setEditKeyInfo(null)
-        e.stopPropagation()
-        e.preventDefault()
-        return
-      }
-      if (key) {
-        trySaveNewKey(key)
-      } else {
-        setEditKeyInfo(editKeyInfo => {
-          if (editKeyInfo?.state !== "doing") {
-            return editKeyInfo
-          }
-          return {
-            ...editKeyInfo,
-            key: {
-              modifiers: ObjectKeys(MODIFIER_KEYS).filter(key => e[key])
-            }
-          }
-        })
-      }
+    const key = keyFromEvent(e)
+    if (e.code === "Escape") {
+      setEditKeyInfo(null)
+      e.stopPropagation()
+      e.preventDefault()
+      return
     }
-    const onKeyUp = (e: KeyboardEvent) => {
+    if (key) {
+      trySaveNewKey(key)
+    } else {
       setEditKeyInfo(editKeyInfo => {
         if (editKeyInfo?.state !== "doing") {
           return editKeyInfo
@@ -126,24 +127,98 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
         }
       })
     }
-    document.documentElement.addEventListener("keyup", onKeyUp)
-    document.documentElement.addEventListener("keydown", onKeyDown)
-    return () => {
-      document.documentElement.removeEventListener("keyup", onKeyUp)
-      document.documentElement.removeEventListener("keydown", onKeyDown)
+  }
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (editKeyInfo?.state !== "doing") {
+      return
     }
+    setEditKeyInfo(editKeyInfo => {
+      if (editKeyInfo?.state !== "doing") {
+        return editKeyInfo
+      }
+      return {
+        ...editKeyInfo,
+        key: {
+          modifiers: ObjectKeys(MODIFIER_KEYS).filter(key => e[key])
+        }
+      }
+    })
+  }
 
-  }, [editKeyInfo, trySaveNewKey])
 
   const keysWithEdit = [...keys] as (Key | "edit")[]
   if (editKeyInfo) {
     keysWithEdit[editKeyInfo.index] = "edit"
   }
 
-  return <Dialog className={css.edit_dialog} blur onRequestClose={onRequestClose}>
-    <h2>
+  const usedActions = useMemo(() => new Set(ObjectKeys(shortcutsGroup.shortcuts)
+    .filter(s => s !== action).map(s => s.trim().toLocaleLowerCase())),
+    [shortcutsGroup]
+  )
+  const editTitleIsAllowed = editTitleInfo === null
+  || !usedActions.has(editTitleInfo.title.trim().toLocaleLowerCase())
+
+  const trySaveNewAction = (newAction: string) => {
+    dispatch(createOrUpdateAction({
+      stateKey: shortcutsStateKey as "subjectShortcuts" | "behaviourShortcuts",
+      newAction: newAction,
+      oldAction: action === null ? undefined : action})).unwrap().then(() => {
+        setEditTitleInfo(null)
+        if (action === null) {
+          onCancelNewShortcut()
+        }
+      }).catch((error) => {
+        setEditTitleInfo({title: newAction, error})
+      })
+  }
+
+  const currentError = (editKeyInfo && editKeyInfo.state == "error")
+  ? {error: editKeyInfo.error, close: () => setEditKeyInfo(null)}
+  : (editTitleInfo && editTitleInfo.error)
+      ? {error: editTitleInfo.error, close: () => setEditTitleInfo(
+        ti => ti ? {...ti, error: undefined} : ti)} : null
+
+  return <Dialog className={css.edit_dialog} blur onRequestClose={onRequestClose}
+    onKeyDown={onKeyDown} onKeyUp={onKeyUp}
+  >
+    <h2 className={css.show_on_hover_buttons}>
       {iconName && <span className={css.icon}><Icon iconName={iconName} /></span>}
-      {title}
+      {shortcutsStateKey === "generalShortcuts"
+        ? <span className={css.title}>{title}</span>
+        : <>{editTitleInfo === null
+          ? <span className={css.title} onClick={() => {
+            setEditKeyInfo(null);
+            setEditTitleInfo({title})}}>
+            {title}
+          </span>
+          : <input type="text" value={editTitleInfo.title}
+            className={joinedStringFromDict({[css.title]: true,
+              [css.invalid_title]: !editTitleIsAllowed})}
+            onChange={e => setEditTitleInfo({title: e.currentTarget.value})} 
+            onKeyDown={e => {
+              e.stopPropagation()
+              if (e.code === "Enter") {
+                trySaveNewAction(editTitleInfo.title)
+              }
+              if (e.code === "Escape") {
+                if (action !== null) {
+                  setEditTitleInfo(null)
+                }
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+          />}
+          <button className={css.show_on_hover} onClick={() => {
+            if (editTitleInfo === null) {
+              setEditKeyInfo(null)
+              setEditTitleInfo({title})
+            } else {
+              trySaveNewAction(editTitleInfo.title)
+            }}}>
+            <Icon iconName={editTitleInfo === null ? "edit" : "save"} />
+          </button>
+        </>}
     </h2>
     <h3>Status</h3>
     <div>
@@ -152,7 +227,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     </div>
     <h3>Shortcut keys</h3>
     <div className={joinedStringFromDict({[css.shortcuts]: true})}>
-      {keys.length ? <div>
+      {keysWithEdit.length ? <div>
         {keysWithEdit.map(
           (key, index) => <div className={joinedStringFromDict({
             [css.shortcut_row]: true,
@@ -164,55 +239,95 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
                   singleKey => <kbd>{singleKey}</kbd>)}
             </div>
             <button 
-              onClick={() => setEditKeyInfo(key === "edit" ? null : {
-                index, state: "doing", key: {}})}>
+              onClick={() => {
+                setEditTitleInfo(null);
+                setEditKeyInfo(key === "edit" ? null : {
+                index, state: "doing", key: {}})}}>
               <Icon iconName="edit" />
             </button>
             <button 
-              onClick={() => dispatch(shortcutKeyRemoved(key as Key))}>
+              onClick={() => {
+                setEditTitleInfo(null)
+                dispatch(shortcutKeyRemoved(key as Key))
+              }}>
               <Icon iconName="delete" />
             </button>
           </div>)}
       </div> : "No shortcuts defined"}
+          <button disabled={action === null} onClick={() => {
+          setEditTitleInfo(null);
+          setEditKeyInfo({
+            index: keys.length, state: "doing", key: {}})}} >
+            <Icon iconName="add" />
+          </button>
     </div>
     <div className={css.button_row}>
-      <button onClick={() => setEditKeyInfo({
-        index: keys.length, state: "doing", key: {}})} >
-        <Icon iconName="add" /> Add shortcut
-      </button>
-      <button onClick={onRequestClose}>Close</button>
+      {editTitleInfo
+        ? <>
+          <button onClick={() => trySaveNewAction(editTitleInfo.title)}>
+            <Icon iconName="save" /> Save
+          </button>
+          <button onClick={() => action === null ? onCancelNewShortcut() : setEditTitleInfo(null)}>
+            Cancel
+          </button>
+        </> : <>
+          <button onClick={() => alert("TODO")}>
+            <Icon iconName="delete" />Delete action
+          </button>
+          <button disabled={action === null} onClick={onRequestClose}>Close</button>
+        </>}
     </div>
-    {editKeyInfo?.state == "error" && <Dialog blur type="error"
+    {currentError && <Dialog blur type="error"
       className={css.error_popup}
       onRequestClose={() => setEditKeyInfo(null)}>
-      {"stateKey" in editKeyInfo.error ? <>
+      {"error" in currentError.error && currentError.error.error === "KeyAlreadyInUseException" ? <>
         <h2>Key already in use</h2>
         <div>
           This key is already in use as a shortcut {
-            editKeyInfo.error.stateKey === "generalShortcuts"
-              ? <>to <em>{CONTROLS[editKeyInfo.error.action as ValidControlName].description}</em>.</>
-              : <>for the {editKeyInfo.error.stateKey === "subjectShortcuts"
-                ? "subject" : "behaviour"} <em>{editKeyInfo.error.action}</em>.</>}
+            currentError.error.stateKey === "generalShortcuts"
+              ? <>to <em>{CONTROLS[currentError.error.action as ValidControlName].description}</em>.</>
+              : <>for the {currentError.error.stateKey === "subjectShortcuts"
+                ? "subject" : "behaviour"} <em>{currentError.error.action}</em>.</>}
         </div>
         <div>
           Every key can only be assigned to a single action.
           Below you have a choice to either cancel the edit,
           or delete the other keybinding and reassign {
-            keyToStrings(editKeyInfo.error.key).map(
+            keyToStrings(currentError.error.key).map(
               singleKey => <kbd>{singleKey}</kbd>)} to <em>{title}</em>.
         </div>
-        <button onClick={() => setEditKeyInfo(null)}>cancel</button>
-        <button onClick={((key) => () =>{
-          dispatch(shortcutKeyRemoved(key));
-          trySaveNewKey(key);
-        })(editKeyInfo.error.key)}>reassign</button>
-      </> : <>
-          <h2>Something went wrong</h2>
+        <div className={css.button_row}>
+          <button onClick={currentError.close}>Cancel</button>
+          <button onClick={((key) => () =>{
+            dispatch(shortcutKeyRemoved(key));
+            trySaveNewKey(key);
+          })(currentError.error.key)}>Reassign</button>
+        </div>
+      </>
+        : "error" in currentError.error && currentError.error.error === "ActionAlreadyInUseException" ? <>
+          <h2>Action name already in use</h2>
           <div>
-            You should not see this screen, please report.
-            <blockquote>{editKeyInfo.error.message}</blockquote>
+            There is already a {currentError.error.stateKey === "subjectShortcuts" ? "subject" : "behaviour"} shortcut with the name <em>{currentError.error.newAction}</em>
+            It's not possible to make two shortcuts with the same content.
           </div>
-          <button onClick={() => setEditKeyInfo(null)}>close</button>
+          <div>
+            Note that two names are compared in a case-insensitive way, and spaces at the start or end are ignored.
+          </div>
+          <div>
+            Please change the name to a valid one.
+          </div>
+          <div className={css.button_row}>
+            <button onClick={currentError.close}>close</button>
+          </div>
+        </> : <>
+            <h2>Something went wrong</h2>
+            <div>
+              You should not see this screen, please report.
+              <blockquote>{currentError.error.message}</blockquote>
+            </div>
+            <div className={css.button_row}>
+              <button onClick={currentError.close}>close</button>
+            </div>
         </>
       }
     </Dialog>
@@ -220,20 +335,23 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   </Dialog>
 }
 
-type ControlShortcutProps<T extends keyof ShortcutsState> = {
-  shortcutsStateKey: T
-  action: T extends "generalShortcuts" ? ValidControlName : string
+type ControlShortcutProps = {
+  shortcutsStateKey: keyof ShortcutsState
+  actionIndex: number
   onRequestClose: () => void
+  onCancelNewShortcut: () => void
 }
 
-function ControlShortcut<T extends keyof ShortcutsState>(
-  {shortcutsStateKey, action, onRequestClose}: ControlShortcutProps<T>
-) {
+const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
+  shortcutsStateKey, actionIndex, onCancelNewShortcut, onRequestClose
+}) => {
   const shortcutsGroup = useSelector(
     shortcutsStateKey === "generalShortcuts" ? selectActiveGeneralShortcutGroup
     : shortcutsStateKey === "subjectShortcuts" ? selectActiveSubjectShortcutGroup
-    : selectActiveBehaviourShortcutGroup) as ShortcutGroup<T extends "generalShortcuts" ? ValidControlName : string>
-  const keys = shortcutsGroup.shortcuts[action] ?? []
+    : selectActiveBehaviourShortcutGroup) as ShortcutGroup<string>
+  const actionKeys = shortcutsStateKey === "generalShortcuts" ? ObjectKeys(CONTROLS) : ObjectKeys(shortcutsGroup.shortcuts)
+  const action = actionKeys.at(actionIndex) ?? null
+  const keys = action === null ? [] : (shortcutsGroup.shortcuts[action] ?? [])
   const controlInfo = shortcutsStateKey === "generalShortcuts"
     ? CONTROLS[action as ValidControlName] : null
 
@@ -249,7 +367,13 @@ function ControlShortcut<T extends keyof ShortcutsState>(
   const dispatch = useAppDispatch()
   const [editPopup, setEditPopup] = useState(false)
 
-  const title = controlInfo ? controlInfo.description : action
+  useEffect(() => {
+    if (action === null) {
+      setEditPopup(true)
+    }
+  }, [action])
+
+  const title = controlInfo ? controlInfo.description : action ?? ""
   const iconName: ValidIconName = (
     shortcutsStateKey === "generalShortcuts" ? controlInfo!.iconName
       : shortcutsStateKey === "subjectShortcuts" ? "cruelty_free"
@@ -265,7 +389,7 @@ function ControlShortcut<T extends keyof ShortcutsState>(
         [css.button]: true,
       })}
       onClick={() => {
-        if (disabled) {
+        if (disabled || action === null) {
           return
         }
         onRequestClose()
@@ -284,6 +408,7 @@ function ControlShortcut<T extends keyof ShortcutsState>(
     <button className={css.show_on_hover} onClick={() => setEditPopup(true)}><Icon iconName="edit" /></button>
     {editPopup && <ControlShortcutEditPopup
       onRequestClose={() => setEditPopup(false)}
+      onCancelNewShortcut={onCancelNewShortcut}
       shortcutsStateKey={shortcutsStateKey}
       action={action}
       disabled={disabled}
@@ -311,6 +436,11 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
       ? selectActiveSubjectShortcutGroup(state).shortcuts
       : selectActiveBehaviourShortcutGroup(state).shortcuts
   )
+  const [isNewShortcut, setIsNewShortcut] = useState(false)
+  const actions = ObjectKeys(shortcuts) as (string | null)[]
+  if (isNewShortcut) {
+    actions.push(null)
+  }
 
   const subjectDisabledLine = <>All subjects are disabled at the moment. Subjects can only be chosen when a Behaviour file was opened in edit mode.</>
   const behaviourDisabledLine = <>All behaviours are disabled at the moment. Behaviours can only be chosen after a subject is chosen. If you want a line without a subject (and only behaviour), create a subject with an empty string.</>
@@ -324,18 +454,28 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
   )
 
   return <div>
-      <h2>{shortcutsStateKey === "generalShortcuts" ? "General"
-    : shortcutsStateKey === "subjectShortcuts" ? "Subject"
-    : "Behaviour"} shortcuts</h2>
-      {intro && <div className={css.intro}>{intro}</div>}
-      <div className={css.shortcut_list}>
-        {ObjectKeys(shortcuts).map((action) => <ControlShortcut
-          action={action}
-          shortcutsStateKey={shortcutsStateKey}
-          onRequestClose={onRequestClose}
-        />)}
-        </div>
-      </div>
+    <h2>{shortcutsStateKey === "generalShortcuts" ? "General"
+      : shortcutsStateKey === "subjectShortcuts" ? "Subject"
+        : "Behaviour"} shortcuts</h2>
+    {intro && <div className={css.intro}>{intro}</div>}
+    <div className={css.shortcut_list}>
+      {actions.map((_, index) => <ControlShortcut
+        actionIndex={index}
+        shortcutsStateKey={shortcutsStateKey}
+        onRequestClose={onRequestClose}
+        onCancelNewShortcut={() => setIsNewShortcut(false)}
+      />)}
+    </div>
+    {(shortcutsStateKey === "subjectShortcuts"
+      || shortcutsStateKey === "behaviourShortcuts") && 
+      <div className={css.button_row}>
+        <button onClick={() => setIsNewShortcut(true)}>
+          <Icon iconName="add" />Add new {
+            shortcutsStateKey === "subjectShortcuts" ? "subject" : "behaviour"}
+        </button>
+      </div>}
+    <hr />
+  </div>
 }
 
 type Props = {
@@ -349,5 +489,8 @@ export const KeyShortcuts: FunctionComponent<Props> = ({onRequestClose}) => {
       shortcutsStateKey => <ShortcutList
         onRequestClose={onRequestClose} shortcutsStateKey={shortcutsStateKey} />)
     }
+    <div className={css.button_row}>
+    <button onClick={() => onRequestClose()}>Close</button>
+    </div>
   </div>
 }

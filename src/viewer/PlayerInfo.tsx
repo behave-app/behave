@@ -2,7 +2,7 @@ import { FunctionComponent } from "preact";
 import * as viewercss from "./viewer.module.css"
 import * as css from "./playerinfo.module.css"
 import { useSelector } from "react-redux";
-import { selectPlayerState } from "./videoPlayerSlice";
+import { selectPlaybackRate, selectPlayerState } from "./videoPlayerSlice";
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors";
 import { ControlInfo, CONTROLS } from "./controls";
 import { Button } from "./Button";
@@ -25,6 +25,7 @@ const PlayerInfoDetails: FunctionComponent = () => {
 
 export const PlayerInfo: FunctionComponent = () => {
   const playerState = useSelector(selectPlayerState)
+  const playbackSpeed = useSelector(selectPlaybackRate)
 
 
   const playControl: ControlInfo<unknown> = (
@@ -49,7 +50,7 @@ export const PlayerInfo: FunctionComponent = () => {
       <Button controlInfo={playControl} />
       <Button controlInfo={CONTROLS.next_frame} />
       <Button controlInfo={CONTROLS.speed_down} />
-      <button disabled />
+      <div className={css.playback_speed}>{playbackSpeed && (playbackSpeed.toFixed(2) + "x")}</div>
       <Button controlInfo={CONTROLS.speed_up} />
       <Button controlInfo={CONTROLS.edit_comment_for_current_line} />
       <Button controlInfo={CONTROLS.zoom_toggle} />

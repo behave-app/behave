@@ -96,11 +96,11 @@ function checkCallback(callback: Callback<any>) {
     return
   }
   const saveIfChanged = () => {
+    callback.debouceTimeout = undefined
     const newState = callback.selector(store.getState())
     if (newState === callback.lastSavedState) {
       return
     }
-    callback.debouceTimeout = undefined
     callback.lastSavedState = newState
     callback.callbackFn(newState)
   }

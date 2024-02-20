@@ -1,19 +1,16 @@
-import { FunctionComponent } from "preact"
+import { FunctionComponent, JSX } from "preact"
 import { useEffect, useRef } from "react"
 import { joinedStringFromDict } from "./util"
 import * as css from "./dialog.module.css"
-import { CSSProperties } from "preact/compat"
 
 type Props = {
   onRequestClose: () => void
-  className?: string
-  style?: CSSProperties
   blur?: boolean
   type?: "error" | "normal"
-}
+} & JSX.IntrinsicElements["dialog"]
 
 export const Dialog: FunctionComponent<Props> = (
-{onRequestClose: requestClose, type, children, blur, className, style}
+{onRequestClose: requestClose, type, children, blur, className, ...dialogProps}
 ) => {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
@@ -48,12 +45,11 @@ export const Dialog: FunctionComponent<Props> = (
     dialogRef.current.showModal()
   }, [dialogRef.current])
 
-  return <dialog ref={dialogRef} style={style} className={joinedStringFromDict({
+  return <dialog ref={dialogRef} {...dialogProps} className={joinedStringFromDict({
     [css.dialog]: true,
     [css.blur]: !!blur,
     [css.error]: type === "error",
-    [className ?? ""]: className !== undefined,
-  })}>
+  }) + (className ? " " + className : "")}>
   {children}
   </dialog>
 }

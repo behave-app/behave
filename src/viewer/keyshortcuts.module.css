@@ -84,6 +84,12 @@
       font-size: 2em;
       flex: 0 0 fit-content;
     }
+    .title {
+      flex: 1;
+      &.invalid_title {
+        background-color: hsl(0, 70%, 70%);
+      }
+    }
   }
   h3 {}
   .shortcuts {
@@ -118,12 +124,12 @@
       }
     }
   }
-  .button_row {
-    margin-top: 1.5em;
-    display: flex;
-    column-gap: 0.7em;
-    justify-content: center;
-  }
+}
+.button_row {
+  margin-top: 1.5em;
+  display: flex;
+  column-gap: 0.7em;
+  justify-content: center;
 }
 .error_popup {
   max-width: 50vw;

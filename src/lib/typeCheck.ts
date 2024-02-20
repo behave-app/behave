@@ -29,7 +29,7 @@ export abstract class Checker<T> {
       return true
     } catch (e) {
       if (e instanceof TypeCheckerError) {
-        console.error("Typecheck failed", e)
+        console.error("Typecheck failed", e, e.value, e.errors)
         return false
       }
       throw e

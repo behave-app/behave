@@ -2,17 +2,21 @@ import { FunctionComponent, JSX } from "preact"
 import { useEffect, useRef } from "react"
 import { joinedStringFromDict } from "./util"
 import * as css from "./dialog.module.css"
+import { useDispatch } from "react-redux"
+import { shortcutsAreBlockedLess, shortcutsAreBlockedMore } from "src/viewer/appSlice"
 
 type Props = {
   onRequestClose: () => void
   blur?: boolean
   type?: "error" | "normal"
+  suppressShortcuts?: boolean
 } & JSX.IntrinsicElements["dialog"]
 
 export const Dialog: FunctionComponent<Props> = (
-{onRequestClose: requestClose, type, children, blur, className, ...dialogProps}
+{onRequestClose: requestClose, type, children, blur, className, suppressShortcuts, ...dialogProps}
 ) => {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const dispatch = useDispatch()
 
   useEffect(() => {
     if (!dialogRef.current) {
@@ -45,12 +49,21 @@ export const Dialog: FunctionComponent<Props> = (
     dialogRef.current.showModal()
   }, [dialogRef.current])
 
-  return <dialog ref={dialogRef} {...dialogProps} className={joinedStringFromDict({
-    [css.dialog]: true,
-    [css.blur]: !!blur,
-    [css.error]: type === "error",
-  }) + (className ? " " + className : "")}>
-  {children}
+  useEffect(() =>{
+    if (!suppressShortcuts) {
+      return
+    }
+    dispatch(shortcutsAreBlockedMore())
+    return () => {dispatch(shortcutsAreBlockedLess())}
+  }, [suppressShortcuts])
+
+  return <dialog ref={dialogRef} {...dialogProps}
+    className={joinedStringFromDict({
+      [css.dialog]: true,
+      [css.blur]: blur === true,
+      [css.error]: type === "error",
+    }) + (className !== undefined ? " " + className : "")}>
+    {children}
   </dialog>
 }
 

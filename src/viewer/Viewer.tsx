@@ -8,9 +8,9 @@ import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
 import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
-import { ObjectEntries, isCompatibleBrowser, joinedStringFromDict } from "../lib/util";
+import { ObjectEntries, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectPlayerInfoShown } from "./generalSettingsSlice";
-import { selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { selectAppError, selectShortcutsAreBlocked, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Info } from "./Info"
 import { Dialog } from "../lib/Dialog"
@@ -19,9 +19,11 @@ import { keyFromEvent, keyToString } from "../lib/key";
 import { createSelector } from "@reduxjs/toolkit";
 import { ShortcutGroup, ShortcutsState, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup } from "./shortcutsSlice";
 import { executeShortcutAction } from "./reducers";
+import { ErrorPopup } from "./Error";
 
 export const Viewer: FunctionComponent = () => {
   const playerInfoShown = useSelector(selectPlayerInfoShown)
+  const error = useSelector(selectAppError)
   useEffect(() => {
     if (!isCompatibleBrowser()) {
       alert(
@@ -36,6 +38,7 @@ export const Viewer: FunctionComponent = () => {
     [css.viewer]: true,
     [css.no_controls]: !playerInfoShown,
   })}>
+    {error && <ErrorPopup error={error} />}
     <ShortcutsHandler />
     <Popup />
     <SideBar />
@@ -87,16 +90,20 @@ const selectActionAndShortcutsStateKeyByKeyString = createSelector(
 const ShortcutsHandler: FunctionComponent = () => {
   const actionAndShortcutsStateKeyByKeyString = useSelector(
     selectActionAndShortcutsStateKeyByKeyString)
+  const shortcutsAreBlocked = useSelector(selectShortcutsAreBlocked)
   const dispatch = useAppDispatch()
 
   useEffect(() => {
+    if (shortcutsAreBlocked) {
+      return
+    }
     const onKeyDown = (e: KeyboardEvent) => {
       const key = keyFromEvent(e)
       if (!key) {
         return;
       }
-      const actionAndShortcutsStateKey = actionAndShortcutsStateKeyByKeyString[
-        keyToString(key)]
+      const actionAndShortcutsStateKey = mayBeUndefined(
+        actionAndShortcutsStateKeyByKeyString[keyToString(key)])
       if (actionAndShortcutsStateKey) {
         e.preventDefault()
         void(dispatch(executeShortcutAction(actionAndShortcutsStateKey)))
@@ -104,7 +111,7 @@ const ShortcutsHandler: FunctionComponent = () => {
     }
     document.documentElement.addEventListener("keydown", onKeyDown)
     return () => document.documentElement.removeEventListener("keydown", onKeyDown)
-  }, [actionAndShortcutsStateKeyByKeyString])
+  }, [actionAndShortcutsStateKeyByKeyString, shortcutsAreBlocked])
 
   return null
 }

@@ -74,12 +74,16 @@
   }
 }
 .title {
-  &:empty {
+  &:not(input):empty, &:is(input:placeholder-shown) {
     color: hsl(195, 20%, 50%, .5);
     &::after{
       content: "<empty>"
     }
   }
+}
+.current_group_select {
+  margin: 1.5em;
+  font-family: Arial, helvetica, sans-serif;
 }
 
 .edit_dialog {

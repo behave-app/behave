@@ -118,6 +118,7 @@ function checkCallback(callback: Callback<any>) {
 
 store.subscribe(() => {
   Object.values(callbacks).forEach(c => checkCallback(c))
+  ;(window as unknown as {state: RootState}).state = store.getState()
 })
 
 export default store;

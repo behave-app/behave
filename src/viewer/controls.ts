@@ -11,7 +11,7 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSelectedSubject, selectSidebarPopup, selectZoom, settingsScreenShown, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
+import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSelectedSubject, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
 import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
 import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./generalSettingsSlice";
@@ -72,19 +72,10 @@ export const CONTROLS = {
     name: "settings for detections",
   }),
 
-
   key_shortcut_help_toggle: createPopupControl({
     iconName: "indeterminate_question_box",
     name: "key shortcuts help and customization",
     popupName: "keyShortcuts",
-  }),
-
-
-  show_settings: fillAndWrapDefaultControlInfo({
-    iconName: "settings",
-    action: dispatch => dispatch(settingsScreenShown()),
-    description: "Show settings screen",
-    selectIsDisabled: () => false,
   }),
 
   play: fillAndWrapDefaultControlInfo({

@@ -1,0 +1,10 @@
+.button_row {
+  margin-top: 1.5em;
+  display: flex;
+  column-gap: 0.7em;
+  justify-content: center;
+}
+
+.key_already_in_use {
+  width: 50vw;
+}

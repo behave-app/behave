@@ -10,7 +10,6 @@ export const SideBar: FunctionComponent = () => {
       <Button controlInfo={CONTROLS.show_info} />
       <Button controlInfo={CONTROLS.show_controls} />
       <Button controlInfo={CONTROLS.class_sliders} />
-      <Button controlInfo={CONTROLS.show_settings} />
       <Button controlInfo={CONTROLS.key_shortcut_help_toggle} />
     </div>
   </div>

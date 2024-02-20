@@ -1,6 +1,7 @@
 export class AssertionError extends Error {}
 
 export function assert(predicate: unknown, message?: string, dump?: unknown): asserts predicate {
+  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
   if (!predicate) {
     console.error("Assertion failed: ", predicate, message, dump)
     throw new AssertionError(message ?? "Assertion failed")
@@ -174,3 +175,13 @@ export function ObjectEntries<K extends string, V>(
   obj: Record<K, V>): ReadonlyArray<[K, V]> {
   return Object.entries(obj) as unknown as ReadonlyArray<[K, V]>
 }
+
+export function ObjectFromEntries<K extends string, V>(
+  obj: ReadonlyArray<[K, V]>): {[key in K]: V} {
+  return Object.fromEntries(obj) as unknown as {[key in K]: V}
+}
+
+export function mayBeUndefined<T>(item: T): T | undefined {
+  return item
+}
+

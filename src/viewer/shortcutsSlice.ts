@@ -1,9 +1,9 @@
 import type { ATConfig, RootState} from './store'
-import { PayloadAction, createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { Key, areEqualKeys, keyChecker } from "../lib/key"
+import { PayloadAction, createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
+import { Key, areEqualKeys, keyChecker, keyToString } from "../lib/key"
 import { ArrayChecker, Checker, LiteralChecker, NumberChecker, ObjectChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck'
 import type { ValidControlName } from './controls'
-import { ObjectEntries, ObjectKeys } from '../lib/util'
+import { ObjectEntries, ObjectFromEntries, ObjectKeys, assert } from '../lib/util'
 
 
 export type Shortcuts<T extends string = string> = Record<T, Key[]>
@@ -171,11 +171,15 @@ export const shortcutsSlice = createSlice({
       }
       activeGroup.shortcuts = newShortcuts
     },
-    shortcutKeyRemoved: (state, {payload: keyToRemove}: PayloadAction<Key>) => {
-      Object.values(state).forEach((shortcutGroups) => {
-        const activeGroup = getActiveGroup(shortcutGroups)
-        Object.values(activeGroup.shortcuts).forEach((keys) => {
-          const index = keys.findIndex(key => areEqualKeys(key, keyToRemove))
+    shortcutKeyRemoved: (state, {payload}: PayloadAction<{key: Key, stateKey?: keyof ShortcutsState, action?: string}>) => {
+      const stateKeys = payload.stateKey ? [payload.stateKey] : ObjectKeys(state)
+      stateKeys.forEach((stateKey) => {
+        const activeGroup = getActiveGroup(state[stateKey])
+        const actions =
+          (payload.action !== undefined) ? [payload.action] : ObjectKeys(activeGroup.shortcuts)
+        actions.forEach((action) => {
+          const keys = activeGroup.shortcuts[action]
+          const index = keys.findIndex(key => areEqualKeys(key, payload.key))
           if (index !== -1) {
             keys.splice(index, 1)
           }
@@ -185,7 +189,13 @@ export const shortcutsSlice = createSlice({
     shortcutActionRemoved: (state, {payload}: PayloadAction<{shortcutsStateKey: "subjectShortcuts" | "behaviourShortcuts", action: string}>) => {
       const activeGroup = getActiveGroup(state[payload.shortcutsStateKey])
       delete activeGroup.shortcuts[payload.action]
-    }
+    },
+    shortcutSwitchActiveIndices: (state, {payload: newIndices}: PayloadAction<ReadonlyArray<{stateKey: keyof ShortcutsState, newActiveIndex: number}>>) => {
+      newIndices.forEach(({stateKey, newActiveIndex}) => {
+        assert(state[stateKey].groups[newActiveIndex] !== undefined)
+        state[stateKey].selectedIndex = newActiveIndex
+      })
+    },
   }
 })
 
@@ -197,18 +207,23 @@ export const {
 const {
   shortcutKeyAddedOrReplaced,
   shortcutActionAddedOrReplaced,
+  shortcutSwitchActiveIndices,
 } = shortcutsSlice.actions
 
-export type KeyAlreadyInUseException<T extends keyof ShortcutsState = keyof ShortcutsState> = {
-  readonly error: "KeyAlreadyInUseException"
-  readonly stateKey: T
-  readonly action: T extends "generalShortcuts" ? ValidControlName : string
-  readonly key: Key
+export type KeyAlreadyInUseException = {
+  error: "KeyAlreadyInUseException"
+  callParams: {
+    stateKey: keyof ShortcutsState
+    action: string
+    newKey: Key
+    oldKey?: Key
+  }
+  collidesWith: {stateKey: keyof ShortcutsState, action: string},
 }
 
-function keyAlreadyInUseException<T extends keyof ShortcutsState>(
-  exception: Omit<KeyAlreadyInUseException<T>, "error">
-): KeyAlreadyInUseException<T> {
+function keyAlreadyInUseException(
+  exception: Omit<KeyAlreadyInUseException, "error">
+): KeyAlreadyInUseException {
   return {
     error: "KeyAlreadyInUseException",
     ...exception
@@ -218,15 +233,11 @@ function keyAlreadyInUseException<T extends keyof ShortcutsState>(
 export class AssertError extends Error {}
 
 export const createOrUpdateShortcutKey = createAsyncThunk<
-boolean, {
-  stateKey: keyof ShortcutsState,
-  action: string,
-  newKey: Key
-  oldKey?: Key
-}, ATConfig
+boolean, KeyAlreadyInUseException["callParams"], ATConfig
 >(
   "settings/shortcuts/createOrUpdateShortcutKey",
-  async ({stateKey, action, newKey, oldKey} , {getState, dispatch, rejectWithValue}) =>  {
+  async (params , {getState, dispatch, rejectWithValue}) =>  {
+    const {stateKey, action, newKey, oldKey} = params
     if (oldKey && areEqualKeys(oldKey, newKey)) {
       return false
     }
@@ -236,22 +247,24 @@ boolean, {
       ObjectEntries(activeGroup.shortcuts).forEach(([loopAction, keys]) => {
         if (keys.some(key => areEqualKeys(key, newKey))) {
           if (loopStateKey === stateKey && loopAction === action) {
-            dispatch(shortcutKeyRemoved(newKey))
+            dispatch(shortcutKeyRemoved({key: newKey, action, stateKey}))
           } else {
             throw rejectWithValue(keyAlreadyInUseException({
-            stateKey: loopStateKey, action: loopAction, key: newKey}))
+              callParams: params,
+              collidesWith: {stateKey: loopStateKey, action: loopAction},
+            }))
           }
         }
       })
     })
-    if (!state[stateKey]) {
+    if (!(stateKey in state)) {
       throw new AssertError(`Called with non-existing stateKey: ${stateKey}`)
     }
     let currentAction = getActiveGroup(state[stateKey]).shortcuts[action] 
-    if (!currentAction && stateKey === "generalShortcuts") {
+    if (currentAction === null && stateKey === "generalShortcuts") {
       currentAction = []
     }
-    if (!currentAction) {
+    if (currentAction === null) {
       throw new AssertError(`Called with non-existing keys: ${stateKey} ${action}`)
     }
     if (oldKey && !currentAction.some(
@@ -264,10 +277,12 @@ boolean, {
 )
 
 export type ActionAlreadyInUseException = {
-  readonly error: "ActionAlreadyInUseException"
-  readonly stateKey: "subjectShortcuts" | "behaviourShortcuts"
-  readonly newAction: string
-  readonly oldAction?: string
+  error: "ActionAlreadyInUseException"
+  callParams: {
+    stateKey: "subjectShortcuts" | "behaviourShortcuts"
+    newAction: string
+    oldAction?: string
+  }
 }
 
 function actionAlreadyInUseException(
@@ -280,15 +295,12 @@ function actionAlreadyInUseException(
 }
 
 export const createOrUpdateAction = createAsyncThunk<
-boolean, {
-  stateKey: "subjectShortcuts" | "behaviourShortcuts"
-  newAction: string
-  oldAction?: string
-}, ATConfig
+boolean, ActionAlreadyInUseException["callParams"], ATConfig
 >(
   "settings/shortcuts/createOrUpdateAction",
-  async ({stateKey, newAction, oldAction} , {getState, dispatch, rejectWithValue}) =>  {
-    if (oldAction && oldAction === newAction) {
+  async (callParams , {getState, dispatch, rejectWithValue}) =>  {
+    const {stateKey, newAction, oldAction} = callParams
+    if (oldAction !== null && oldAction === newAction) {
       return false
     }
     if (stateKey as string === "generalShortcuts") {
@@ -299,10 +311,89 @@ boolean, {
     const usedActions = new Set(ObjectKeys(activeGroup.shortcuts)
       .filter(s => s !== oldAction).map(s => s.trim().toLocaleLowerCase()))
     if (usedActions.has(newAction.trim().toLocaleLowerCase())) {
-      throw rejectWithValue(actionAlreadyInUseException({
-        stateKey, newAction, oldAction}))
+      throw rejectWithValue(actionAlreadyInUseException({callParams}))
     }
     dispatch(shortcutActionAddedOrReplaced({stateKey, oldAction, newAction}))
+    return true
+  }
+)
+
+
+export type SwitchLeadsToDuplicateKeysException = {
+  error: "SwitchLeadsToDuplicateKeysException"
+  callParams: Array<{
+    stateKey: keyof ShortcutsState
+    newActiveIndex: number
+    }>
+  duplicateKeys: Array<{key: Key, collision: [
+    {stateKey: keyof ShortcutsState, action: string},
+    {stateKey: keyof ShortcutsState, action: string},
+  ]}>
+}
+
+function switchLeadsToDuplicateKeysException(
+  exception: Omit<SwitchLeadsToDuplicateKeysException, "error">
+): SwitchLeadsToDuplicateKeysException {
+  return {
+    error: "SwitchLeadsToDuplicateKeysException",
+    ...exception
+  }
+}
+
+
+export const switchActiveGroup = createAsyncThunk<
+boolean, SwitchLeadsToDuplicateKeysException["callParams"], ATConfig
+>(
+  "settings/shortcuts/switchActiveGroup",
+  async (newIndices , {getState, dispatch, rejectWithValue}) =>  {
+    const state = getState()
+    const shortcutsState = state.settings.shortcuts
+    const filteredNewIndices = newIndices.filter(({stateKey, newActiveIndex}) =>
+      shortcutsState[stateKey].selectedIndex !== newActiveIndex)
+
+    if (filteredNewIndices.length === 0) {
+      return false
+    }
+    const newActiveGroups: {[key in keyof ShortcutsState]: ShortcutGroup<string>} =
+    ObjectFromEntries(ObjectEntries(shortcutsState)
+    .map(([loopStateKey, loopGroups]) => {
+      const newActiveIndex =
+      filteredNewIndices.find(x => x.stateKey === loopStateKey)?.newActiveIndex
+      ?? loopGroups.selectedIndex
+      return [loopStateKey, shortcutsState[loopStateKey].groups[newActiveIndex]]
+    }))
+
+    if (Object.values(newActiveGroups)
+      .some(activeGroup => activeGroup === undefined)) {
+      throw new AssertError(`Invalid index for ${JSON.stringify(newIndices)}`)
+    }
+
+    const keysMap = new Map<string, {stateKey: keyof ShortcutsState, action: string}>()
+    const duplicateKeys: SwitchLeadsToDuplicateKeysException["duplicateKeys"] = []
+
+    for (const [loopStateKey, groups] of ObjectEntries(state.settings.shortcuts)) {
+      const activeGroup = getActiveGroup(groups)
+      for (const [loopAction, loopKeys] of ObjectEntries(activeGroup.shortcuts)) {
+        for (const loopKey of loopKeys) {
+          const keyString = keyToString(loopKey)
+          const thisAction = {action: loopAction, stateKey: loopStateKey}
+          const collidingAction = keysMap.get(keyString)
+          if (collidingAction !== undefined) {
+            duplicateKeys.push({
+              key: loopKey,
+              collision: [thisAction, collidingAction]
+            })
+          }
+        }
+      }
+    }
+
+    if (duplicateKeys.length) {
+      throw rejectWithValue(switchLeadsToDuplicateKeysException({
+        callParams: newIndices, duplicateKeys}))
+    }
+
+    dispatch(shortcutSwitchActiveIndices(filteredNewIndices))
     return true
   }
 )
@@ -317,6 +408,11 @@ export const selectActiveGeneralShortcutGroup = (state: RootState) => getActiveG
 
 export const selectSubjectShortcutGroups = (state: RootState) => state.settings.shortcuts.subjectShortcuts as GeneneralShortcutGroups
 export const selectActiveSubjectShortcutGroup = (state: RootState) => getActiveGroup(selectSubjectShortcutGroups(state))
+export const selectActiveSubjectShortcutActions = createSelector(
+  [selectActiveSubjectShortcutGroup], group => ObjectKeys(group.shortcuts))
 
 export const selectBehaviourShortcutGroups = (state: RootState) => state.settings.shortcuts.behaviourShortcuts as GeneneralShortcutGroups
 export const selectActiveBehaviourShortcutGroup = (state: RootState) => getActiveGroup(selectBehaviourShortcutGroups(state))
+export const selectActiveBehaviourShortcutActions = createSelector(
+  [selectActiveBehaviourShortcutGroup], group => ObjectKeys(group.shortcuts))
+

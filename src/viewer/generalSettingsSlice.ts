@@ -57,7 +57,7 @@ const LOCAL_STORAGE_GENERAL_SETTINGS_KEY = "Behave_General_Settings"
 const LOCAL_STORAGE_GENERAL_SETTINGS_VERSION = 1 as const
 export const generalSettingsToLocalStorage = (generalSettingsState: GeneralSettingsState) => {
   const settingsJSON = JSON.stringify(
-    {version: LOCAL_STORAGE_GENERAL_SETTINGS_VERSION, generalSettingsState}
+    {version: LOCAL_STORAGE_GENERAL_SETTINGS_VERSION, general: generalSettingsState}
   )
   window.localStorage.setItem(LOCAL_STORAGE_GENERAL_SETTINGS_KEY, settingsJSON)
   console.debug("General settings saved to localStorage")

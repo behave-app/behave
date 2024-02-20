@@ -98,6 +98,7 @@ const ShortcutsHandler: FunctionComponent = () => {
       const actionAndShortcutsStateKey = actionAndShortcutsStateKeyByKeyString[
         keyToString(key)]
       if (actionAndShortcutsStateKey) {
+        e.preventDefault()
         void(dispatch(executeShortcutAction(actionAndShortcutsStateKey)))
       }
     }

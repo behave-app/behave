@@ -84,6 +84,12 @@
 .current_group_select {
   margin: 1.5em;
   font-family: Arial, helvetica, sans-serif;
+  .active_preset {
+    font-weight: bold;
+  }
+  button {
+    margin-left: 2.5em;
+  }
 }
 
 .edit_dialog {
@@ -161,5 +167,28 @@
   max-width: 50vw;
   div {
     margin: 1.5em 0;
+  }
+}
+.preset_editor {
+  max-width: 50vw;
+  font-family: Arial, helvetica, sans-serif;
+  ul {
+    padding: 0;
+    li {
+      display: flex;
+      width: 100%;
+      box-sizing: border-box;
+      gap: .4em;
+      &:hover {
+        background-color: hsl(0, 0%, 0%, .1);
+      }
+      .preset_name {
+        flex: 1;
+      }
+    }
+}
+  .preset_editor_line_buttons > button {
+    border: none;
+    background-color: unset;
   }
 }

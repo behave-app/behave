@@ -5,6 +5,10 @@
   justify-content: center;
 }
 
-.key_already_in_use {
+.key_already_in_use, .action_already_in_use {
   width: 50vw;
+}
+
+.switch_leads_to_duplicate_keys {
+  width: 70vw;
 }

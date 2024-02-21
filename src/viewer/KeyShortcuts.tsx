@@ -345,6 +345,47 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
   </div>
 }
 
+type PresetEditorProps = {
+  shortcutsStateKey: keyof ShortcutsState
+  onRequestClose: () => void
+}
+
+const PresetEditor: FunctionComponent<PresetEditorProps> = (
+  {shortcutsStateKey, onRequestClose}
+) => {
+  const shortcutGroups: ShortcutGroups<string> = useSelector((state: RootState) =>
+    shortcutsStateKey === "generalShortcuts"
+      ? selectGeneralShortcutGroups(state)
+      : shortcutsStateKey === "subjectShortcuts"
+        ? selectSubjectShortcutGroups(state)
+        : selectBehaviourShortcutGroups(state))
+  
+  return <Dialog onRequestClose={onRequestClose} suppressShortcuts
+    className={css.preset_editor}
+  >
+    <h2>Change presets for
+      {nameFromShortcutStateKey(shortcutsStateKey).toLocaleLowerCase()}</h2>
+    <ul>
+      {shortcutGroups.groups.map(
+        (group, index) => <li className={css.show_on_hover_buttons}>
+          <Icon iconName={index === shortcutGroups.selectedIndex ?
+            "radio_button_checked" : "radio_button_unchecked"} />
+          <span className={css.preset_name}>{group.name}</span>
+          <button className={css.show_on_hover}><Icon iconName="edit" /></button>
+          <button className={css.show_on_hover}>
+            <Icon iconName="content_copy" /></button>
+          <button className={css.show_on_hover}><Icon iconName="delete" /></button>
+        </li>)}
+    </ul>
+    <button><Icon iconName="add" /></button>
+  </Dialog>
+}
+
+function nameFromShortcutStateKey(key: keyof ShortcutsState): string {
+  return key === "generalShortcuts" ? "General"
+  : key === "subjectShortcuts" ? "Subject" : "Behaviour"
+}
+
 type ShortcutListProps = {
   onRequestClose: () => void
   shortcutsStateKey: keyof ShortcutsState
@@ -357,12 +398,13 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
   {onRequestClose, shortcutsStateKey}
 ) => {
   const [isNewShortcut, setIsNewShortcut] = useState(false)
-  const shortcutGroups: ShortcutGroups<string> = useSelector((state: RootState) =>
+  const [editPresets, setEditPresets] = useState(false)
+  const activeGroup: ShortcutGroup<string> = useSelector((state: RootState) =>
     shortcutsStateKey === "generalShortcuts"
-      ? selectGeneralShortcutGroups(state)
+      ? selectActiveGeneralShortcutGroup(state)
       : shortcutsStateKey === "subjectShortcuts"
-        ? selectSubjectShortcutGroups(state)
-        : selectBehaviourShortcutGroups(state))
+        ? selectActiveSubjectShortcutGroup(state)
+        : selectActiveBehaviourShortcutGroup(state))
   let actionList: ReadonlyArray<string | null> = useSelector((state: RootState) =>
     shortcutsStateKey === "generalShortcuts"
       ? selectActiveGeneralShortcutActions(state)
@@ -385,15 +427,12 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
   )
 
   return <div>
-    <h2>{shortcutsStateKey === "generalShortcuts" ? "General"
-      : shortcutsStateKey === "subjectShortcuts" ? "Subject"
-        : "Behaviour"} shortcuts</h2>
+    {editPresets && <PresetEditor shortcutsStateKey={shortcutsStateKey} onRequestClose={() => setEditPresets(false)} />}
+    <h2>{nameFromShortcutStateKey(shortcutsStateKey)} shortcuts</h2>
     <div className={css.current_group_select}>
-    Active key binding preset for this section: <select value={shortcutGroups.selectedIndex}>
-    {shortcutGroups.groups.map((group, index) =>
-      <option value={index}>{group.name}</option>
-    )}
-    </select>
+      Active key binding preset for this section: <span
+        className={css.active_preset}>{activeGroup.name}</span>
+      <button onClick={() => setEditPresets(true)}>edit</button>
     </div>
     {intro && <div className={css.intro}>{intro}</div>}
     <div className={css.shortcut_list}>
@@ -409,7 +448,7 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
       <div className={css.button_row}>
         <button onClick={() => setIsNewShortcut(true)}>
           <Icon iconName="add" />Add new {
-            shortcutsStateKey === "subjectShortcuts" ? "subject" : "behaviour"}
+            nameFromShortcutStateKey(shortcutsStateKey).toLocaleLowerCase()}
         </button>
       </div>}
     <hr />

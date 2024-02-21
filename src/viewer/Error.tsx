@@ -52,7 +52,7 @@ const KeyAlreadyInUseExceptionHandler: FunctionComponent<ErrorHandlerProps<KeyAl
 
 const ActionAlreadyInUseExceptionHandler: FunctionComponent<ErrorHandlerProps<ActionAlreadyInUseException>> = ({error, closeError}) => {
   const {callParams: {stateKey, newAction}} = error
-  return <>
+  return <div className={css.action_already_in_use}>
     <h2>Action name already in use</h2>
     <div>
       There is already a {stateKey === "subjectShortcuts" ? "subject" : "behaviour"} shortcut with the name <em>{newAction}</em>
@@ -67,13 +67,13 @@ const ActionAlreadyInUseExceptionHandler: FunctionComponent<ErrorHandlerProps<Ac
     <div className={css.button_row}>
       <button onClick={closeError}>close</button>
     </div>
-  </> 
+  </div> 
 }
 
 
 const SwitchLeadsToDuplicateKeysExceptionHandler: FunctionComponent<ErrorHandlerProps<SwitchLeadsToDuplicateKeysException>> = ({error, closeError}) => {
   const {callParams} = error
-  return <>
+  return <div className={css.switch_leads_to_duplicate_keys}>
     <h2>The change you're trying to make leads to duplicate key assignments</h2>
     <div>
       A single key-combination (e.g <kbd>Shift</kbd><kbd>Alt</kbd><kbd>A</kbd>)
@@ -101,7 +101,7 @@ const SwitchLeadsToDuplicateKeysExceptionHandler: FunctionComponent<ErrorHandler
     <div className={css.button_row}>
       <button onClick={closeError}>close</button>
     </div>
-  </> 
+  </div> 
 }
 
 export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {

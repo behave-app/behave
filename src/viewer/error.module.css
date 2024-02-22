@@ -5,7 +5,8 @@
   justify-content: center;
 }
 
-.key_already_in_use, .action_already_in_use {
+.key_already_in_use, .action_already_in_use,
+.shortcut_preset_export_error, .shortcut_preset_import_error {
   width: 50vw;
 }
 

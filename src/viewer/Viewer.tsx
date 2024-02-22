@@ -10,14 +10,14 @@ import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { ObjectEntries, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectPlayerInfoShown } from "./generalSettingsSlice";
-import { selectAppError, selectShortcutsAreBlocked, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Info } from "./Info"
-import { Dialog } from "../lib/Dialog"
+import { Dialog, suppressShortcutsSelector } from "../lib/Dialog"
 import { useAppDispatch } from "./store"
 import { keyFromEvent, keyToString } from "../lib/key";
 import { createSelector } from "@reduxjs/toolkit";
-import { ShortcutGroup, ShortcutsState, selectActiveBehaviourShortcutGroup, selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup } from "./shortcutsSlice";
+import { ShortcutPreset, ShortcutsState, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset } from "./shortcutsSlice";
 import { executeShortcutAction } from "./reducers";
 import { ErrorPopup } from "./Error";
 
@@ -52,7 +52,9 @@ export const Viewer: FunctionComponent = () => {
 const Popup: FunctionComponent = () => {
   const popup = useSelector(selectSidebarPopup)
   const dispatch = useAppDispatch()
-  return popup && <Dialog onRequestClose={() => dispatch(sidebarPopupWasClosed())}>
+  const noSuppressShortcuts = popup === "keyShortcuts"
+  return popup && <Dialog noSuppressShortcuts={noSuppressShortcuts}
+    onRequestClose={() => dispatch(sidebarPopupWasClosed())}>
     {(() => {
       switch (popup) {
         case "info":
@@ -71,14 +73,14 @@ const Popup: FunctionComponent = () => {
 }
 
 const selectActionAndShortcutsStateKeyByKeyString = createSelector(
-  [selectActiveGeneralShortcutGroup, selectActiveSubjectShortcutGroup, selectActiveBehaviourShortcutGroup], (generalGroup, subjectGroup, behaviourGroup) => {
-  const groups: Record<keyof ShortcutsState, ShortcutGroup<string>> = {
-      "generalShortcuts": generalGroup,
-      "subjectShortcuts": subjectGroup,
-      "behaviourShortcuts": behaviourGroup,
+  [selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectActiveBehaviourShortcutPreset], (generalPreset, subjectPreset, behaviourPreset) => {
+  const presets: Record<keyof ShortcutsState, ShortcutPreset<string>> = {
+      "generalShortcuts": generalPreset,
+      "subjectShortcuts": subjectPreset,
+      "behaviourShortcuts": behaviourPreset,
     }
-    return Object.fromEntries(ObjectEntries(groups).flatMap(
-      ([shortcutsStateKey, group]) => ObjectEntries(group.shortcuts).flatMap(
+    return Object.fromEntries(ObjectEntries(presets).flatMap(
+      ([shortcutsStateKey, preset]) => ObjectEntries(preset.shortcuts).flatMap(
         ([action, keys]) => keys.map(
           key => [keyToString(key), {
             action,
@@ -90,17 +92,16 @@ const selectActionAndShortcutsStateKeyByKeyString = createSelector(
 const ShortcutsHandler: FunctionComponent = () => {
   const actionAndShortcutsStateKeyByKeyString = useSelector(
     selectActionAndShortcutsStateKeyByKeyString)
-  const shortcutsAreBlocked = useSelector(selectShortcutsAreBlocked)
   const dispatch = useAppDispatch()
 
   useEffect(() => {
-    if (shortcutsAreBlocked) {
-      return
-    }
     const onKeyDown = (e: KeyboardEvent) => {
       const key = keyFromEvent(e)
       if (!key) {
         return;
+      }
+      if (document.querySelector(suppressShortcutsSelector) !== null) {
+        return
       }
       const actionAndShortcutsStateKey = mayBeUndefined(
         actionAndShortcutsStateKeyByKeyString[keyToString(key)])
@@ -111,7 +112,7 @@ const ShortcutsHandler: FunctionComponent = () => {
     }
     document.documentElement.addEventListener("keydown", onKeyDown)
     return () => document.documentElement.removeEventListener("keydown", onKeyDown)
-  }, [actionAndShortcutsStateKeyByKeyString, shortcutsAreBlocked])
+  }, [actionAndShortcutsStateKeyByKeyString])
 
   return null
 }

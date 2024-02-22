@@ -13,4 +13,7 @@
     box-shadow: 0 0 1em red;
     width: fit-content;
   }
+  &.suppress_shortcuts {
+    /* only here for javascript selection later */
+  }
 }

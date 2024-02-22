@@ -1,5 +1,5 @@
 // store.ts
-import { configureStore } from '@reduxjs/toolkit';
+import { SerializedError, configureStore } from '@reduxjs/toolkit';
 import {useDispatch } from "react-redux"
 import {videoFileSlice} from "./videoFileSlice"
 import {videoPlayerSlice} from "./videoPlayerSlice"
@@ -13,9 +13,10 @@ export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 export const useAppDispatch: () => AppDispatch = useDispatch
 
-export type ATConfig = {
+export type ATConfig<R extends SerializedError | {error: string} = SerializedError | {error: string}> = {
   state: RootState
   dispatch: AppDispatch
+  rejectValue: R
 }
 
 

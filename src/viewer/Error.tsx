@@ -2,10 +2,11 @@ import { FunctionComponent } from "preact";
 import { AppError, appErrorCleared } from "./appSlice";
 import * as css from "./error.module.css"
 import { useAppDispatch } from "./store";
-import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutsState, SwitchLeadsToDuplicateKeysException, createOrUpdateShortcutKey, shortcutKeyRemoved } from "./shortcutsSlice";
+import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, SwitchLeadsToDuplicateKeysException, createOrUpdateShortcutKey, exportPreset, importPreset, nameFromStateKey, shortcutKeyRemoved } from "./shortcutsSlice";
 import { CONTROLS, ValidControlName } from "./controls";
 import { keyToStrings } from "../lib/key";
 import { Dialog } from "../lib/Dialog";
+import { exhausted } from "src/lib/util";
 
 type ErrorHandlerProps<T> = {
   error: AppError & T
@@ -104,6 +105,46 @@ const SwitchLeadsToDuplicateKeysExceptionHandler: FunctionComponent<ErrorHandler
   </div> 
 }
 
+const ShortcutPresetExportFailedExceptionHandler: FunctionComponent<ErrorHandlerProps<ShortcutPresetExportFailedException>> = ({error, closeError}) => {
+  const dispatch = useAppDispatch()
+  return <div className={css.shortcut_preset_export_error}>
+    <h2>Exporting of preset group failed</h2>
+    <div>Please choose a proper location to save the export file</div>
+    <div className={css.button_row}>
+      <button onClick={() => {closeError(); void(dispatch(exportPreset(error.callParams)))}}>
+        Try again
+      </button>
+      <button onClick={closeError}>
+        Cancel
+      </button>
+    </div>
+  </div>
+}
+
+const ShortcutPresetImportFailedExceptionHandler: FunctionComponent<ErrorHandlerProps<ShortcutPresetImportFailedException>> = ({error, closeError}) => {
+  const dispatch = useAppDispatch()
+  return <div className={css.shortcut_preset_import_error}>
+    <h2>Importing of preset group failed</h2>
+    {error.reason === "no file" ? <div>Please select a file to import</div>
+      : error.reason === "corrupt"
+        ? <div>It looks like the file is not a valid preset import file</div>
+        : error.reason === "wrong section"
+          ? <div>The preset file seems not to be for the {
+            nameFromStateKey(error.callParams.stateKey).toLocaleLowerCase()
+          } section</div>
+          : exhausted(error.reason)
+    }
+    <div className={css.button_row}>
+      <button onClick={() => {closeError(); void(dispatch(importPreset(error.callParams)))}}>
+        Try again
+      </button>
+      <button onClick={closeError}>
+        Cancel
+      </button>
+    </div>
+  </div>
+}
+
 export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {
   const dispatch = useAppDispatch()
   const closeError = () => {dispatch(appErrorCleared())}
@@ -112,11 +153,15 @@ export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {
     {"error" in error && error.error === "KeyAlreadyInUseException"
       ? <KeyAlreadyInUseExceptionHandler {...{error, closeError}} />
       : "error" in error && error.error === "ActionAlreadyInUseException"
-      ? <ActionAlreadyInUseExceptionHandler {...{error, closeError}} />
-      : "error" in error && error.error === "SwitchLeadsToDuplicateKeysException"
+        ? <ActionAlreadyInUseExceptionHandler {...{error, closeError}} />
+        : "error" in error && error.error === "SwitchLeadsToDuplicateKeysException"
           ? <SwitchLeadsToDuplicateKeysExceptionHandler {...{error, closeError}} />
-      : <UnknownError error={error} closeError={closeError} />
-  }
+          : "error" in error && error.error === "ShortcutPresetExportFailedException"
+            ? <ShortcutPresetExportFailedExceptionHandler {...{error, closeError}} />
+            : "error" in error && error.error === "ShortcutPresetImportFailedException"
+              ? <ShortcutPresetImportFailedExceptionHandler {...{error, closeError}} />
+              : <UnknownError error={error} closeError={closeError} />
+    }
   </Dialog>
 }
 

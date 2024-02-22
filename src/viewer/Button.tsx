@@ -6,10 +6,10 @@ import { useSelector } from "react-redux";
 import * as css from "./button.module.css"
 import { createSelector } from "@reduxjs/toolkit";
 import { keyToStrings } from "../lib/key";
-import { selectActiveGeneralShortcutGroup } from "./shortcutsSlice";
+import { selectActiveGeneralShortcutPreset } from "./shortcutsSlice";
 
 const selectShortcutKeysByControlinfo = createSelector(
-  [selectActiveGeneralShortcutGroup], (group) => {
+  [selectActiveGeneralShortcutPreset], (group) => {
     return new Map(ObjectEntries(group.shortcuts).map(([action, keys]) => {
       return [CONTROLS[action], keys]
     }))

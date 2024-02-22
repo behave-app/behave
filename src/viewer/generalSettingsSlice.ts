@@ -44,12 +44,12 @@ export const generalSettingsChecker: Checker<GeneralSettingsState> = getCheckerF
         alpha: 0,
       }
     })]),
-    confidenceLocation: new LiteralChecker([
-      "outer-left-top", "outer-center-top", "outer-right_top",
-      "inner-left-top", "inner-center-top", "inner-right_top",
-      "inner-left-bottom", "inner-center-bottom", "inner-right_bottom",
-      "outer-left-bottom", "outer-center-bottom", "outer-right_bottom",
-    ]) as Checker<ConfidenceLocation>,
+    confidenceLocation: new LiteralChecker<ConfidenceLocation>([
+      "outer-left-top", "outer-center-top", "outer-right-top",
+      "inner-left-top", "inner-center-top", "inner-right-top",
+      "inner-left-bottom", "inner-center-bottom", "inner-right-bottom",
+      "outer-left-bottom", "outer-center-bottom", "outer-right-bottom",
+    ]),
     showPlayerInfo: true,
 })
 

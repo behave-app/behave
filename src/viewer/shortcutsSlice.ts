@@ -8,12 +8,12 @@ import { ObjectEntries, ObjectFromEntries, ObjectKeys, assert } from '../lib/uti
 
 export type Shortcuts<T extends string = string> = Record<T, Key[]>
 
-export type ShortcutGroup<T extends string = string> = {
+export type ShortcutPreset<T extends string = string> = {
   name: string
   shortcuts: Shortcuts<T>
 }
 
-export const shortcutsGroupChecker: Checker<ShortcutGroup<string>> = getCheckerFromObject({
+export const shortcutsPresetChecker: Checker<ShortcutPreset<string>> = getCheckerFromObject({
   name: "",
   shortcuts: new RecordChecker({
     keyChecker: new StringChecker(),
@@ -21,34 +21,34 @@ export const shortcutsGroupChecker: Checker<ShortcutGroup<string>> = getCheckerF
   })
 })
 
-export type ShortcutGroups<T extends string = string> = {
-  groups: ShortcutGroup<T>[]
+export type ShortcutPresets<T extends string = string> = {
+  presets: ShortcutPreset<T>[]
   selectedIndex: number
 }
 
-export const shortcutsGroupsChecker: Checker<ShortcutGroups<string>> = new ObjectChecker({
+export const shortcutsPresetsChecker: Checker<ShortcutPresets<string>> = new ObjectChecker({
   required: {
     selectedIndex: new NumberChecker({isInt: true, min: 0}),
-    groups: new ArrayChecker(shortcutsGroupChecker)
+    presets: new ArrayChecker(shortcutsPresetChecker)
   }},
-  {valid: groups => groups.groups[groups.selectedIndex] !== undefined},
+  {valid: presets => presets.presets[presets.selectedIndex] !== undefined},
 )
 
 export type ShortcutsState = {
-  generalShortcuts: ShortcutGroups<string>
-  subjectShortcuts: ShortcutGroups<string>
-  behaviourShortcuts: ShortcutGroups<string>
+  generalShortcuts: ShortcutPresets<string>
+  subjectShortcuts: ShortcutPresets<string>
+  behaviourShortcuts: ShortcutPresets<string>
 }
 
 export type GeneneralShortcuts = Shortcuts<ValidControlName>
-export type GeneneralShortcutGroup = ShortcutGroup<ValidControlName>
-export type GeneneralShortcutGroups = ShortcutGroups<ValidControlName>
+export type GeneneralShortcutPreset = ShortcutPreset<ValidControlName>
+export type GeneneralShortcutPresets = ShortcutPresets<ValidControlName>
 
 export const shortcutsStateChecker: Checker<ShortcutsState> = new ObjectChecker({
   required: {
-    generalShortcuts: shortcutsGroupsChecker,
-    subjectShortcuts: shortcutsGroupsChecker,
-    behaviourShortcuts: shortcutsGroupsChecker,
+    generalShortcuts: shortcutsPresetsChecker,
+    subjectShortcuts: shortcutsPresetsChecker,
+    behaviourShortcuts: shortcutsPresetsChecker,
   }},
   {valid: undefined},
 )
@@ -56,7 +56,7 @@ export const shortcutsStateChecker: Checker<ShortcutsState> = new ObjectChecker(
 const defaultInitialState: ShortcutsState = {
   generalShortcuts: {
     selectedIndex: 0,
-    groups: [
+    presets: [
       {
         name: "default",
         shortcuts: {
@@ -76,7 +76,7 @@ const defaultInitialState: ShortcutsState = {
   },
   subjectShortcuts: {
     selectedIndex: 0,
-    groups: [
+    presets: [
       {
         name: "example subjects",
         shortcuts: {
@@ -88,7 +88,7 @@ const defaultInitialState: ShortcutsState = {
   },
   behaviourShortcuts: {
     selectedIndex: 0,
-    groups: [
+    presets: [
       {
         name: "example behaviours",
         shortcuts: {
@@ -144,11 +144,11 @@ export const shortcutsSlice = createSlice({
   reducers: {
     shortcutKeyAddedOrReplaced: (state, {payload}: PayloadAction<{stateKey: keyof ShortcutsState, action: string, newKey: Key, oldKey: Key | undefined}>) => {
       const {stateKey, action, newKey, oldKey} = payload
-      const activeGroup = getActiveGroup(state[stateKey])
-      if (!(action in activeGroup.shortcuts)) {
-        activeGroup.shortcuts[action] = []
+      const activePreset = getActivePreset(state[stateKey])
+      if (!(action in activePreset.shortcuts)) {
+        activePreset.shortcuts[action] = []
       }
-      const keys = activeGroup.shortcuts[action]
+      const keys = activePreset.shortcuts[action]
       if (oldKey) {
         const index = keys.findIndex(key => areEqualKeys(key, oldKey));
         if (index !== -1) {
@@ -162,23 +162,23 @@ export const shortcutsSlice = createSlice({
     },
     shortcutActionAddedOrReplaced: (state, {payload}: PayloadAction<{stateKey: keyof ShortcutsState, oldAction: string | undefined, newAction: string}>) => {
       const {stateKey, newAction, oldAction} = payload
-      const activeGroup = getActiveGroup(state[stateKey])
+      const activePreset = getActivePreset(state[stateKey])
       const newShortcuts = Object.fromEntries(
-      ObjectEntries(activeGroup.shortcuts).map(([action, keys]) => (
-        [action === oldAction ? newAction : action, keys])))
+        ObjectEntries(activePreset.shortcuts).map(([action, keys]) => (
+          [action === oldAction ? newAction : action, keys])))
       if (!(newAction in newShortcuts)) {
         newShortcuts[newAction] = []
       }
-      activeGroup.shortcuts = newShortcuts
+      activePreset.shortcuts = newShortcuts
     },
     shortcutKeyRemoved: (state, {payload}: PayloadAction<{key: Key, stateKey?: keyof ShortcutsState, action?: string}>) => {
       const stateKeys = payload.stateKey ? [payload.stateKey] : ObjectKeys(state)
       stateKeys.forEach((stateKey) => {
-        const activeGroup = getActiveGroup(state[stateKey])
+        const activePreset = getActivePreset(state[stateKey])
         const actions =
-          (payload.action !== undefined) ? [payload.action] : ObjectKeys(activeGroup.shortcuts)
+          (payload.action !== undefined) ? [payload.action] : ObjectKeys(activePreset.shortcuts)
         actions.forEach((action) => {
-          const keys = activeGroup.shortcuts[action]
+          const keys = activePreset.shortcuts[action]
           const index = keys.findIndex(key => areEqualKeys(key, payload.key))
           if (index !== -1) {
             keys.splice(index, 1)
@@ -187,21 +187,72 @@ export const shortcutsSlice = createSlice({
       })
     },
     shortcutActionRemoved: (state, {payload}: PayloadAction<{shortcutsStateKey: "subjectShortcuts" | "behaviourShortcuts", action: string}>) => {
-      const activeGroup = getActiveGroup(state[payload.shortcutsStateKey])
-      delete activeGroup.shortcuts[payload.action]
+      const activePreset = getActivePreset(state[payload.shortcutsStateKey])
+      delete activePreset.shortcuts[payload.action]
     },
     shortcutSwitchActiveIndices: (state, {payload: newIndices}: PayloadAction<ReadonlyArray<{stateKey: keyof ShortcutsState, newActiveIndex: number}>>) => {
       newIndices.forEach(({stateKey, newActiveIndex}) => {
-        assert(state[stateKey].groups[newActiveIndex] !== undefined)
+        assert(state[stateKey].presets[newActiveIndex] !== undefined)
         state[stateKey].selectedIndex = newActiveIndex
       })
     },
+
+    shortcutPresetRenamed: (state, {payload}: PayloadAction<{
+      stateKey: keyof ShortcutsState,
+      index: number,
+      newName: string,
+    }>) => {
+      const {stateKey, index, newName} = payload
+      const matchIndex = state[stateKey].presets.findIndex(
+        preset => preset.name.trim().toLocaleLowerCase() == newName.toLocaleLowerCase().trim())
+      assert(matchIndex === -1 || matchIndex === index, 
+        "No two presets can have the same case-insensitive-name-mod-trim")
+      assert(newName.trim() !== "", "Empty names not allowed")
+      const preset = state[stateKey].presets.at(index)
+      assert(preset, "Invalid index: " + index.toString())
+      preset.name = newName
+      console.log({preset}, preset.name)
+    },
+    shortcutPresetDeleted: (state, {payload}: PayloadAction<{
+      stateKey: keyof ShortcutsState,
+      index: number,
+    }>) => {
+      const {stateKey, index } = payload
+      assert(index !== state[stateKey].selectedIndex,
+        "Cannot delete active preset")
+      assert(state[stateKey].presets.at(index),
+      "Invalid index: " + index.toString())
+      state[stateKey].presets.splice(index, 1)
+      if (state[stateKey].selectedIndex > index) {
+        state[stateKey].selectedIndex--;
+      }
+    },
+    shortcutPresetAdded: (state, {payload}: PayloadAction<{
+      stateKey: keyof ShortcutsState,
+      name?: string
+      shortcuts?: Shortcuts
+    }>) => {
+      const {stateKey, name, shortcuts} = payload
+      for (let i=0;; i++) {
+        const suggestedName = (name ?? "Untitled") + (i ? ` (${i})` : "")
+        if (!state[stateKey].presets.some(preset => preset.name === suggestedName)) {
+          state[stateKey].presets.push({
+            name: suggestedName,
+            shortcuts: shortcuts ?? {}
+          })
+          break
+        }
+      }
+    }
   }
 })
 
 export const {
   shortcutKeyRemoved,
   shortcutActionRemoved,
+  shortcutPresetAdded,
+  shortcutPresetDeleted,
+  shortcutPresetRenamed,
 } = shortcutsSlice.actions
 
 const {
@@ -233,7 +284,7 @@ function keyAlreadyInUseException(
 export class AssertError extends Error {}
 
 export const createOrUpdateShortcutKey = createAsyncThunk<
-boolean, KeyAlreadyInUseException["callParams"], ATConfig
+boolean, KeyAlreadyInUseException["callParams"], ATConfig<KeyAlreadyInUseException>
 >(
   "settings/shortcuts/createOrUpdateShortcutKey",
   async (params , {getState, dispatch, rejectWithValue}) =>  {
@@ -242,9 +293,9 @@ boolean, KeyAlreadyInUseException["callParams"], ATConfig
       return false
     }
     const state = getState().settings.shortcuts
-    ObjectEntries(state).forEach(([loopStateKey, shortcutGroups]) => {
-      const activeGroup = getActiveGroup(shortcutGroups)
-      ObjectEntries(activeGroup.shortcuts).forEach(([loopAction, keys]) => {
+    ObjectEntries(state).forEach(([loopStateKey, shortcutPresets]) => {
+      const activePreset = getActivePreset(shortcutPresets)
+      ObjectEntries(activePreset.shortcuts).forEach(([loopAction, keys]) => {
         if (keys.some(key => areEqualKeys(key, newKey))) {
           if (loopStateKey === stateKey && loopAction === action) {
             dispatch(shortcutKeyRemoved({key: newKey, action, stateKey}))
@@ -260,7 +311,7 @@ boolean, KeyAlreadyInUseException["callParams"], ATConfig
     if (!(stateKey in state)) {
       throw new AssertError(`Called with non-existing stateKey: ${stateKey}`)
     }
-    let currentAction = getActiveGroup(state[stateKey]).shortcuts[action] 
+    let currentAction = getActivePreset(state[stateKey]).shortcuts[action] 
     if (currentAction === null && stateKey === "generalShortcuts") {
       currentAction = []
     }
@@ -295,7 +346,7 @@ function actionAlreadyInUseException(
 }
 
 export const createOrUpdateAction = createAsyncThunk<
-boolean, ActionAlreadyInUseException["callParams"], ATConfig
+boolean, ActionAlreadyInUseException["callParams"], ATConfig<ActionAlreadyInUseException>
 >(
   "settings/shortcuts/createOrUpdateAction",
   async (callParams , {getState, dispatch, rejectWithValue}) =>  {
@@ -306,9 +357,9 @@ boolean, ActionAlreadyInUseException["callParams"], ATConfig
     if (stateKey as string === "generalShortcuts") {
       throw new AssertError("Cannot change actions for General Shortcuts")
     }
-    const shortcutGroups = getState().settings.shortcuts[stateKey]
-    const activeGroup = getActiveGroup(shortcutGroups)
-    const usedActions = new Set(ObjectKeys(activeGroup.shortcuts)
+    const shortcutPresets = getState().settings.shortcuts[stateKey]
+    const activePreset = getActivePreset(shortcutPresets)
+    const usedActions = new Set(ObjectKeys(activePreset.shortcuts)
       .filter(s => s !== oldAction).map(s => s.trim().toLocaleLowerCase()))
     if (usedActions.has(newAction.trim().toLocaleLowerCase())) {
       throw rejectWithValue(actionAlreadyInUseException({callParams}))
@@ -341,10 +392,11 @@ function switchLeadsToDuplicateKeysException(
 }
 
 
-export const switchActiveGroup = createAsyncThunk<
-boolean, SwitchLeadsToDuplicateKeysException["callParams"], ATConfig
+export const switchActivePreset = createAsyncThunk<
+boolean, SwitchLeadsToDuplicateKeysException["callParams"],
+ATConfig<SwitchLeadsToDuplicateKeysException>
 >(
-  "settings/shortcuts/switchActiveGroup",
+  "settings/shortcuts/switchActivePreset",
   async (newIndices , {getState, dispatch, rejectWithValue}) =>  {
     const state = getState()
     const shortcutsState = state.settings.shortcuts
@@ -354,26 +406,26 @@ boolean, SwitchLeadsToDuplicateKeysException["callParams"], ATConfig
     if (filteredNewIndices.length === 0) {
       return false
     }
-    const newActiveGroups: {[key in keyof ShortcutsState]: ShortcutGroup<string>} =
+    const newActivePresets: {[key in keyof ShortcutsState]: ShortcutPreset<string>} =
     ObjectFromEntries(ObjectEntries(shortcutsState)
-    .map(([loopStateKey, loopGroups]) => {
+    .map(([loopStateKey, loopPresets]) => {
       const newActiveIndex =
       filteredNewIndices.find(x => x.stateKey === loopStateKey)?.newActiveIndex
-      ?? loopGroups.selectedIndex
-      return [loopStateKey, shortcutsState[loopStateKey].groups[newActiveIndex]]
+      ?? loopPresets.selectedIndex
+      return [loopStateKey, shortcutsState[loopStateKey].presets[newActiveIndex]]
     }))
 
-    if (Object.values(newActiveGroups)
-      .some(activeGroup => activeGroup === undefined)) {
+    if (Object.values(newActivePresets)
+      .some(activePreset => activePreset === undefined)) {
       throw new AssertError(`Invalid index for ${JSON.stringify(newIndices)}`)
     }
 
     const keysMap = new Map<string, {stateKey: keyof ShortcutsState, action: string}>()
     const duplicateKeys: SwitchLeadsToDuplicateKeysException["duplicateKeys"] = []
 
-    for (const [loopStateKey, groups] of ObjectEntries(state.settings.shortcuts)) {
-      const activeGroup = getActiveGroup(groups)
-      for (const [loopAction, loopKeys] of ObjectEntries(activeGroup.shortcuts)) {
+    for (const [loopStateKey, presets] of ObjectEntries(state.settings.shortcuts)) {
+      const activePreset = getActivePreset(presets)
+      for (const [loopAction, loopKeys] of ObjectEntries(activePreset.shortcuts)) {
         for (const loopKey of loopKeys) {
           const keyString = keyToString(loopKey)
           const thisAction = {action: loopAction, stateKey: loopStateKey}
@@ -399,20 +451,150 @@ boolean, SwitchLeadsToDuplicateKeysException["callParams"], ATConfig
 )
 
 
+export type ShortcutPresetExportFailedException = {
+  error: "ShortcutPresetExportFailedException"
+  callParams: {stateKey: keyof ShortcutsState, index: number},
+}
 
-const getActiveGroup = <T extends string>(groups: ShortcutGroups<T>) =>
-   groups.groups[groups.selectedIndex] ?? groups.groups[0] ?? {name: "error", shortcuts: []}
+function shortcutPresetExportFailedException(
+  exception: Omit<ShortcutPresetExportFailedException, "error">
+): ShortcutPresetExportFailedException {
+  return {
+    error: "ShortcutPresetExportFailedException",
+    ...exception
+  }
+}
 
-export const selectGeneralShortcutGroups = (state: RootState) => state.settings.shortcuts.generalShortcuts as GeneneralShortcutGroups
-export const selectActiveGeneralShortcutGroup = (state: RootState) => getActiveGroup(selectGeneralShortcutGroups(state))
+export function nameFromStateKey(key: keyof ShortcutsState): string {
+  return key === "generalShortcuts" ? "General"
+  : key === "subjectShortcuts" ? "Subject" : "Behaviour"
+}
 
-export const selectSubjectShortcutGroups = (state: RootState) => state.settings.shortcuts.subjectShortcuts as GeneneralShortcutGroups
-export const selectActiveSubjectShortcutGroup = (state: RootState) => getActiveGroup(selectSubjectShortcutGroups(state))
+function getExportSuffix(key: keyof ShortcutsState): `.${string}` {
+  return `.${nameFromStateKey(key).toLocaleLowerCase()}-preset-export.json`
+}
+
+export const exportPreset = createAsyncThunk<
+  void, ShortcutPresetExportFailedException["callParams"],
+ATConfig<ShortcutPresetExportFailedException>>(
+  "settings/shortcuts/exportPreset",
+  async (callParams, {getState, rejectWithValue}) => {
+    const {stateKey, index} = callParams
+    const preset = getState().settings.shortcuts[stateKey]?.presets[index]
+    assert(preset)
+    let file: FileSystemFileHandle
+    try {
+      file = await window.showSaveFilePicker({
+        id: "presets",
+        startIn: "downloads",
+        suggestedName: `${preset.name}${getExportSuffix(stateKey)}`,
+        types: [{
+          description: "JSON file",
+          accept: {"application/json": [".json"]}
+        }]
+      })
+    } catch (e) {
+      if (e instanceof DOMException) {
+        throw rejectWithValue(shortcutPresetExportFailedException({callParams}))
+      }
+      throw e
+    }
+    const outputstream = await file.createWritable()
+    await outputstream.write(JSON.stringify({
+      type: "preset",
+      section: nameFromStateKey(stateKey).toLocaleLowerCase(),
+      version: 1,
+      preset: preset
+    }, undefined, 4))
+    await outputstream.close()
+  }
+)
+  
+export type ShortcutPresetImportFailedException = {
+  error: "ShortcutPresetImportFailedException"
+  callParams: {stateKey: keyof ShortcutsState},
+  reason: "no file" | "corrupt" | "wrong section",
+}
+
+function shortcutPresetImportFailedException(
+  exception: Omit<ShortcutPresetImportFailedException, "error">
+): ShortcutPresetImportFailedException {
+  return {
+    error: "ShortcutPresetImportFailedException",
+    ...exception
+  }
+}
+
+export const importPreset = createAsyncThunk<
+void, ShortcutPresetImportFailedException["callParams"], ATConfig<ShortcutPresetImportFailedException>>(
+  "settings/shortcuts/ImportPreset",
+  async (callParams, {getState, dispatch, rejectWithValue}) => {
+    const {stateKey} = callParams
+    const presets = getState().settings.shortcuts[stateKey]?.presets
+    assert(presets)
+    let file: FileSystemFileHandle
+    try {
+      const files = await window.showOpenFilePicker({
+        id: "presets",
+        startIn: "downloads",
+        types: [{
+          description: "JSON file",
+          accept: {"application/json": [".json"]}
+        }]
+      })
+      assert(files.length === 1)
+      file = files[0]
+    } catch (e) {
+      if (e instanceof DOMException) {
+        throw rejectWithValue(shortcutPresetImportFailedException(
+          {callParams, reason: "no file"}))
+      } else {
+        throw e
+      }
+    }
+    const text = await (await file.getFile()).text()
+    const data = (() => {
+      try {
+        return JSON.parse(text)
+      } catch {
+        throw rejectWithValue(shortcutPresetImportFailedException(
+          {callParams, reason: "corrupt"}))
+      }
+    })()
+
+    const checker = getCheckerFromObject({
+      type: new LiteralChecker("preset"),
+      section: "",
+      version: new LiteralChecker(1),
+      preset: shortcutsPresetChecker,
+    })
+
+    if (!checker.isInstance(data)) {
+      throw rejectWithValue(shortcutPresetImportFailedException(
+        {callParams, reason: "corrupt"}))
+    }
+    if (data.section !== nameFromStateKey(stateKey).toLocaleLowerCase()) {
+      throw rejectWithValue(shortcutPresetImportFailedException(
+        {callParams, reason: "wrong section"}))
+    }
+    dispatch(shortcutPresetAdded({stateKey, ...data.preset}))
+  }
+)
+
+
+const getActivePreset = <T extends string>(presets: ShortcutPresets<T>) =>
+  presets.presets[presets.selectedIndex] ?? presets.presets[0] ?? {name: "error", shortcuts: []}
+
+export const selectGeneralShortcutPresets = (state: RootState) => state.settings.shortcuts.generalShortcuts as GeneneralShortcutPresets
+export const selectActiveGeneralShortcutPreset = (state: RootState) => getActivePreset(selectGeneralShortcutPresets(state))
+
+export const selectSubjectShortcutPresets = (state: RootState) => state.settings.shortcuts.subjectShortcuts as GeneneralShortcutPresets
+export const selectActiveSubjectShortcutPreset = (state: RootState) => getActivePreset(selectSubjectShortcutPresets(state))
 export const selectActiveSubjectShortcutActions = createSelector(
-  [selectActiveSubjectShortcutGroup], group => ObjectKeys(group.shortcuts))
+  [selectActiveSubjectShortcutPreset], preset => ObjectKeys(preset.shortcuts))
 
-export const selectBehaviourShortcutGroups = (state: RootState) => state.settings.shortcuts.behaviourShortcuts as GeneneralShortcutGroups
-export const selectActiveBehaviourShortcutGroup = (state: RootState) => getActiveGroup(selectBehaviourShortcutGroups(state))
+export const selectBehaviourShortcutPresets = (state: RootState) => state.settings.shortcuts.behaviourShortcuts as GeneneralShortcutPresets
+export const selectActiveBehaviourShortcutPreset = (state: RootState) => getActivePreset(selectBehaviourShortcutPresets(state))
 export const selectActiveBehaviourShortcutActions = createSelector(
-  [selectActiveBehaviourShortcutGroup], group => ObjectKeys(group.shortcuts))
+  [selectActiveBehaviourShortcutPreset], preset => ObjectKeys(preset.shortcuts))
 

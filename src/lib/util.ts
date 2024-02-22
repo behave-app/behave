@@ -8,6 +8,10 @@ export function assert(predicate: unknown, message?: string, dump?: unknown): as
   }
 }
 
+export function exhausted(key: never) {
+  throw new Error("Not exhausted " + key)
+}
+
 export function formatTime(totalseconds: number): string {
   return totalseconds < 3600
     ? formatTimeMSS(totalseconds)
@@ -181,7 +185,23 @@ export function ObjectFromEntries<K extends string, V>(
   return Object.fromEntries(obj) as unknown as {[key in K]: V}
 }
 
+export type ValidRecordKey = string | number | symbol
+
+export function ObjectGet<T extends object, K>(obj: T, key: K): K extends keyof T ? T[K] : K extends ValidRecordKey ? (T[keyof T] | undefined) : undefined;
+export function ObjectGet<T extends object, K, D>(obj: T, key: K, defaultValue: D): K extends keyof T ? T[K] : K extends ValidRecordKey ? (T[keyof T] | D) : D;
+export function ObjectGet<T extends object, K, D>(obj: T, key: K, defaultValue?: D): K extends keyof T ? T[K] : K extends ValidRecordKey ? (T[keyof T] | D | undefined) : (D | undefined) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function isKey<T extends object>(obj: T, key: any): key is keyof T {
+    return (key in obj)
+  }
+  if (isKey(obj, key)) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return obj[key] as any
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return defaultValue as any
+}
+
 export function mayBeUndefined<T>(item: T): T | undefined {
   return item
 }
-

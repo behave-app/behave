@@ -1,19 +1,22 @@
 .show_on_hover_buttons {
-    display: flex;
-    & > :not(.show_on_hover) {
-      flex-grow: 1;
-      flex-shrink: 1;
+  display: flex;
+  & > :not(.show_on_hover) {
+    flex-grow: 1;
+    flex-shrink: 1;
+  }
+  & > .show_on_hover {
+    flex: 0 0 2em;
+    opacity: 0;
+    transition: background-color .2s, opacity .2s;
+    border: none;
+    background-color: hsl(0, 0%, 0%, 0);
+    &:hover {
+      background-color: hsl(0, 0%, 0%, .2);
     }
-    & > .show_on_hover {
-      flex: 0 0 2em;
-      opacity: 0;
-      transition: opacity .2s;
-      border: none;
-      background-color: unset;
-    }
-    &:hover > .show_on_hover {
-      opacity: 1;
-    }
+  }
+  &:hover > .show_on_hover {
+    opacity: 1;
+  }
 
 }
 
@@ -60,19 +63,20 @@
           }
         }
       }
-    }
-    .title {
-      margin-left: .7em;
-      display: inline-block;
-      flex-grow: 2;
-      flex-shrink: 2;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      text-align: left;
+      .title {
+        margin-left: .7em;
+        display: inline-block;
+        flex-grow: 2;
+        flex-shrink: 2;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        text-align: left;
+      }
     }
   }
 }
+
 .title {
   &:not(input):empty, &:is(input:placeholder-shown) {
     color: hsl(195, 20%, 50%, .5);
@@ -81,7 +85,7 @@
     }
   }
 }
-.current_group_select {
+.current_preset_select {
   margin: 1.5em;
   font-family: Arial, helvetica, sans-serif;
   .active_preset {
@@ -118,6 +122,9 @@
     .add_button_small {
       border: none;
       background-color: unset;
+      &:hover {
+        background-color: hsl(0, 0%, 0%, .2);
+      }
     }
     .key_list {
       display: flex;
@@ -127,16 +134,16 @@
       .shortcut_row {
         display: flex;
         flex-flow: row nowrap;
-        &:nth-child(2n) {
-          background-color: hsl(0, 0%, 0%, .05);
-        }
-        &:nth-child(2n + 1) {
+        &:hover {
           background-color: hsl(0, 0%, 0%, .1);
         }
         button {
           flex: 0 0 2em;
           border: none;
           background-color: unset;
+          &:hover {
+            background-color: hsl(0, 0%, 0%, .2);
+          }
         }
         .shortcut_key  {
           height: 1.3lh;
@@ -179,16 +186,80 @@
       width: 100%;
       box-sizing: border-box;
       gap: .4em;
-      &:hover {
-        background-color: hsl(0, 0%, 0%, .1);
+      .preset_selected {
+        flex: 0;
       }
       .preset_name {
         flex: 1;
+        input {
+          width: 100%;
+        }
+        cursor: default;
+        &.name_edit_error input {
+          cursor: auto;
+          background-color: hsl(0, 70%, 70%);
+        }
+      }
+      & > button{
+        &.save_button {
+          display: none;
+        }
+        &:hover {
+          background-color: hsl(0, 0%, 0%, .2);
+        }
+      }
+    }
+    &.editing {
+      li > button {
+        display: none;
+        &.save_button {
+          display: block;
+          opacity: 1;
+        }
+      }
+    }
+    &:not(.editing) {
+      li:hover {
+        background-color: hsl(0, 0%, 0%, .1);
+      }
+    }
+  }
+}
+
+.quick_shortcut_list {
+  dl{
+    &:empty::before {
+      opacity: .4;
+      content: "<No actions are defined for this preset>"
+    }
+    dt {
+      display: inline;
+      &::after {
+        content: ": "
+      }
+    }
+    dd {
+      margin: 0;
+      display: inline;
+      &::after {
+        content: "";
+        display: block;
+      }
+      &:empty::before {
+        opacity: .4;
+        content: "<no shortcuts keys defined>"
+      }
+      & > div {
+        display: inline-block;
+        & + div {
+          &::before {
+            content: ", ";
+          }
+        }
       }
     }
 }
-  .preset_editor_line_buttons > button {
-    border: none;
-    background-color: unset;
-  }
+}
+.confirm_box {
+  max-width: 40vw;
 }

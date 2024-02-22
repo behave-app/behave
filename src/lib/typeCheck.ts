@@ -62,7 +62,7 @@ export class LiteralChecker<T extends boolean | string | number | null | undefin
   }
   _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is T {
     if (!this.items.has(value as T)) {
-      throw new TypeCheckerError(path, `${value} not in ${this.items}`, value)
+      throw new TypeCheckerError(path, `${value} not in ${[...this.items]}`, value)
     }
   }
 }
@@ -213,7 +213,7 @@ export class TupleChecker<T extends unknown[]> extends Checker<ItemWithoutChecke
     if (!(Array.isArray(value) && this.itemChecker.length === value.length)) {
       throw new TypeCheckerError(path, `${value} is not an array of length ${this.itemChecker.length}`, value)
     }
-    value.every((el, index) => this.itemChecker[index]._assertInstance(el, `${path}.${index}`))
+    value.forEach((el, index) => this.itemChecker[index]._assertInstance(el, `${path}.${index}`))
   }
 }
 
@@ -271,10 +271,10 @@ Opt extends Record<ValidRecordKey, unknown>,
       ...this.requiredItemChecker,
       ...this.optionalItemChecker,
     }
-    Object.keys(value).every(key => {
+    Object.keys(value).forEach(key => {
       const checker = combinedItemChecker[key]
       const val = value[key as keyof typeof value]
-      return checker._assertInstance(val, `${path}.${key}`)
+      void(checker._assertInstance(val, `${path}.${key}`))
     })
   }
 }

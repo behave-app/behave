@@ -2,11 +2,15 @@ import { FunctionComponent } from "preact";
 import { AppError, appErrorCleared } from "./appSlice";
 import * as css from "./error.module.css"
 import { useAppDispatch } from "./store";
-import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, SwitchLeadsToDuplicateKeysException, createOrUpdateShortcutKey, exportPreset, importPreset, nameFromStateKey, shortcutKeyRemoved } from "./shortcutsSlice";
+import { ActionAlreadyInUseException, KeyAlreadyInUseException, ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, SwitchLeadsToDuplicateKeysException, createOrUpdateShortcutKey, exportPreset, importPreset, nameFromStateKey, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutKeyRemoved, switchActivePreset } from "./shortcutsSlice";
 import { CONTROLS, ValidControlName } from "./controls";
-import { keyToStrings } from "../lib/key";
+import { keyToStrings, Key } from "../lib/key";
 import { Dialog } from "../lib/Dialog";
-import { exhausted } from "src/lib/util";
+import { ObjectEntries, ObjectFromEntries, exhausted } from "../lib/util";
+import { useSelector } from "react-redux";
+import { Icon } from "../lib/Icon";
+import { useState } from "react";
+import { getTitleFromShortcutsStateKeyAndAction } from "./KeyShortcuts";
 
 type ErrorHandlerProps<T> = {
   error: AppError & T
@@ -73,7 +77,25 @@ const ActionAlreadyInUseExceptionHandler: FunctionComponent<ErrorHandlerProps<Ac
 
 
 const SwitchLeadsToDuplicateKeysExceptionHandler: FunctionComponent<ErrorHandlerProps<SwitchLeadsToDuplicateKeysException>> = ({error, closeError}) => {
-  const {callParams} = error
+  const {callParams: {newIndices}, duplicateKeys} = error
+  const shortcuts: ShortcutsState = {
+    generalShortcuts: useSelector(selectGeneralShortcutPresets),
+    subjectShortcuts: useSelector(selectSubjectShortcutPresets),
+    behaviourShortcuts: useSelector(selectBehaviourShortcutPresets),
+  }
+  const [keysToDelete, setKeysToDelete] = useState<Array<{
+    stateKey: keyof ShortcutsState, action: string, key: Key}>>([])
+  const dispatch = useAppDispatch()
+
+  const changeMap = ObjectFromEntries(newIndices.map(
+    ({stateKey, newActiveIndex}) => [stateKey, newActiveIndex]))
+  const selected: {[key in keyof ShortcutsState]: {activeName: string, newIndex: number}} = ObjectFromEntries(ObjectEntries(shortcuts).map(([stateKey, presets]) => [
+  stateKey, {
+  activeName: presets.presets[presets.selectedIndex].name,
+  newIndex: changeMap[stateKey] ?? presets.selectedIndex
+      }]
+  ))
+
   return <div className={css.switch_leads_to_duplicate_keys}>
     <h2>The change you're trying to make leads to duplicate key assignments</h2>
     <div>
@@ -86,7 +108,7 @@ const SwitchLeadsToDuplicateKeysExceptionHandler: FunctionComponent<ErrorHandler
     <div>
       This situation can be solved by one of three ways:
       <ul>
-        <li>Cancel the change (see button at the bottom)</li>
+        <li><button onClick={closeError}>Cancel</button> the change</li>
         <li>Change other preset groups, to a setting where there is no overlap</li>
         <li>For all overlapping key-combinations, choose which one you want to keep (the other one will be removed)</li>
       </ul>
@@ -98,9 +120,48 @@ const SwitchLeadsToDuplicateKeysExceptionHandler: FunctionComponent<ErrorHandler
       <kbd>Shift</kbd><kbd>A</kbd> as a subject shortcut in one preset,
       never use it as a general shortcut or a behaviour shortcut in any presets.
     </div>
-    {callParams.length}
+    <div>
+      {ObjectEntries(shortcuts).map(([stateKey, presets]) => <div>
+        {nameFromStateKey(stateKey)} shortcuts: <span
+          className={css.current_preset}>{selected[stateKey].activeName}
+        </span> <Icon iconName="arrow_right_alt"
+        /> <select value={selected[stateKey].newIndex}
+          onChange={e => dispatch(switchActivePreset({
+            newIndices: ObjectEntries({
+              ...changeMap,
+              [stateKey]: e.currentTarget.value
+              }).map(([stateKey, newActiveIndex]) => ({stateKey, newActiveIndex})),
+            alwaysError: true,
+          }))}>
+          {presets.presets.map((preset, index) => <option
+            value={index}>{preset.name}</option>)}
+        </select>
+      </div>)}
+    </div>
+
+    <div>{duplicateKeys.length === 0
+      ? <>The current selection is possible without any collisions </>
+      :  <>The current selection has some collisions. Either change the preset
+        selection above, or select below which key bindings to keep (and which to delete)
+        <div className={css.choices}>
+          {duplicateKeys.map(({key, collision}) => <>
+            <span>{keyToStrings(key).map(k => <kbd>{k}</kbd>)}</span>
+            {collision.map(({stateKey, action}) => <>
+              <span>{nameFromStateKey(stateKey)}</span>
+              <span title={
+                getTitleFromShortcutsStateKeyAndAction(stateKey, action)}>
+                {getTitleFromShortcutsStateKeyAndAction(stateKey, action)}
+              </span>
+            </>
+            )}
+          </>
+          )}
+        </div>
+      </>
+    }</div>
+
     <div className={css.button_row}>
-      <button onClick={closeError}>close</button>
+      <button onClick={closeError}>Cancel & close</button>
     </div>
   </div> 
 }

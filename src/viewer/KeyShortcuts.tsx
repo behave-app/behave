@@ -9,7 +9,7 @@ import * as css from "./keyshortcuts.module.css"
 import { ObjectGet, ObjectKeys, joinedStringFromDict } from "../lib/util"
 import { Icon, ValidIconName } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { ActionAlreadyInUseException, ShortcutPreset, ShortcutPresets, ShortcutsState, createOrUpdateAction, createOrUpdateShortcutKey, exportPreset, importPreset, nameFromStateKey, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutActionRemoved, shortcutKeyRemoved, shortcutPresetAdded, shortcutPresetDeleted, shortcutPresetRenamed } from "./shortcutsSlice"
+import { ActionAlreadyInUseException, ShortcutPreset, ShortcutPresets, ShortcutsState, createOrUpdateAction, createOrUpdateShortcutKey, exportPreset, importPreset, nameFromStateKey, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutActionRemoved, shortcutKeyRemoved, shortcutPresetAdded, shortcutPresetDeleted, shortcutPresetRenamed, switchActivePreset } from "./shortcutsSlice"
 import { MODIFIER_KEYS } from "../lib/defined_keys"
 import { SerializedError } from "@reduxjs/toolkit"
 import type { RootState } from "./store"
@@ -343,7 +343,7 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
   </div>
 }
 
-const getTitleFromShortcutsStateKeyAndAction = (
+export const getTitleFromShortcutsStateKeyAndAction = (
   shortcutsStateKey: keyof ShortcutsState, action: string): string => {
   return shortcutsStateKey === "generalShortcuts"
     ? ObjectGet(CONTROLS, action)?.description ?? action : action
@@ -417,6 +417,17 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
   preset => normalizeName(preset.name) === normalizeName(editNameInfo.name)) in {
   [-1]: true, [editNameInfo.index]: true}))
 
+  function trySwitchIndex(newIndex: number) {
+    if (editNameInfo) {
+      return;
+    }
+    if (newIndex === shortcutPresets.selectedIndex) {
+      return
+    }
+    void(dispatch(switchActivePreset({
+      newIndices: [{stateKey: shortcutsStateKey, newActiveIndex: newIndex}]})))
+  }
+
   return <Dialog onRequestClose={onRequestClose} className={css.preset_editor}>
     {confirmDeleteIndex !== undefined && <Dialog className={css.confirm_box}
       blur onRequestClose={() => setConfirmDeleteIndex(undefined)}>
@@ -440,14 +451,15 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
     <ul className={joinedStringFromDict({[css.editing]: !!editNameInfo})}>
       {shortcutPresets.presets.map(
         (preset, index) => <li className={css.show_on_hover_buttons}>
-          <span className={css.preset_selected}>
+          <span className={css.preset_selected}
+            onClick={() => trySwitchIndex(index)}>
             <Icon iconName={index === shortcutPresets.selectedIndex ?
               "radio_button_checked" : "radio_button_unchecked"} />
           </span>
           <span className={joinedStringFromDict({
             [css.preset_name]: true,
             [css.name_edit_error]: nameEditError
-          })}>
+          })} onClick={() => trySwitchIndex(index)}>
             {index === editNameInfo?.index ? <input autofocus
               onChange={e => setEditNameInfo({
                 index, name: e.currentTarget.value})}
@@ -493,24 +505,28 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
             <Icon iconName="delete" /></button>
         </li>)}
     </ul> 
-    {editNameInfo ? <><button
-      disabled={nameEditError}
-      onClick={() => trySaveNewName()}>
-      Save new name
-    </button>
-      <button
-        onClick={() => setEditNameInfo(null)}>
-        Cancel name edit
-      </button>
-    </>: <><button
-        onClick={() => dispatch(shortcutPresetAdded({stateKey: shortcutsStateKey}))}>
-        <Icon iconName="add" />Add new preset
+    <div className={css.button_row}>
+      {editNameInfo ? <><button
+        disabled={nameEditError}
+        onClick={() => trySaveNewName()}>
+        Save new name
       </button>
         <button
-        onClick={() => dispatch(importPreset({stateKey: shortcutsStateKey}))}>
-        <Icon iconName="upload" />Import preset from file
-      </button>
-      </>}
+          onClick={() => setEditNameInfo(null)}>
+          Cancel name edit
+        </button>
+      </>: <><button
+          onClick={() => dispatch(shortcutPresetAdded({stateKey: shortcutsStateKey}))}>
+          <Icon iconName="add" />Add new preset
+        </button>
+          <button
+            onClick={() => dispatch(importPreset({stateKey: shortcutsStateKey}))}>
+            <Icon iconName="upload" />Import preset from file
+          </button>
+          <button
+            onClick={onRequestClose}>Close</button>
+        </>}
+    </div>
   </Dialog>
 }
 

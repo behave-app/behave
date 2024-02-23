@@ -12,4 +12,15 @@
 
 .switch_leads_to_duplicate_keys {
   width: 70vw;
+  > div {
+    margin: .7em 0;
+  }
+  .current_preset {
+    font-weight: bold;
+  }
+  .choices {
+    display: grid;
+    width: 100%;
+    grid-template-columns: max-content max-content 1fr max-content 1fr;
+  }
 }

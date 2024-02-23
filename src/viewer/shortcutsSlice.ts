@@ -372,10 +372,13 @@ boolean, ActionAlreadyInUseException["callParams"], ATConfig<ActionAlreadyInUseE
 
 export type SwitchLeadsToDuplicateKeysException = {
   error: "SwitchLeadsToDuplicateKeysException"
-  callParams: Array<{
+  callParams: {
+    newIndices: Array<{
     stateKey: keyof ShortcutsState
     newActiveIndex: number
-    }>
+    }>,
+    alwaysError?: boolean
+  },
   duplicateKeys: Array<{key: Key, collision: [
     {stateKey: keyof ShortcutsState, action: string},
     {stateKey: keyof ShortcutsState, action: string},
@@ -391,13 +394,13 @@ function switchLeadsToDuplicateKeysException(
   }
 }
 
-
 export const switchActivePreset = createAsyncThunk<
 boolean, SwitchLeadsToDuplicateKeysException["callParams"],
 ATConfig<SwitchLeadsToDuplicateKeysException>
 >(
   "settings/shortcuts/switchActivePreset",
-  async (newIndices , {getState, dispatch, rejectWithValue}) =>  {
+  async (callParams , {getState, dispatch, rejectWithValue}) =>  {
+    const {newIndices, alwaysError} = callParams
     const state = getState()
     const shortcutsState = state.settings.shortcuts
     const filteredNewIndices = newIndices.filter(({stateKey, newActiveIndex}) =>
@@ -423,8 +426,8 @@ ATConfig<SwitchLeadsToDuplicateKeysException>
     const keysMap = new Map<string, {stateKey: keyof ShortcutsState, action: string}>()
     const duplicateKeys: SwitchLeadsToDuplicateKeysException["duplicateKeys"] = []
 
-    for (const [loopStateKey, presets] of ObjectEntries(state.settings.shortcuts)) {
-      const activePreset = getActivePreset(presets)
+    for (const loopStateKey of ObjectKeys(state.settings.shortcuts)) {
+      const activePreset = newActivePresets[loopStateKey]
       for (const [loopAction, loopKeys] of ObjectEntries(activePreset.shortcuts)) {
         for (const loopKey of loopKeys) {
           const keyString = keyToString(loopKey)
@@ -435,14 +438,16 @@ ATConfig<SwitchLeadsToDuplicateKeysException>
               key: loopKey,
               collision: [thisAction, collidingAction]
             })
+          } else {
+            keysMap.set(keyString, thisAction)
           }
         }
       }
     }
 
-    if (duplicateKeys.length) {
+    if (duplicateKeys.length || alwaysError) {
       throw rejectWithValue(switchLeadsToDuplicateKeysException({
-        callParams: newIndices, duplicateKeys}))
+        callParams: callParams, duplicateKeys}))
     }
 
     dispatch(shortcutSwitchActiveIndices(filteredNewIndices))

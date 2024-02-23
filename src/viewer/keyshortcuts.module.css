@@ -46,6 +46,7 @@
       display: flex;
       flex-wrap: nowrap;
       overflow: hidden;
+      height: 1.5lh;
 
       .keys {
         text-align: left;

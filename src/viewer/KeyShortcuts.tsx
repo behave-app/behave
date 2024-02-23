@@ -604,7 +604,8 @@ export const KeyShortcuts: FunctionComponent<Props> = ({onRequestClose}) => {
         onRequestClose={onRequestClose} shortcutsStateKey={shortcutsStateKey} />)
     }
     <div className={css.button_row}>
-    <button onClick={() => onRequestClose()}>Close</button>
+      <button onClick={() => onRequestClose()}>Close</button>
+      <button onClick={() => alert("TODO")}>reset</button>
     </div>
   </div>
 }

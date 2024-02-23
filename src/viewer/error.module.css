@@ -5,22 +5,24 @@
   justify-content: center;
 }
 
-.key_already_in_use, .action_already_in_use,
+.action_already_in_use,
 .shortcut_preset_export_error, .shortcut_preset_import_error {
   width: 50vw;
 }
 
-.switch_leads_to_duplicate_keys {
-  width: 70vw;
-  > div {
-    margin: .7em 0;
-  }
-  .current_preset {
-    font-weight: bold;
-  }
-  .choices {
-    display: grid;
-    width: 100%;
-    grid-template-columns: max-content max-content 1fr max-content 1fr;
+.multiple_actions_assigned_to_pressed_key_exception {
+  width: 40vw;
+  .multiple_action_choices {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: stretch;
+    > button {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      &.activated {
+        background-color: hsl(0, 0%, 70%);
+      }
+    }
   }
 }

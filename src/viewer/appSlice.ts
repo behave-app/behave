@@ -1,12 +1,20 @@
 import { createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import { createOrUpdateShortcutKey, type ActionAlreadyInUseException, type KeyAlreadyInUseException, type SwitchLeadsToDuplicateKeysException, createOrUpdateAction, switchActivePreset, exportPreset, importPreset, ShortcutPresetImportFailedException, ShortcutPresetExportFailedException } from './shortcutsSlice'
+import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
+import { Key } from '../lib/key'
 
 export type SidebarPopup = "info" | "classSliders" | "keyShortcuts"
 export const zoomLevels = [1, 2, 3, 5] as const
 export type ZoomLevel = number
 
-export type AppError = SerializedError | ActionAlreadyInUseException | KeyAlreadyInUseException | SwitchLeadsToDuplicateKeysException | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException
+export type MultipleActionsAssignedToPressedKeyException = {
+  error: "MultipleActionsAssignedToPressedKeyException",
+  key: Key,
+  actions: Array<{shortcutsStateKey: keyof ShortcutsState, action: string}>
+}
+
+
+export type AppError = (SerializedError & {error: "SerializedError"}) | ActionAlreadyInUseException | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException
 
 export const appSlice = createSlice({
   name: "app",
@@ -46,37 +54,23 @@ export const appSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(createOrUpdateShortcutKey.rejected, (state, action) => {
-        if (action.payload === undefined) {
-          state.error = action.error
-        } else {
-          state.error = action.payload
-        }
-      })
       .addCase(createOrUpdateAction.rejected, (state, action) => {
         if (action.payload === undefined) {
-          state.error = action.error
-        } else {
-          state.error = action.payload
-        }
-      })
-      .addCase(switchActivePreset.rejected, (state, action) => {
-        if (action.payload === undefined) {
-          state.error = action.error
+          state.error = {error: "SerializedError", ...action.error}
         } else {
           state.error = action.payload
         }
       })
       .addCase(exportPreset.rejected, (state, action) => {
         if (action.payload === undefined) {
-          state.error = action.error
+          state.error = {error: "SerializedError", ...action.error}
         } else {
           state.error = action.payload
         }
       })
       .addCase(importPreset.rejected, (state, action) => {
         if (action.payload === undefined) {
-          state.error = action.error
+          state.error = {error: "SerializedError", ...action.error}
         } else {
           state.error = action.payload
         }

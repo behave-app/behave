@@ -43,6 +43,9 @@
       &.activated {
         background-color: hsl(0, 0%, 70%);
       }
+      &.has_duplicate {
+        background-color: hsl(0, 70%, 70%);
+      }
       display: flex;
       flex-wrap: nowrap;
       overflow: hidden;
@@ -116,6 +119,9 @@
     }
   }
   h3 {}
+  .duplicate_keys_explain {
+    color: hsl(0, 70%, 20%);
+  }
   .shortcuts {
     padding: 1.5em;
     width: 100%;
@@ -150,6 +156,9 @@
           height: 1.3lh;
           box-sizing: border-box;
           flex-grow: 1;
+        }
+        &.shortcut_is_duplicate {
+          background-color: hsl(0, 70%, 70%);
         }
         &.editing_key .shortcut_key {
           background-color: hsl(0, 0%, 100%, .8);

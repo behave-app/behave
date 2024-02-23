@@ -2,16 +2,15 @@ import { FunctionComponent } from "preact"
 import { useSelector } from "react-redux"
 import { useEffect, useState, useMemo } from "preact/hooks"
 import { useAppDispatch } from "./store"
-import { keyFromEvent, Key, keyToStrings } from "../lib/key"
+import { keyFromEvent, Key, keyToStrings, keyToString, keyToElements } from "../lib/key"
 import { CONTROLS, ValidControlName } from "./controls"
-import { appErrorSet, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, } from "./appSlice"
+import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, } from "./appSlice"
 import * as css from "./keyshortcuts.module.css"
 import { ObjectGet, ObjectKeys, joinedStringFromDict } from "../lib/util"
 import { Icon, ValidIconName } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { ActionAlreadyInUseException, ShortcutPreset, ShortcutPresets, ShortcutsState, createOrUpdateAction, createOrUpdateShortcutKey, exportPreset, importPreset, nameFromStateKey, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutActionRemoved, shortcutKeyRemoved, shortcutPresetAdded, shortcutPresetDeleted, shortcutPresetRenamed, switchActivePreset } from "./shortcutsSlice"
+import { ShortcutPreset, ShortcutPresets, ShortcutsState, createOrUpdateAction, shortcutKeyAddedOrReplaced, exportPreset, importPreset, nameFromStateKey, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutActionRemoved, shortcutKeyRemoved, shortcutPresetAdded, shortcutPresetDeleted, shortcutPresetRenamed, shortcutSwitchActiveIndex, selectActionByKeyString } from "./shortcutsSlice"
 import { MODIFIER_KEYS } from "../lib/defined_keys"
-import { SerializedError } from "@reduxjs/toolkit"
 import type { RootState } from "./store"
 import { executeShortcutAction } from "./reducers"
 
@@ -49,6 +48,10 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   }>(null)
   const [editTitleInfo, setEditTitleInfo] = useState<null | {
     title: string} >(null)
+  const actionsByKey = useSelector(selectActionByKeyString)
+  const duplicateActions = keys.map(key => keyToString(key)).flatMap(
+    keyString => actionsByKey[keyString].filter(
+      a => !(a.action === action && a.shortcutsStateKey === shortcutsStateKey)))
 
   const shortcutsPreset = useSelector(
     shortcutsStateKey === "generalShortcuts" ? selectActiveGeneralShortcutPreset
@@ -65,11 +68,11 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
       return
     }
 
-    const trySaveNewKey = (key: Key) => {
+    const saveNewKey = (key: Key) => {
       if (action === null) {
         return
       }
-      void(dispatch(createOrUpdateShortcutKey({
+      void(dispatch(shortcutKeyAddedOrReplaced({
         stateKey: shortcutsStateKey,
         action,
         newKey: key,
@@ -101,7 +104,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
       }
       if (key) {
         e.preventDefault()
-        trySaveNewKey(key)
+        saveNewKey(key)
       } else {
         updateEditKeyInfo(e)
       }
@@ -130,7 +133,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   || !usedActions.has(editTitleInfo.title.trim().toLocaleLowerCase())
 
   const trySaveNewAction = (newAction: string) => {
-    dispatch(createOrUpdateAction({
+    void(dispatch(createOrUpdateAction({
       stateKey: shortcutsStateKey as "subjectShortcuts" | "behaviourShortcuts",
       newAction: newAction.trim(),
       oldAction: action === null ? undefined : action})).unwrap().then(() => {
@@ -138,9 +141,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
         if (action === null) {
           onCancelNewShortcut()
         }
-      }).catch((error: SerializedError | ActionAlreadyInUseException) => {
-        dispatch(appErrorSet(error))
-      })
+      }))
   }
 
   return <Dialog className={css.edit_dialog} blur onRequestClose={onRequestClose}>
@@ -192,11 +193,28 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     <div className={joinedStringFromDict({
       [css.shortcuts]: true,
     })}>
+      {duplicateActions.length > 0 && <div className={css.duplicate_keys_explain}>
+        <h4>Duplicate key binding warning</h4>
+        <div>
+          Some of the keys bound to this action, are also bound to other actions.
+          As a result, when you press the key, you'll be presented with a popup with
+          choices.
+          The advice is to bind each key to only one action at a time.
+        </div>
+        <ul>
+          {duplicateActions.map(du => <li>{keyToElements(du.key)} is also bound to {
+            nameFromStateKey(du.shortcutsStateKey)} <Icon iconName="arrow_right"
+            /> {ObjectGet(CONTROLS,
+              du.shortcutsStateKey === "generalShortcuts" && du.action
+            )?.description ?? du.action}</li>)}
+        </ul>
+      </div>}
       {keysWithEdit.length ? <><div className={css.key_list}>
         {keysWithEdit.map(
           (key, index) => <div className={joinedStringFromDict({
             [css.shortcut_row]: true,
             [css.editing_key]: key === "edit",
+            [css.shortcut_is_duplicate]: key !== "edit" && actionsByKey[keyToString(key)].length > 1,
           })}>
             <div className={css.shortcut_key}>
               {keyToStringsSpecial(
@@ -213,7 +231,11 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
             <button 
               onClick={() => {
                 setEditTitleInfo(null)
-                dispatch(shortcutKeyRemoved({key: key as Key}))
+                dispatch(shortcutKeyRemoved({
+                  key: key as Key,
+                  stateKey: shortcutsStateKey,
+                  action: action as string
+                }))
               }}>
               <Icon iconName="delete" />
             </button>
@@ -249,7 +271,8 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
               onRequestClose()
               dispatch(shortcutActionRemoved({shortcutsStateKey, action: action!}));
             }}>
-              <Icon iconName="delete" />Delete action
+              <Icon iconName="delete" />
+              Delete {nameFromStateKey(shortcutsStateKey).toLowerCase()}
             </button>
           }
           <button disabled={action === null} onClick={onRequestClose}>Close</button>
@@ -277,6 +300,10 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
   const keys = action === null ? [] : (shortcutsPreset.shortcuts[action] ?? [])
   const controlInfo = shortcutsStateKey === "generalShortcuts"
     ? CONTROLS[action as ValidControlName] : null
+  const actionsByKey = useSelector(selectActionByKeyString)
+  const duplicateActions = keys.map(key => keyToString(key)).flatMap(
+    keyString => actionsByKey[keyString].filter(
+      a => !(a.action === action && a.shortcutsStateKey === shortcutsStateKey)))
 
   const disabled = useSelector(
     shortcutsStateKey === "generalShortcuts" ? controlInfo!.selectIsDisabled
@@ -310,6 +337,7 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
       className={joinedStringFromDict({
         [css.activated]: activated,
         [css.button]: true,
+        [css.has_duplicate]: duplicateActions.length > 0,
       })}
       onClick={() => {
         if (disabled || action === null) {
@@ -424,8 +452,8 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
     if (newIndex === shortcutPresets.selectedIndex) {
       return
     }
-    void(dispatch(switchActivePreset({
-      newIndices: [{stateKey: shortcutsStateKey, newActiveIndex: newIndex}]})))
+    void(dispatch(shortcutSwitchActiveIndex(
+      {stateKey: shortcutsStateKey, newActiveIndex: newIndex})))
   }
 
   return <Dialog onRequestClose={onRequestClose} className={css.preset_editor}>

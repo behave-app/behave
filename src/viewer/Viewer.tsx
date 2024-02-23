@@ -8,16 +8,15 @@ import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
 import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
-import { ObjectEntries, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
+import { assert, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectPlayerInfoShown } from "./generalSettingsSlice";
-import { selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { MultipleActionsAssignedToPressedKeyException, appErrorSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Info } from "./Info"
 import { Dialog, suppressShortcutsSelector } from "../lib/Dialog"
 import { useAppDispatch } from "./store"
 import { keyFromEvent, keyToString } from "../lib/key";
-import { createSelector } from "@reduxjs/toolkit";
-import { ShortcutPreset, ShortcutsState, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset } from "./shortcutsSlice";
+import { selectActionByKeyString } from "./shortcutsSlice";
 import { executeShortcutAction } from "./reducers";
 import { ErrorPopup } from "./Error";
 
@@ -72,42 +71,42 @@ const Popup: FunctionComponent = () => {
   </Dialog>
 }
 
-const selectActionAndShortcutsStateKeyByKeyString = createSelector(
-  [selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectActiveBehaviourShortcutPreset], (generalPreset, subjectPreset, behaviourPreset) => {
-  const presets: Record<keyof ShortcutsState, ShortcutPreset<string>> = {
-      "generalShortcuts": generalPreset,
-      "subjectShortcuts": subjectPreset,
-      "behaviourShortcuts": behaviourPreset,
-    }
-    return Object.fromEntries(ObjectEntries(presets).flatMap(
-      ([shortcutsStateKey, preset]) => ObjectEntries(preset.shortcuts).flatMap(
-        ([action, keys]) => keys.map(
-          key => [keyToString(key), {
-            action,
-            shortcutsStateKey
-          }]))))
+function multipleActionsAssignedToPressedKeyException(
+  error: Omit<MultipleActionsAssignedToPressedKeyException, "error">
+): MultipleActionsAssignedToPressedKeyException {
+  return {
+    ...error,
+    error: "MultipleActionsAssignedToPressedKeyException",
   }
-)
+}
 
 const ShortcutsHandler: FunctionComponent = () => {
-  const actionAndShortcutsStateKeyByKeyString = useSelector(
-    selectActionAndShortcutsStateKeyByKeyString)
+  const actionAndShortcutsStateKeyByKeyString = useSelector(selectActionByKeyString)
   const dispatch = useAppDispatch()
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const key = keyFromEvent(e)
-      if (!key) {
+      if (key === null) {
         return;
       }
       if (document.querySelector(suppressShortcutsSelector) !== null) {
         return
       }
-      const actionAndShortcutsStateKey = mayBeUndefined(
+      const actionAndShortcutsStateKeys = mayBeUndefined(
         actionAndShortcutsStateKeyByKeyString[keyToString(key)])
-      if (actionAndShortcutsStateKey) {
+      if (actionAndShortcutsStateKeys) {
         e.preventDefault()
-        void(dispatch(executeShortcutAction(actionAndShortcutsStateKey)))
+        assert(actionAndShortcutsStateKeys.length > 0)
+        if (actionAndShortcutsStateKeys.length === 1) {
+          void(dispatch(executeShortcutAction(actionAndShortcutsStateKeys[0])))
+        } else {
+          dispatch(appErrorSet(multipleActionsAssignedToPressedKeyException({
+            key: actionAndShortcutsStateKeys[0].key,
+            actions: actionAndShortcutsStateKeys.map(
+              ({shortcutsStateKey, action}) => ({shortcutsStateKey, action}))
+            })))
+        }
       }
     }
     document.documentElement.addEventListener("keydown", onKeyDown)

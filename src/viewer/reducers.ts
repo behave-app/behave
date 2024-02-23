@@ -37,13 +37,13 @@ void, {
 }, ATConfig
 >(
   "shortcuts/handleKeyPress",
-  async ({action, shortcutsStateKey} , {getState, dispatch, rejectWithValue}) =>  {
+  async ({action, shortcutsStateKey} , {getState, dispatch}) =>  {
     const state = getState()
     switch (shortcutsStateKey) {
       case "generalShortcuts": {
         const controlInfo = CONTROLS[action as ValidControlName]
         if (controlInfo.selectIsDisabled(state)) {
-          return rejectWithValue("General action is disabled")
+          throw new Error("General action is disabled")
         }
         const actionparams = controlInfo.selectActionArgument(state)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,13 +51,13 @@ void, {
       } break;
       case "subjectShortcuts": {
         if (!selectIsWaitingForSubjectShortcut(state)) {
-          return rejectWithValue("Subject action is disabled")
+          throw new Error("Subject action is disabled")
         }
         dispatch(behaviourInputSubjectToggle(action))
       } break;
       case "behaviourShortcuts": {
         if (!selectIsWaitingForBehaviourShortcut(state)) {
-          return rejectWithValue("Behaviour action is disabled")
+          throw new Error("Behaviour action is disabled")
         }
         void(dispatch(addBehaviourLine(action)))
 

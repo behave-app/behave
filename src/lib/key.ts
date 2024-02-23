@@ -1,6 +1,7 @@
 import { ArrayChecker, Checker, KeyOfChecker, ObjectChecker, } from "./typeCheck"
 import { MODIFIER_KEYS, KEYCODE_BY_DISPLAY } from "./defined_keys"
 import { elementsAreUnique } from "./util"
+import { h, FunctionComponent, Fragment } from "preact"
 
 export class InvalidKeyError extends Error {}
 
@@ -55,36 +56,6 @@ export function areEqualKeys(key1: Key | null, key2: Key | null): boolean {
   return keyToString(key1) === keyToString(key2)
 }
 
-export function isKey(key: unknown): key is Key {
-  if (!key || typeof key !== "object") {
-    return false
-  }
-  const keyLength = Object.keys(key).length
-  if (! ("code" in key) || typeof key.code !== "string") {
-    return false
-  }
-  if (!(key.code in KEYCODE_BY_DISPLAY)) {
-    return false
-  }
-  if (keyLength === 1) {
-    return true
-  }
-  if (keyLength !== 2) {
-    return false
-  }
-  if (! ("modifiers" in key)
-    || !Array.isArray(key.modifiers)
-    || !key.modifiers.every(m => typeof m !== "string")) {
-    return false
-  }
-  const indices = key.modifiers.map(m => Object.keys(MODIFIER_KEYS).findIndex(m))
-  let lastSeenIndex = -1
-  for (const index of indices) {
-    if (index <= lastSeenIndex) {
-      return false
-      }
-      lastSeenIndex = index
-  }
-  return true
+export const keyToElements: FunctionComponent<Key> = (key) => {
+  return h(Fragment, null,  keyToStrings(key).map(k => h("kbd", null, k)))
 }
-

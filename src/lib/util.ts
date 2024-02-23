@@ -8,7 +8,7 @@ export function assert(predicate: unknown, message?: string, dump?: unknown): as
   }
 }
 
-export function exhausted(key: never) {
+export function exhausted(key: never): null {
   throw new Error("Not exhausted " + key)
 }
 

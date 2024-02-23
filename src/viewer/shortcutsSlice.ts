@@ -3,7 +3,7 @@ import { PayloadAction, createAsyncThunk, createSelector, createSlice } from '@r
 import { Key, areEqualKeys, keyChecker, keyToString } from "../lib/key"
 import { ArrayChecker, Checker, LiteralChecker, NumberChecker, ObjectChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck'
 import type { ValidControlName } from './controls'
-import { ObjectEntries, ObjectFromEntries, ObjectKeys, assert } from '../lib/util'
+import { ObjectEntries, ObjectKeys, assert } from '../lib/util'
 
 
 export type Shortcuts<T extends string = string> = Record<T, Key[]>
@@ -159,6 +159,8 @@ export const shortcutsSlice = createSlice({
       } else {
         keys.push(newKey)
       }
+      const duplicateIndices = keys.flatMap((key, index) => areEqualKeys(key, newKey) ? [index] : []).slice(1)
+      duplicateIndices.reverse().forEach(index => keys.splice(index, 1))
     },
     shortcutActionAddedOrReplaced: (state, {payload}: PayloadAction<{stateKey: keyof ShortcutsState, oldAction: string | undefined, newAction: string}>) => {
       const {stateKey, newAction, oldAction} = payload
@@ -190,11 +192,9 @@ export const shortcutsSlice = createSlice({
       const activePreset = getActivePreset(state[payload.shortcutsStateKey])
       delete activePreset.shortcuts[payload.action]
     },
-    shortcutSwitchActiveIndices: (state, {payload: newIndices}: PayloadAction<ReadonlyArray<{stateKey: keyof ShortcutsState, newActiveIndex: number}>>) => {
-      newIndices.forEach(({stateKey, newActiveIndex}) => {
-        assert(state[stateKey].presets[newActiveIndex] !== undefined)
-        state[stateKey].selectedIndex = newActiveIndex
-      })
+    shortcutSwitchActiveIndex: (state, {payload: {stateKey, newActiveIndex}}: PayloadAction<{stateKey: keyof ShortcutsState, newActiveIndex: number}>) => {
+      assert(state[stateKey].presets[newActiveIndex] !== undefined)
+      state[stateKey].selectedIndex = newActiveIndex
     },
 
     shortcutPresetRenamed: (state, {payload}: PayloadAction<{
@@ -253,79 +253,13 @@ export const {
   shortcutPresetAdded,
   shortcutPresetDeleted,
   shortcutPresetRenamed,
+  shortcutSwitchActiveIndex,
+  shortcutKeyAddedOrReplaced,
 } = shortcutsSlice.actions
 
 const {
-  shortcutKeyAddedOrReplaced,
   shortcutActionAddedOrReplaced,
-  shortcutSwitchActiveIndices,
 } = shortcutsSlice.actions
-
-export type KeyAlreadyInUseException = {
-  error: "KeyAlreadyInUseException"
-  callParams: {
-    stateKey: keyof ShortcutsState
-    action: string
-    newKey: Key
-    oldKey?: Key
-  }
-  collidesWith: {stateKey: keyof ShortcutsState, action: string},
-}
-
-function keyAlreadyInUseException(
-  exception: Omit<KeyAlreadyInUseException, "error">
-): KeyAlreadyInUseException {
-  return {
-    error: "KeyAlreadyInUseException",
-    ...exception
-  }
-}
-
-export class AssertError extends Error {}
-
-export const createOrUpdateShortcutKey = createAsyncThunk<
-boolean, KeyAlreadyInUseException["callParams"], ATConfig<KeyAlreadyInUseException>
->(
-  "settings/shortcuts/createOrUpdateShortcutKey",
-  async (params , {getState, dispatch, rejectWithValue}) =>  {
-    const {stateKey, action, newKey, oldKey} = params
-    if (oldKey && areEqualKeys(oldKey, newKey)) {
-      return false
-    }
-    const state = getState().settings.shortcuts
-    ObjectEntries(state).forEach(([loopStateKey, shortcutPresets]) => {
-      const activePreset = getActivePreset(shortcutPresets)
-      ObjectEntries(activePreset.shortcuts).forEach(([loopAction, keys]) => {
-        if (keys.some(key => areEqualKeys(key, newKey))) {
-          if (loopStateKey === stateKey && loopAction === action) {
-            dispatch(shortcutKeyRemoved({key: newKey, action, stateKey}))
-          } else {
-            throw rejectWithValue(keyAlreadyInUseException({
-              callParams: params,
-              collidesWith: {stateKey: loopStateKey, action: loopAction},
-            }))
-          }
-        }
-      })
-    })
-    if (!(stateKey in state)) {
-      throw new AssertError(`Called with non-existing stateKey: ${stateKey}`)
-    }
-    let currentAction = getActivePreset(state[stateKey]).shortcuts[action] 
-    if (currentAction === null && stateKey === "generalShortcuts") {
-      currentAction = []
-    }
-    if (currentAction === null) {
-      throw new AssertError(`Called with non-existing keys: ${stateKey} ${action}`)
-    }
-    if (oldKey && !currentAction.some(
-      key => areEqualKeys(key, oldKey))) {
-      throw new AssertError(`Called with non-existing old key: ${stateKey} ${action}`)
-    }
-    dispatch(shortcutKeyAddedOrReplaced({stateKey, action, newKey, oldKey}))
-    return true
-  }
-)
 
 export type ActionAlreadyInUseException = {
   error: "ActionAlreadyInUseException"
@@ -354,9 +288,8 @@ boolean, ActionAlreadyInUseException["callParams"], ATConfig<ActionAlreadyInUseE
     if (oldAction !== null && oldAction === newAction) {
       return false
     }
-    if (stateKey as string === "generalShortcuts") {
-      throw new AssertError("Cannot change actions for General Shortcuts")
-    }
+    assert(stateKey in {subjectShortcuts: 1, behaviourShortcuts: 1},
+      "Can only change actions for subject shortcuts and behaviour shortcuts")
     const shortcutPresets = getState().settings.shortcuts[stateKey]
     const activePreset = getActivePreset(shortcutPresets)
     const usedActions = new Set(ObjectKeys(activePreset.shortcuts)
@@ -368,93 +301,6 @@ boolean, ActionAlreadyInUseException["callParams"], ATConfig<ActionAlreadyInUseE
     return true
   }
 )
-
-
-export type SwitchLeadsToDuplicateKeysException = {
-  error: "SwitchLeadsToDuplicateKeysException"
-  callParams: {
-    newIndices: Array<{
-    stateKey: keyof ShortcutsState
-    newActiveIndex: number
-    }>,
-    alwaysError?: boolean
-  },
-  duplicateKeys: Array<{key: Key, collision: [
-    {stateKey: keyof ShortcutsState, action: string},
-    {stateKey: keyof ShortcutsState, action: string},
-  ]}>
-}
-
-function switchLeadsToDuplicateKeysException(
-  exception: Omit<SwitchLeadsToDuplicateKeysException, "error">
-): SwitchLeadsToDuplicateKeysException {
-  return {
-    error: "SwitchLeadsToDuplicateKeysException",
-    ...exception
-  }
-}
-
-export const switchActivePreset = createAsyncThunk<
-boolean, SwitchLeadsToDuplicateKeysException["callParams"],
-ATConfig<SwitchLeadsToDuplicateKeysException>
->(
-  "settings/shortcuts/switchActivePreset",
-  async (callParams , {getState, dispatch, rejectWithValue}) =>  {
-    const {newIndices, alwaysError} = callParams
-    const state = getState()
-    const shortcutsState = state.settings.shortcuts
-    const filteredNewIndices = newIndices.filter(({stateKey, newActiveIndex}) =>
-      shortcutsState[stateKey].selectedIndex !== newActiveIndex)
-
-    if (filteredNewIndices.length === 0) {
-      return false
-    }
-    const newActivePresets: {[key in keyof ShortcutsState]: ShortcutPreset<string>} =
-    ObjectFromEntries(ObjectEntries(shortcutsState)
-    .map(([loopStateKey, loopPresets]) => {
-      const newActiveIndex =
-      filteredNewIndices.find(x => x.stateKey === loopStateKey)?.newActiveIndex
-      ?? loopPresets.selectedIndex
-      return [loopStateKey, shortcutsState[loopStateKey].presets[newActiveIndex]]
-    }))
-
-    if (Object.values(newActivePresets)
-      .some(activePreset => activePreset === undefined)) {
-      throw new AssertError(`Invalid index for ${JSON.stringify(newIndices)}`)
-    }
-
-    const keysMap = new Map<string, {stateKey: keyof ShortcutsState, action: string}>()
-    const duplicateKeys: SwitchLeadsToDuplicateKeysException["duplicateKeys"] = []
-
-    for (const loopStateKey of ObjectKeys(state.settings.shortcuts)) {
-      const activePreset = newActivePresets[loopStateKey]
-      for (const [loopAction, loopKeys] of ObjectEntries(activePreset.shortcuts)) {
-        for (const loopKey of loopKeys) {
-          const keyString = keyToString(loopKey)
-          const thisAction = {action: loopAction, stateKey: loopStateKey}
-          const collidingAction = keysMap.get(keyString)
-          if (collidingAction !== undefined) {
-            duplicateKeys.push({
-              key: loopKey,
-              collision: [thisAction, collidingAction]
-            })
-          } else {
-            keysMap.set(keyString, thisAction)
-          }
-        }
-      }
-    }
-
-    if (duplicateKeys.length || alwaysError) {
-      throw rejectWithValue(switchLeadsToDuplicateKeysException({
-        callParams: callParams, duplicateKeys}))
-    }
-
-    dispatch(shortcutSwitchActiveIndices(filteredNewIndices))
-    return true
-  }
-)
-
 
 export type ShortcutPresetExportFailedException = {
   error: "ShortcutPresetExportFailedException"
@@ -602,4 +448,18 @@ export const selectBehaviourShortcutPresets = (state: RootState) => state.settin
 export const selectActiveBehaviourShortcutPreset = (state: RootState) => getActivePreset(selectBehaviourShortcutPresets(state))
 export const selectActiveBehaviourShortcutActions = createSelector(
   [selectActiveBehaviourShortcutPreset], preset => ObjectKeys(preset.shortcuts))
+
+export const selectActionByKeyString = createSelector(
+  [selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectActiveBehaviourShortcutPreset], (generalPreset, subjectPreset, behaviourPreset) => {
+  const presets: Record<keyof ShortcutsState, ShortcutPreset<string>> = {
+      "generalShortcuts": generalPreset,
+      "subjectShortcuts": subjectPreset,
+      "behaviourShortcuts": behaviourPreset,
+    }
+    return Object.groupBy(ObjectEntries(presets).flatMap(
+      ([shortcutsStateKey, preset]) => ObjectEntries(preset.shortcuts).flatMap(
+        ([action, keys]) => keys.map(key => ({key, action, shortcutsStateKey})))),
+        entry => keyToString(entry.key))
+  }
+)
 

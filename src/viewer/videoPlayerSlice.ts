@@ -59,7 +59,7 @@ export const selectPlayerState = (state: RootState) => state.videoPlayer.playerS
 export const selectVideoAspect = (state: RootState) => {
   const width = state.videoPlayer.playerState?.videoWidth
   const height = state.videoPlayer.playerState?.videoHeight
-  if (!width || !height) {
+  if (width === undefined || height === undefined || height === 0) {
     return null
   }
   return width / height

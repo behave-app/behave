@@ -176,9 +176,9 @@ const VideoCanvas: FunctionComponent<{
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
 
-  const haveHorizontalSpace = !!containerDimensions  && !!videoAspectRatio && containerDimensions.width / containerDimensions.height > videoAspectRatio 
+  const haveHorizontalSpace = !!containerDimensions  && videoAspectRatio !== null && containerDimensions.width / containerDimensions.height > videoAspectRatio 
 
-  const [videoWidth, videoHeight] = (!containerDimensions || !videoAspectRatio)
+  const [videoWidth, videoHeight] = (!containerDimensions || videoAspectRatio === null)
   ? [0, 0] : haveHorizontalSpace
   ? [containerDimensions.height * videoAspectRatio, containerDimensions.height]
   : [containerDimensions.width, containerDimensions.width / videoAspectRatio]
@@ -292,7 +292,7 @@ export const VideoPlayer: FunctionComponent = () => {
   }, [])
 
   return <div className={joinedStringFromDict({[viewercss.videoplayer]: true, "videoplayer_toplevel": true})}>
-    {uploadError ? <ModalPopup addOkButtonCallback={() => setUploadError(null)} >{uploadError}</ModalPopup> : ""}
+    {uploadError !== null ? <ModalPopup addOkButtonCallback={() => setUploadError(null)} >{uploadError}</ModalPopup> : ""}
     {videoFile && dragState === "nodrag"
       ? <VideoCanvas videoFile={videoFile.file} />
       : <DummyCanvas message={dragState=="dragging" ? "Drop file here" : "Start by dropping in a video file"} />

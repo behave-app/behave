@@ -17,7 +17,7 @@ export function Picker<T>(
 ): ReturnType<FunctionComponent<Props<T>>> {
   const equals = equalsOrUndef ?? ((t1, t2) => t1 === t2)
   const children = [childOrChildren].flat(Infinity)
-  assert(children.every(child => child && typeof(child) === "object" && "props" in child && "data-value" in child.props))
+  assert(children.every(child => child !== null && typeof(child) === "object" && "props" in child && "data-value" in child.props))
   TSAssertType<{props: {"data-value": T}}[]>(children)
   const [isOpen, setIsOpen] = useState(false)
 

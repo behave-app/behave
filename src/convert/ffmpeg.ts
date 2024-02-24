@@ -2,6 +2,7 @@ import { xxh64sum } from '../lib/fileutil'
 import type * as LibAVTypes from '../../public/app/bundled/libavjs/dist/libav.types'
 import type {FileTreeLeaf} from "../lib/FileTree"
 import {getNumberOfFrames} from "../lib/video"
+import { assert } from '../lib/util'
 
 declare global {
   interface Window {
@@ -35,13 +36,14 @@ export async function convert(
     await libav.mkwriterdev(outputname)
     await libav.mkstreamwriterdev(PROGRESSFILENAME)
     const writePromises: Set<Promise<unknown>> = new Set()
-    let progressController = null as unknown as ReadableStreamDefaultController<ArrayBuffer>
+    let progressController = null as ReadableStreamDefaultController<ArrayBuffer> | null
     const progressStream = new ReadableStream({
       start(controller) {
         progressController = controller
       }
     }).pipeThrough(new TextDecoderStream())
     libav.onwrite = function(name, pos, data) {
+      assert(progressController)
       if (name === PROGRESSFILENAME) {
         progressController.enqueue(data)
         return

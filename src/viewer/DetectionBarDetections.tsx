@@ -166,7 +166,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
           "--y": `${hoverInfo.y}px`,
         } : {}}
       >
-        {hoverInfo && detectionInfo.framesInfo[hoverInfo.frameNumber] && <>
+        {hoverInfo && detectionInfo.framesInfo.at(hoverInfo.frameNumber) && <>
         Frame {hoverInfo.frameNumber}: <ul>{(() => {
           const detections = detectionInfo.framesInfo[hoverInfo.frameNumber].detections
           if (detections === undefined) {
@@ -216,7 +216,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
           setHoverInfo(
             {x: ev.offsetX, y: ev.offsetY, frameNumber: frameNumber})
           if (ev.buttons & (1 << MOUSE_PRIMARY_BUTTON) &&
-            svgRect && ev.offsetY > svgRect.height / 2  // only lower half, since top half moves so dragging effect would be very annoying
+            ev.offsetY > svgRect.height / 2  // only lower half, since top half moves so dragging effect would be very annoying
           ) {
             moveToMouseFrame(ev);
           }

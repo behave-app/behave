@@ -21,10 +21,10 @@ const BehaviourEditor: FunctionComponent = () => {
   const tableRef = useRef<HTMLTableElement>(null)
   const insertLine = useSelector(selectBehaviourLineWithoutBehaviour)
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
-  const selectedBehaviourLine = useSelector(selectSelectedBehaviourLine)!
+  const selectedBehaviourLine = useSelector(selectSelectedBehaviourLine)
   const inputElementRef = useRef<HTMLInputElement>(null)
   const frameNumberIndexInLayout = useSelector(selectFramenumberIndexInLayout)
-  if (!selectSelectedBehaviourLine) {
+  if (!selectedBehaviourLine) {
     throw new Error("error")
   }
 
@@ -43,7 +43,7 @@ const BehaviourEditor: FunctionComponent = () => {
   }, [selectedBehaviourLine, insertLine, tableRef.current])
 
   useEffect(() => {
-    if (behaviourInfo.currentlySelectedLine
+    if (behaviourInfo.currentlySelectedLine !== null
       && behaviourInfo.currentlyEditingFieldIndex === null
       && currentFrameNumber !== parseInt(
         (behaviourInfo.lines[behaviourInfo.currentlySelectedLine] ?? [])[frameNumberIndexInLayout])

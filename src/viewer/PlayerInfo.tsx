@@ -50,7 +50,8 @@ export const PlayerInfo: FunctionComponent = () => {
       <Button controlInfo={playControl} />
       <Button controlInfo={CONTROLS.next_frame} />
       <Button controlInfo={CONTROLS.speed_down} />
-      <div className={css.playback_speed}>{playbackSpeed && (playbackSpeed.toFixed(2) + "x")}</div>
+      <div className={css.playback_speed}>{
+        playbackSpeed !== null && (playbackSpeed.toFixed(2) + "x")}</div>
       <Button controlInfo={CONTROLS.speed_up} />
       <Button controlInfo={CONTROLS.edit_comment_for_current_line} />
       <Button controlInfo={CONTROLS.zoom_toggle} />

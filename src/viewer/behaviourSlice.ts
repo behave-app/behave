@@ -117,7 +117,7 @@ export const behaviourSlice = createSlice({
       if (!state.behaviourInfo) {
         throw new Error("No behaviour info")
       }
-      if ("currentlySelectedLine" in action.payload && action.payload.currentlySelectedLine) {
+      if ("currentlySelectedLine" in action.payload && action.payload.currentlySelectedLine !== undefined) {
         state.behaviourInfo.currentlySelectedLine = action.payload.currentlySelectedLine
       }
       state.behaviourInfo.currentlyEditingFieldIndex = action.payload.currentlyEditingFieldIndex

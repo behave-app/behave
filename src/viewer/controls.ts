@@ -231,7 +231,7 @@ export const CONTROLS = {
       const behaviourInfo = selectBehaviourInfo(state)
       const subjectSelected = selectSelectedSubject(state)
       return (
-        !!subjectSelected
+        subjectSelected !== null
         || !behaviourInfo
         || behaviourInfo.currentlyEditingFieldIndex !== null
         || behaviourInfo.layout.findIndex(

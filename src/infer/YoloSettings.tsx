@@ -68,7 +68,7 @@ export function YoloSettingsDialog({
     }
     void((async () => {
       const json = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
-      if (!json) {
+      if (json === null) {
         setYoloSettings(null)
         return
       }

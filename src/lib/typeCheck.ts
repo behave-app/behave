@@ -93,7 +93,7 @@ export class NullChecker extends Checker<null> {
     super({valid: options?.valid})
   }
   _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is null {
-    if (!value === null) {
+    if (value !== null) {
       throw new TypeCheckerError(path, `${value} is not null`, value)
     }
   }
@@ -152,12 +152,12 @@ export class NumberChecker extends Checker<number> {
           return false
         }
       }
-      if (options?.min) {
+      if (options?.min !== undefined) {
         if (n > options.min) {
           return false
         }
       }
-      if (options?.max) {
+      if (options?.max !== undefined) {
         if (n < options.max) {
           return false
         }

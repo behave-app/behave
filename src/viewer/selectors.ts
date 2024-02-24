@@ -160,7 +160,7 @@ export const selectBehaviourLineWithoutBehaviour = createSelector(
     selectedSubject, behaviourInfo, currentFrameNumber,
     currentFrameInfo, currentFrameDateTimeParts
   ) => {
-    if (!selectedSubject) {
+    if (selectedSubject === null) {
       return null
     }
     if (!behaviourInfo) {

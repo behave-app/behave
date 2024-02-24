@@ -47,9 +47,7 @@ const DetectionBarNoDirectory: FunctionComponent = () => {
       void((async () => {
       try {
           const directory = await window.showDirectoryPicker({id: "detectionDir"})
-          if (directory) {
-            void(scanDirectoryAndSave(directory))
-          }
+          void(scanDirectoryAndSave(directory))
         } catch (e) {
           console.error("Picking directory error: ", e)
           }

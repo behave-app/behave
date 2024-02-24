@@ -1,11 +1,10 @@
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
-import {YoloBackend, YoloVersion, Model, getModel, setBackend as setTFJSBackend} from "./tfjs"
+import {YoloBackend, YoloVersion, Model, getModel, setBackend as setTFJSBackend, YOLO_MODEL_NAME_FILE} from "./tfjs"
 import * as infercss from "./inferrer.module.css"
 import {getEntry, cp_r} from "../lib/fileutil"
 
 export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
-export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 const YOLO_MODEL_DIRECTORY = "YoloModelDir"
 
 export type YoloSettings = {
@@ -43,7 +42,7 @@ export function YoloSettingsDialog({
   useEffect(() => {
     if (yoloSettings === null) {
       setYoloVersion("v8")
-      setConcurrency(4)
+      setConcurrency(2)
       setBackend("webgl")
       setModelDir(undefined)
     } else {

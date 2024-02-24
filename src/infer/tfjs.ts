@@ -8,7 +8,7 @@ import {getNumberOfFrames, Video} from "../lib/video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfo, detectionInfoToString, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
-import { YOLO_MODEL_NAME_FILE } from './YoloSettings'
+export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 
 
 export async function getOutputFilename(file: File): Promise<string> {

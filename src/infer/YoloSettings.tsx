@@ -3,9 +3,9 @@ import {useState, useEffect} from 'preact/hooks'
 import {YoloBackend, YoloVersion, Model, getModel, setBackend as setTFJSBackend} from "./tfjs"
 import * as infercss from "./inferrer.module.css"
 import {getEntry, cp_r} from "../lib/fileutil"
-import {assert} from "../lib/util"
 
-const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
+export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
+export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 const YOLO_MODEL_DIRECTORY = "YoloModelDir"
 
 export type YoloSettings = {
@@ -20,10 +20,10 @@ export type YoloSettingsWithoutModel = Omit<YoloSettings, "model">
 type Props = {
   setYoloSettings: (yoloSettings: YoloSettings | null) => void
   yoloSettings: YoloSettings | null
-  closeSettingsDialog: (() => void) | null
+  closeSettingsDialog: (() => void)
 }
 
-async function loadModelFromOPFS(backend: YoloBackend): Promise<Model> {
+export async function loadModelFromOPFS(backend: YoloBackend): Promise<Model> {
   const opfsRoot = await navigator.storage.getDirectory()
   const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
   await setTFJSBackend(backend)
@@ -62,30 +62,7 @@ export function YoloSettingsDialog({
     }
   }, [yoloSettings])
 
-  useEffect(() => {
-    if (yoloSettings) {
-      return;
-    }
-    void((async () => {
-      const json = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
-      if (json === null) {
-        setYoloSettings(null)
-        return
-      }
-      try {
-        const ys = JSON.parse(json) as YoloSettingsWithoutModel
-        const model = await loadModelFromOPFS(ys.backend)
-        setYoloSettings({...ys, model})
-      } catch (e) {
-        console.error("Something went wrong with retrieving yolo settings")
-        console.error(e)
-        setYoloSettings(null)
-      }
-    })())
-  }, [yoloSettings])
-
   async function save() {
-    assert(modelDir !== undefined)
     localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
     const newYoloSettingsWithoutModel: YoloSettingsWithoutModel = {
       version: 1,
@@ -94,20 +71,43 @@ export function YoloSettingsDialog({
       concurrency,
     }
     const opfsRoot = await navigator.storage.getDirectory()
-    if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
-      await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
-    } 
-    const opfsModelDir = await opfsRoot.getDirectoryHandle(
-      YOLO_MODEL_DIRECTORY, {create: true})
-    await cp_r(modelDir, opfsModelDir)
-    await setTFJSBackend(newYoloSettingsWithoutModel.backend)
-    const model = await loadModelFromOPFS(newYoloSettingsWithoutModel.backend)
-    localStorage.setItem(
-      YOLO_SETTINGS_STORAGE_KEY, JSON.stringify(newYoloSettingsWithoutModel))
-    const newYoloSettings = {
-      ...newYoloSettingsWithoutModel, model}
-    setYoloSettings(newYoloSettings)
-    closeSettingsDialog && closeSettingsDialog()
+    const modelDirIsOnUsersFilesystem /*as opposed to in OPFS*/ =
+      modelDir && !await opfsRoot.resolve(modelDir)
+    if (!modelDir) {
+      if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
+        await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
+      } 
+      localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
+      setYoloSettings(null)
+    } else {
+      if (modelDirIsOnUsersFilesystem) {
+        if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
+          await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
+        } 
+        const opfsModelDir = await opfsRoot.getDirectoryHandle(
+          YOLO_MODEL_DIRECTORY, {create: true})
+        await cp_r(modelDir, opfsModelDir)
+        if (!await getEntry(opfsModelDir, [YOLO_MODEL_NAME_FILE])) {
+          const modelNameHandle = await opfsModelDir.getFileHandle(
+            YOLO_MODEL_NAME_FILE, {create: true})
+          const os = await modelNameHandle.createWritable()
+          await os.write(modelDir.name)
+          await os.close()
+        }
+      }
+      await setTFJSBackend(newYoloSettingsWithoutModel.backend)
+      const model = await loadModelFromOPFS(newYoloSettingsWithoutModel.backend)
+      localStorage.setItem(
+        YOLO_SETTINGS_STORAGE_KEY, JSON.stringify(newYoloSettingsWithoutModel))
+      const newYoloSettings = {
+        ...newYoloSettingsWithoutModel, model}
+      setYoloSettings(newYoloSettings)
+    }
+    closeSettingsDialog()
+  }
+
+  async function unloadModelDir() {
+    setModelDir(undefined)
   }
 
   async function setNewModelDir() {
@@ -163,17 +163,16 @@ export function YoloSettingsDialog({
           ? <div>
             Model loaded
             <button onClick={setNewModelDir}>Change model</button>
+            <button onClick={unloadModelDir}>Unload model</button>
             </div>
           : <>
-            <div>No model selected, load one here</div>
+            <div>No model selected, load one here (or continue without a model)</div>
             <button onClick={setNewModelDir}>Select model</button>
           </>
         }
       </dd>
     </dl>
-    <button disabled={modelDir === undefined} onClick={save}>Save</button>
-    {closeSettingsDialog &&
-      <button onClick={closeSettingsDialog}>Cancel</button>
-    }
+    <button onClick={save}>Save</button>
+    <button onClick={closeSettingsDialog}>Cancel</button>
   </>
 }

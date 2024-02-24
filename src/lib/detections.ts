@@ -1,4 +1,4 @@
-import { ArrayChecker, Checker, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, getCheckerFromObject } from "./typeCheck"
+import { ArrayChecker, Checker, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, UnionChecker, getCheckerFromObject } from "./typeCheck"
 
 export type DetectionsForFrame = Array<{
       klass: number
@@ -30,7 +30,7 @@ export type DetectionInfo = {
   totalNumberOfFrames: number
   sourceFileName: string
   sourceFileXxHash64: string
-  modelName: string
+  modelName: string | null
   modelKlasses: Record<NumberString, string>
   playbackFps: number
   recordFps: number | null
@@ -38,7 +38,10 @@ export type DetectionInfo = {
 }
 
 export function detectionInfoToString(detectionInfo: DetectionInfo): string {
-  return JSON.stringify(detectionInfo)
+  return JSON.stringify(
+    detectionInfo,
+    (_key, x) => Number.isFinite(x) ? Math.fround(x * 10000) / 10000: x,
+    4)
 }
 
 function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
@@ -51,23 +54,23 @@ function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
         klass: 0, cx: 0, cy: 0, width: 0, height: 0, confidence: 0}),
     },
     optional: {
-        timestamp: new StringChecker({valid: s => ISODATETIMESTRINGREGEX.test(s)}) as Checker<ISODateTimeString>,
+        timestamp: new StringChecker({regexp: ISODATETIMESTRINGREGEX}) as Checker<ISODateTimeString>,
         startByte: 0
     }
   })
 
-  const detectionDataFormat = getCheckerFromObject({
+  const detectionDataFormat: Checker<DetectionInfo> = getCheckerFromObject({
     totalNumberOfFrames: 0,
     version: new LiteralChecker(1),
     sourceFileName: "name",
     sourceFileXxHash64: "hash",
-    modelName: "name",
+    modelName: new UnionChecker(["name", null]),
     modelKlasses: new RecordChecker({
       keyChecker: new StringChecker({regexp: /^([1-9][0-9]*)|0$/}),
       valueChecker: new StringChecker(),
     }),
     playbackFps: 0,
-    recordFps: null,
+    recordFps: new UnionChecker([0, null]),
     framesInfo: new ArrayChecker(framesInfoCheck),
   })
 

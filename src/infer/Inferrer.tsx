@@ -1,10 +1,11 @@
+import "preact/debug"
 import {Upload} from "../lib/Upload"
 import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} from "../lib/FileTree"
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {setBackend, convert, getOutputFilename} from "./tfjs"
-import {YoloSettingsDialog, YoloSettings} from "./YoloSettings"
+import {YoloSettingsDialog, YoloSettings, YOLO_SETTINGS_STORAGE_KEY, YoloSettingsWithoutModel, loadModelFromOPFS} from "./YoloSettings"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
 
@@ -27,16 +28,17 @@ export function Inferrer(): JSX.Element {
   }
 
   async function doConvertAll() {
-    if (!yoloSettings) {
-      return
+    if (yoloSettings) {
+      await setBackend(yoloSettings.backend)
     }
-    await setBackend(yoloSettings.backend)
     setState("converting");
+    const {concurrency, model, yoloVersion} = yoloSettings ?? {
+      concurrency: 1, model: null, yoloVersion: "v8"}
     await convertAll(
       files,
-      yoloSettings.concurrency,
+      concurrency,
       (input, outputstream, onProgress) => convert(
-        yoloSettings.model, yoloSettings.yoloVersion, input, outputstream, onProgress),
+        model, yoloVersion, input, outputstream, onProgress),
       getOutputFilename,
       setFiles)
     setState("done")
@@ -51,17 +53,44 @@ export function Inferrer(): JSX.Element {
 
   }, [])
 
+  useEffect(() => {
+    void((async () => {
+      const json = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
+      if (json === null) {
+        setYoloSettings(null)
+        return
+      }
+      try {
+        const ys = JSON.parse(json) as YoloSettingsWithoutModel
+        const model = await loadModelFromOPFS(ys.backend)
+        setYoloSettings({...ys, model})
+      } catch (e) {
+        console.error("Something went wrong with retrieving yolo settings")
+        console.error(e)
+        setYoloSettings(null)
+      }
+    })())
+  }, [])
+
+
 
   return <>
     <h1>Detect items on videos</h1>
-    {(!yoloSettings || state === "selectmodel")
+    {(state === "selectmodel")
       ?  <YoloSettingsDialog
-        closeSettingsDialog={yoloSettings ? () => setState("uploading") : null}
+        closeSettingsDialog={() => setState("uploading")}
         {...{yoloSettings, setYoloSettings}} />
       : (<>
         <div className={css.explanation}>
           This page allows detection of items on videos, and saving the result as csv. You need to upload a YOLOv8 Web model.
         </div>
+        {yoloSettings ? <div className={css.explanation}>
+          Loaded model: {yoloSettings.model.name} ({yoloSettings.yoloVersion} / {yoloSettings.backend})
+        </div> : <div className={css.explanation}>
+            At the moment no yolo model is selected. Running this way means that no
+            detection is done on the videos. It means you can still use all the
+            tools in Behave, you just don't have any detections.
+        </div>}
         <button disabled={!(state==="uploading" && files.size > 0)}
           onClick={doConvertAll}
         >Start conversion</button>

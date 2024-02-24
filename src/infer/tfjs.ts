@@ -5,9 +5,10 @@ import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import type {FileTreeLeaf} from "../lib/FileTree"
 import {getNumberOfFrames, Video} from "../lib/video"
-import { xxh64sum } from '../lib/fileutil'
+import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
-import { DetectionInfo, detectionInfoToString, SingleFrameInfo } from '../lib/detections'
+import { DetectionInfo, detectionInfoToString, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
+import { YOLO_MODEL_NAME_FILE } from './YoloSettings'
 
 
 export async function getOutputFilename(file: File): Promise<string> {
@@ -39,6 +40,9 @@ export type Model = {
 export async function getModel(
   modelDirectory: FileSystemDirectoryHandle
 ): Promise<Model> {
+  const modelName = (await getEntry(modelDirectory, [YOLO_MODEL_NAME_FILE]))
+    ?  await modelDirectory.getFileHandle(YOLO_MODEL_NAME_FILE).then(
+      fh => fh.getFile()).then(f => f.text()) : "<no name>"
   const modelFile = await modelDirectory.getFileHandle("model.json").then(
     fh => fh.getFile())
   const modelData = JSON.parse(await modelFile.text()) as ModelData
@@ -49,7 +53,7 @@ export async function getModel(
     tf.io.browserFiles([modelFile, ...weightFiles]))
   const model: Model = {
     model: graphModel,
-    name: modelDirectory.name,
+    name: modelName,
     klasses: {},
   }
   let metaDataFile;
@@ -85,7 +89,7 @@ const NR_FRAMES_PROGRESS_PART = 0.001
 const PROGRESS_INTERVAL_MS = 300
 
 export async function convert(
-  model: Model,
+  model: Model | null,
   yoloVersion: YoloVersion,
   file: File,
   outputstream: FileSystemWritableFileStream,
@@ -97,14 +101,13 @@ export async function convert(
   onProgress({"converting": NR_FRAMES_PROGRESS_PART})
   const video = new Video(file)
   await video.init({libavoptions: {noworker: true}, keepFrameInfo: true})
-  const detectionInfo: Omit<DetectionInfo, "totalNumberOfFrames"> = {
+  const detectionInfo: Omit<DetectionInfo, "totalNumberOfFrames" | "recordFps"> = {
     version: 1,
     sourceFileName: file.name,
     sourceFileXxHash64: "See filename",
-    modelName: model.name,
-    modelKlasses: model.klasses,
+    modelName: model ? model.name : null,
+    modelKlasses: model ? model.klasses : {},
     playbackFps: video.videoInfo.fps,
-    recordFps: null,
     framesInfo: []
   }
   let framenr = 0;
@@ -119,7 +122,8 @@ export async function convert(
       detections: []
     } as SingleFrameInfo
 
-    const [boxes, scores, classes] = await infer(model, yoloVersion, videoFrame)
+    const [boxes, scores, classes] = model
+      ? await infer(model, yoloVersion, videoFrame) : [[], [], []]
     if (ctx) {
       ctx.drawImage(videoFrame, 0, 0)
       ctx.strokeStyle = "red"
@@ -158,8 +162,16 @@ export async function convert(
     }
     framenr++
   }
+  const framesWithTimestamp = detectionInfo.framesInfo.map((fi, index) =>
+  [index, fi.timestamp === undefined ? null
+      : getPartsFromTimestamp(fi.timestamp).date.valueOf()] as const)
+  .filter(([_, ts]) => ts !== null)
+  const recordFps = framesWithTimestamp.length < 2 ? null :
+  (framesWithTimestamp.at(-1)![1]! - framesWithTimestamp.at(0)![1]!) / 1000 / (
+  framesWithTimestamp.at(-1)![0] - framesWithTimestamp.at(0)![0])
   const completeDetectionInfo = {
     ...detectionInfo,
+    recordFps,
     totalNumberOfFrames: framenr
   }
   await video.deinit()

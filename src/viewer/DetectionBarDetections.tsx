@@ -167,16 +167,16 @@ export const DetectionBarDetections: FunctionComponent = () => {
         } : {}}
       >
         {hoverInfo && detectionInfo.framesInfo.at(hoverInfo.frameNumber) && <>
-        Frame {hoverInfo.frameNumber}: <ul>{(() => {
-          const detections = detectionInfo.framesInfo[hoverInfo.frameNumber].detections
-          if (detections === undefined) {
-            return ""
-          }
+          Frame {hoverInfo.frameNumber}: <ul>{(() => {
+            const detections = detectionInfo.framesInfo[hoverInfo.frameNumber].detections
+            if (detections === undefined) {
+              return ""
+            }
             if (detections.length === 0) {
               return <li>no detections</li>
             }
-          const indicesByKlass = binIndices(detections.map(d => d.klass.toString()))
-          const indicesByKlassWitinConfidence = binIndices(
+            const indicesByKlass = binIndices(detections.map(d => d.klass.toString()))
+            const indicesByKlassWitinConfidence = binIndices(
               detections.filter(d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!)
                 .map(d => d.klass.toString()))
             return Object.keys(detectionInfo.modelKlasses).map(klassKey => {
@@ -213,8 +213,12 @@ export const DetectionBarDetections: FunctionComponent = () => {
         onMouseOut={() => setHoverInfo(null)}
         onMouseMove={ev => {
           const frameNumber = getFrameNumberFromMouseEvent(ev)
-          setHoverInfo(
-            {x: ev.offsetX, y: ev.offsetY, frameNumber: frameNumber})
+          if (detectionInfo.framesInfo[frameNumber] === undefined) {
+            setHoverInfo(null)
+          } else {
+            setHoverInfo(
+              {x: ev.offsetX, y: ev.offsetY, frameNumber: frameNumber})
+          }
           if (ev.buttons & (1 << MOUSE_PRIMARY_BUTTON) &&
             ev.offsetY > svgRect.height / 2  // only lower half, since top half moves so dragging effect would be very annoying
           ) {

@@ -29,7 +29,8 @@ export abstract class Checker<T> {
       return true
     } catch (e) {
       if (e instanceof TypeCheckerError) {
-        console.error("Typecheck failed", e, e.value, e.errors)
+        console.error(e)
+        console.error({value: e.value, errors: e.errors})
         return false
       }
       throw e
@@ -120,7 +121,7 @@ export class StringChecker extends Checker<string> {
       regexp?: RegExp
     }) {
     const valid = (s: string): boolean => {
-      if (options?.regexp && s.match(options.regexp)?.at(0) === s) {
+      if (options?.regexp && s.match(options.regexp)?.at(0) !== s) {
         return false
       }
       if (options?.valid && !options.valid(s)) {

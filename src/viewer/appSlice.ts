@@ -1,5 +1,5 @@
-import { createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
-import type { RootState } from './store'
+import { createAsyncThunk, createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
+import type { ATConfig, RootState } from './store'
 import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
 
@@ -25,6 +25,7 @@ export const appSlice = createSlice({
     selectedSubject: null  as null | string,
     hideDetectionBoxes: false,
     zoom: 0 as ZoomLevel,
+    lastKeyPressed: null as Key | null
   },
   reducers: {
     appErrorSet: (state, {payload: error}: PayloadAction<AppError>) => {
@@ -51,6 +52,8 @@ export const appSlice = createSlice({
       state.zoom = state.zoom === 0 ? 1 : 0},
     zoomSet: (state, {payload}: PayloadAction<ZoomLevel>) => {
       state.zoom = payload},
+    lastKeyPressedSet: (state, {payload}: PayloadAction<Key | null>) => {
+      state.lastKeyPressed = payload},
   },
   extraReducers: builder => {
     builder
@@ -78,10 +81,9 @@ export const appSlice = createSlice({
   }
 })
 
-
 export default appSlice.reducer
 
-export const {appErrorSet, appErrorCleared, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomToggled, zoomSet} = appSlice.actions
+export const {appErrorSet, appErrorCleared, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomToggled, zoomSet, lastKeyPressedSet} = appSlice.actions
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
@@ -102,3 +104,4 @@ export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
 )
 export const selectHideDetectionBoxes = (state: RootState) => state.app.hideDetectionBoxes
 export const selectZoom = (state: RootState) => state.app.zoom
+export const selectLastKeyPressed = (state: RootState) => state.app.lastKeyPressed

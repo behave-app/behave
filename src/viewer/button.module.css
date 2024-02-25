@@ -20,5 +20,8 @@
     right: 0;
     font-size: .4em;
   }
+  &.press_animation {
+    background-color: hsl(0, 0%, 60%);
+  }
 }
 

@@ -5,8 +5,10 @@ import { ControlInfo, CONTROLS } from "./controls";
 import { useSelector } from "react-redux";
 import * as css from "./button.module.css"
 import { createSelector } from "@reduxjs/toolkit";
-import { keyToStrings } from "../lib/key";
+import { Key, areEqualKeys, keyToStrings } from "../lib/key";
 import { selectActiveGeneralShortcutPreset } from "./shortcutsSlice";
+import { selectLastKeyPressed } from "./appSlice";
+import { useEffect, useState } from "react";
 
 const selectShortcutKeysByControlinfo = createSelector(
   [selectActiveGeneralShortcutPreset], (group) => {
@@ -30,6 +32,16 @@ export function Button<CI extends ControlInfo<any>>(
   const shortcutKeysByControlInfo = useSelector(selectShortcutKeysByControlinfo)
   const shortcutKeys = shortcutKeysByControlInfo.get(
     controlInfo as Parameters<typeof shortcutKeysByControlInfo["get"]>[0]) ?? []
+  const lastKeyPressed = useSelector(selectLastKeyPressed)
+  const [pressAnimation, setPressAnimation] = useState<null | Key>(null)
+
+  useEffect(() => {
+    if (shortcutKeys.some(key => areEqualKeys(key, lastKeyPressed))) {
+      setPressAnimation(lastKeyPressed)
+      setTimeout(() => setPressAnimation(pressAnimation =>
+        pressAnimation === lastKeyPressed ? null : pressAnimation), 100)
+    }
+  }, [lastKeyPressed])
 
   return <button
     disabled={disabled}
@@ -39,6 +51,7 @@ export function Button<CI extends ControlInfo<any>>(
     className={joinedStringFromDict({
       [css.activated]: activated,
       [css.control]: true,
+      [css.press_animation]: !disabled && !!pressAnimation,
     })} onClick={() => {if (!disabled) {
       controlInfo.action(dispatch, actionArgument)}}}>
     <Icon iconName={controlInfo.iconName} />

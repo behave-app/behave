@@ -10,7 +10,7 @@ import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { assert, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectPlayerInfoShown } from "./generalSettingsSlice";
-import { MultipleActionsAssignedToPressedKeyException, appErrorSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { MultipleActionsAssignedToPressedKeyException, appErrorSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Info } from "./Info"
 import { Dialog, suppressShortcutsSelector } from "../lib/Dialog"
@@ -99,6 +99,7 @@ const ShortcutsHandler: FunctionComponent = () => {
         e.preventDefault()
         assert(actionAndShortcutsStateKeys.length > 0)
         if (actionAndShortcutsStateKeys.length === 1) {
+          dispatch(lastKeyPressedSet(key))
           void(dispatch(executeShortcutAction(actionAndShortcutsStateKeys[0])))
         } else {
           dispatch(appErrorSet(multipleActionsAssignedToPressedKeyException({

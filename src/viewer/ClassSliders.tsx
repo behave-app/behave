@@ -1,10 +1,9 @@
 import { FunctionComponent } from "react"
 import { useSelector } from "react-redux"
-import { selectRealOrDefaultSettingsByDetectionClass, selectSettingsByDetectionClassIsForCurrentSettings } from "./selectors"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { ConfidenceLocation, SettingsForDetectionClass, alphaUpdated, colourUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClass, settingsByDetectionClassUpdated } from "./generalSettingsSlice"
+import { ConfidenceLocation, alphaUpdated, colourUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, getKeyFromModelKlasses, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClassByKey, settingsByDetectionClassUpdated } from "./generalSettingsSlice"
 import { useAppDispatch } from "./store"
-import { joinedStringFromDict } from "../lib/util"
+import { assert, joinedStringFromDict } from "../lib/util"
 import { Picker } from "../lib/Picker"
 import { Detection } from "./VideoPlayer"
 import * as videoplayercss from "./videoplayer.module.css"
@@ -13,43 +12,48 @@ import { Icon } from "../lib/Icon"
 import { selectHideDetectionBoxes } from "./appSlice"
 import { useEffect } from "preact/hooks"
 import * as css from "./classsliders.module.css"
+import { selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
 
 export const ClassSliders: FunctionComponent = () => {
-  const settingsByDetectionClass = useSelector(selectSettingsByDetectionClass)
-  const realOrDefaultSettingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
+  const settingsByDetectionClassByKey = useSelector(selectSettingsByDetectionClassByKey)
+  const settingsByDetectionClass = useSelector(selectSettingsByDetectionClassForCurrectDetections)
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
-  const isUpToDate = useSelector(selectSettingsByDetectionClassIsForCurrentSettings)
   const confidenceLocation = useSelector(selectConfidenceLocation)
   const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
   const dispatch = useAppDispatch()
+
   useEffect(() => {
-    if (!isUpToDate && realOrDefaultSettingsByDetectionClass) {
-      dispatch(settingsByDetectionClassUpdated(
-        Object.fromEntries(realOrDefaultSettingsByDetectionClass.entries())))
+    if (!detectionInfo || !settingsByDetectionClass) {
+      return
     }
-  }, [realOrDefaultSettingsByDetectionClass, isUpToDate])
+    const key = getKeyFromModelKlasses(detectionInfo.modelKlasses)
+    if (!(key in settingsByDetectionClassByKey)) {
+      dispatch(settingsByDetectionClassUpdated({
+        modelKlasses: detectionInfo.modelKlasses,
+        settingsByDetectionClass: Object.fromEntries(
+          settingsByDetectionClass.entries())}))
+    }
+  }, [detectionInfo, settingsByDetectionClass])
 
-  if (!settingsByDetectionClass) {
+  if (!detectionInfo || !settingsByDetectionClass) {
     return <div>
-      Refreshing.....
-    </div>
-  }
-
-  if (!detectionInfo) {
-    return <div>
-      You need to load a detection file for this tab to work.
+      This window can only be opened if both a video file and a detection file
+      are loaded. 
     </div>
   }
 
   const shownTotalByClass = new Map<`${number}`, {shown: number, total: number}>(
         (Object.keys(detectionInfo.modelKlasses) as Array<`${number}`>).map(
-          key => [key, {shown: 0, total: 0}]))
+          key => [key, {shown: 0, total: 0}])) 
+
   detectionInfo.framesInfo.forEach(fi => {
     fi.detections.forEach(d => {
-      const item = shownTotalByClass.get(`${d.klass}`)!
+    const key = `${d.klass}` as const
+      const item = shownTotalByClass.get(key)
+      const settings = settingsByDetectionClass.get(key)
+      assert(item && settings)
       item.total += 1
-      if (!settingsByDetectionClass[`${d.klass}`].hide
-        && d.confidence >= settingsByDetectionClass[`${d.klass}`].confidenceCutoff) {
+      if (!settings.hide && d.confidence >= settings.confidenceCutoff) {
         item.shown += 1
       }
     })
@@ -93,6 +97,17 @@ export const ClassSliders: FunctionComponent = () => {
         )}
 
     </Picker>
+    <h3>Settings per class</h3>
+    <div>
+      Please note that these settings are stored separately each list of classes.
+      You only see the settings here that match the classes used in the current
+      detection file.
+      So if you set the settings below to something for when you have 2 classes
+      ("Cat" and "Dog"), and then you load a detection file with three classes
+      ("Cat", "Dog" and "Mouse"), you will see the default settings again.
+      Your settings are saved however, for the next time ("Cat" and "Dog") is
+      loaded.
+    </div>
     <table className={css.class_sliders}>
       <thead>
         <tr>
@@ -105,22 +120,24 @@ export const ClassSliders: FunctionComponent = () => {
           </thead>
       <tbody>
 
-        {(Object.entries(settingsByDetectionClass) as [keyof typeof settingsByDetectionClass, SettingsForDetectionClass][]).map(
-          ([key, value]) => (
-            <tr className={joinedStringFromDict({[css.hidden]: value.hide})}>
+        {[...settingsByDetectionClass.entries()].map(
+          ([key, value]) => {
+            const base = {modelKlasses: detectionInfo.modelKlasses}
+            return <tr className={joinedStringFromDict({[css.hidden]: value.hide})}>
               <td>{key} -- {value.name}</td>
               <td>
-                <span className={css.hidebox} onClick={() => dispatch(hideToggled({klass: key}))}>
-                  <Icon iconName={value.hide ? "check_box_outline_blank" : "check_box"} />
+                <span className={css.hidebox}
+                  onClick={() => dispatch(hideToggled({...base, klass: key}))}>
+                  <Icon iconName={value.hide
+                    ? "check_box_outline_blank" : "check_box"} />
                 </span>
               </td>
               <td>
                 <Picker
                   value={value.colour}
                   equals={hslEquals}
-                  onChange={newColour => dispatch(colourUpdated({klass: key, newColour}))}
-                  nrColumns={4}
-                  >
+                  onChange={newColour => dispatch(colourUpdated({
+                    ...base, klass: key, newColour}))} nrColumns={4} >
                   { [0, 60, 120, 180, 240, 300].flatMap(h =>
                       [[25, 100], [50, 50], [50, 100], [75, 50]].map(([l, s]) =>
                         <ColourBox data-value={{h, s, l}} colour={{h, s, l}} />
@@ -132,13 +149,17 @@ export const ClassSliders: FunctionComponent = () => {
                   disabled={value.hide}
                   value={value.confidenceCutoff}
                   onChange={e => dispatch(confidenceCutoffUpdated({
+                    ...base,
                     klass: key, newConfidenceCutoff:
                     e.currentTarget.valueAsNumber}))}/>
-                <span class={css.range_value}>{value.confidenceCutoff.toFixed(2)}</span>
+                <span class={css.range_value}>
+                  {value.confidenceCutoff.toFixed(2)}
+                </span>
                 <span className={css.counts}>({(() => {
                   const counts = shownTotalByClass.get(key)!
                   const strlen = counts.total.toString().length
-                  return `${counts.shown.toString().padStart(strlen, "0")}/${counts.total}`
+                  return `${counts.shown.toString().padStart(strlen, "0")}`
+                    + `/${counts.total}`
 
                 })()})</span>
               </td>
@@ -149,13 +170,14 @@ export const ClassSliders: FunctionComponent = () => {
                   disabled={value.hide || hideDetectionBoxes}
                   value={value.alpha}
                   onChange={e => dispatch(alphaUpdated({
+                    ...base,
                     klass: key,
                     newAlpha: e.currentTarget.valueAsNumber}))}/>
                 <span class={css.range_value}>{value.alpha.toFixed(2)}</span>
               </td>
 
         </tr>
-      ))}
+      })}
       </tbody>
       </table>
   </>

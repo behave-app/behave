@@ -2,10 +2,11 @@ import { createSelector } from "@reduxjs/toolkit";
 import { selectSelectedSubject } from './appSlice';
 import { selectBehaviourInfo } from "./behaviourSlice";
 import { selectDateTimes, selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from "./detectionsSlice";
-import { SettingsForDetectionClass, selectFramenumberIndexInLayout, selectSettingsByDetectionClass } from './generalSettingsSlice';
+import { SettingsForDetectionClass, getKeyFromModelKlasses, selectFramenumberIndexInLayout, selectSettingsByDetectionClassByKey } from './generalSettingsSlice';
 import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 import { HSL } from "../lib/colour";
+import { ObjectEntries } from "../lib/util";
 
 
 const DEFAULT_COLOURS_FOR_CLASSES = new Map([
@@ -23,26 +24,16 @@ const DEFAULT_ALPHA = 0.8;
 const DEFAULT_HIDE = false;
 
 
-export const selectSettingsByDetectionClassIsForCurrentSettings: ((state: RootState) => boolean) = createSelector(
-  [selectSettingsByDetectionClass, selectDetectionInfoPotentiallyNull], (settingsByDetectionClass, detectionInfo) => {
-    if (!detectionInfo) {
-      return selectSettingsByDetectionClass === null
-    }
-    const detectionInfoKeys = Object.keys(detectionInfo.modelKlasses) as Array<`${number}`>
-    return !!settingsByDetectionClass &&
-        detectionInfoKeys.length === Object.keys(settingsByDetectionClass).length &&
-        detectionInfoKeys.every(key => settingsByDetectionClass[key]?.name === detectionInfo.modelKlasses[key])
-  }
-)
-export const selectRealOrDefaultSettingsByDetectionClass: ((state: RootState) => (Map<`${number}`, SettingsForDetectionClass> | null)) = createSelector(
-  [selectSettingsByDetectionClass, selectDetectionInfoPotentiallyNull, selectSettingsByDetectionClassIsForCurrentSettings], (settingsByDetectionClass, detectionInfo, isUpToDate) => {
+export const selectSettingsByDetectionClassForCurrectDetections: ((state: RootState) => Map<`${number}`, SettingsForDetectionClass> | null) = createSelector(
+  [selectSettingsByDetectionClassByKey, selectDetectionInfoPotentiallyNull], (settingsByDetectionClassByKey, detectionInfo) => {
     if (!detectionInfo) {
       return null
     }
-    if (isUpToDate) {
-      return new Map(Object.entries(settingsByDetectionClass!) as [`${number}`, SettingsForDetectionClass][])
+    const key = getKeyFromModelKlasses(detectionInfo.modelKlasses)
+    if (key in settingsByDetectionClassByKey) {
+      return new Map(ObjectEntries(settingsByDetectionClassByKey[key]))
     }
-    return new Map(Object.entries(detectionInfo.modelKlasses).map(
+    return new Map(ObjectEntries(detectionInfo.modelKlasses).map(
       ([key, name]) => [key, {
         name: name,
         confidenceCutoff: DEFAULT_CONFIDENCE_CUTOFF,
@@ -53,7 +44,7 @@ export const selectRealOrDefaultSettingsByDetectionClass: ((state: RootState) =>
   })
 
 export const selectConfidenceCutoffByClass: ((state: RootState) => (Map<`${number}`, number> | null)) = createSelector(
-  [selectRealOrDefaultSettingsByDetectionClass], (settingsByDetectionClass) => {
+  [selectSettingsByDetectionClassForCurrectDetections], (settingsByDetectionClass) => {
     if (!settingsByDetectionClass) {
       return null;
     }
@@ -64,7 +55,7 @@ export const selectConfidenceCutoffByClass: ((state: RootState) => (Map<`${numbe
 export const selectColoursForClasses: (
   (state: RootState) => null | Map<`${number}` | "all", HSL>
 ) = createSelector(
-    [selectRealOrDefaultSettingsByDetectionClass], (settingsByDetectionClass) => {
+    [selectSettingsByDetectionClassForCurrectDetections], (settingsByDetectionClass) => {
       if (!settingsByDetectionClass) {
         return null;
       }

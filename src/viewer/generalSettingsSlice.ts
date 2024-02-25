@@ -1,8 +1,9 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import { assert } from '../lib/util'
+import { assert, mayBeUndefined } from '../lib/util'
 import {HSL} from "../lib/colour"
-import { Checker, LiteralChecker, RecordChecker, StringChecker, UnionChecker, getCheckerFromObject } from '../lib/typeCheck';
+import { Checker, LiteralChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck';
+import { DetectionInfo } from '../lib/detections';
 
 
 export type SettingsForDetectionClass = {
@@ -22,19 +23,30 @@ export type ConfidenceLocation = `${"outer" | "inner"}-${"left" | "center" | "ri
   * the system wants to get all the data (even though the keys are const....
 */
 export type GeneralSettingsState = {
-  settingsByDetectionClass: null | Record<`${number}`, SettingsForDetectionClass>
+  settingsByDetectionClassByKey: Record<string, Record<`${number}`, SettingsForDetectionClass>>
   confidenceLocation: ConfidenceLocation
   showPlayerInfo: boolean
 }
 
 const defaultGeneralSettings: GeneralSettingsState = {
-  settingsByDetectionClass: null,
+  settingsByDetectionClassByKey: {},
   confidenceLocation: "outer-right-bottom",
   showPlayerInfo: true,
 }
 
+function isJSON(s: string): boolean {
+  try {
+    JSON.parse(s)
+    return true
+  } catch(_) {
+    return false
+  }
+}
+
 export const generalSettingsChecker: Checker<GeneralSettingsState> = getCheckerFromObject({
-    settingsByDetectionClass: new UnionChecker([null, new RecordChecker({
+    settingsByDetectionClassByKey: new RecordChecker({
+    keyChecker: new StringChecker({valid: isJSON}),
+    valueChecker: new RecordChecker({
       keyChecker: new StringChecker({regexp: /0|[1-9][0-9]*/}),
       valueChecker: {
         name: "",
@@ -43,7 +55,7 @@ export const generalSettingsChecker: Checker<GeneralSettingsState> = getCheckerF
         colour: {h: 0, s: 0, l: 0},
         alpha: 0,
       }
-    })]),
+    })}),
     confidenceLocation: new LiteralChecker<ConfidenceLocation>([
       "outer-left-top", "outer-center-top", "outer-right-top",
       "inner-left-top", "inner-center-top", "inner-right-top",
@@ -91,6 +103,15 @@ const getGeneralSettingsFromLocalStorageOrDefault = (): GeneralSettingsState => 
 }
 
 
+export function getKeyFromModelKlasses(
+  modelKlasses: DetectionInfo["modelKlasses"]
+): string {
+  // Note, we don't sort. Normally it should be sorted in the original definition
+  // If not, then it just counts as another setting
+  return JSON.stringify(modelKlasses)
+}
+
+
 export const generalSettingsSlice = createSlice({
   name: "general",
   initialState: getGeneralSettingsFromLocalStorageOrDefault(),
@@ -98,38 +119,43 @@ export const generalSettingsSlice = createSlice({
     settingsUpdated: (_state, action: PayloadAction<GeneralSettingsState>) => {
       return action.payload
     },
-    settingsByDetectionClassUpdated: (state, {payload}: PayloadAction<null | Record<`${number}`, SettingsForDetectionClass>>) => {
-      state.settingsByDetectionClass = payload
+    settingsByDetectionClassUpdated: (state, {payload}: PayloadAction<{modelKlasses: DetectionInfo["modelKlasses"], settingsByDetectionClass: Record<`${number}`, SettingsForDetectionClass>}>) => {
+      const key = getKeyFromModelKlasses(payload.modelKlasses)
+      state.settingsByDetectionClassByKey[key] = payload.settingsByDetectionClass
     },
-    confidenceCutoffUpdated: (state, {payload: {klass, newConfidenceCutoff}}: PayloadAction<{klass: `${number}`, newConfidenceCutoff: number}>) => {
-      if (!state.settingsByDetectionClass) {
-        console.error("No settingsByDetectionClass");
+    confidenceCutoffUpdated: (state, {payload: {modelKlasses, klass, newConfidenceCutoff}}: PayloadAction<{modelKlasses: DetectionInfo["modelKlasses"], klass: `${number}`, newConfidenceCutoff: number}>) => {
+      const key = getKeyFromModelKlasses(modelKlasses)
+      if (!mayBeUndefined((state.settingsByDetectionClassByKey[key] ?? {})[klass])) {
+        console.error("No settingsByDetectionClass for key");
         return
       }
-      state.settingsByDetectionClass[klass].confidenceCutoff = Math.min(
+      state.settingsByDetectionClassByKey[key][klass].confidenceCutoff = Math.min(
         0.95, Math.max(newConfidenceCutoff, 0.1))
     },
-    alphaUpdated: (state, {payload: {klass, newAlpha}}: PayloadAction<{klass: `${number}`, newAlpha: number}>) => {
-      if (!state.settingsByDetectionClass) {
+    alphaUpdated: (state, {payload: {modelKlasses, klass, newAlpha}}: PayloadAction<{modelKlasses: DetectionInfo["modelKlasses"], klass: `${number}`, newAlpha: number}>) => {
+      const key = getKeyFromModelKlasses(modelKlasses)
+      if (!mayBeUndefined((state.settingsByDetectionClassByKey[key] ?? {})[klass])) {
         console.error("No settingsByDetectionClass");
         return
       }
-      state.settingsByDetectionClass[klass].alpha = Math.min(
+      state.settingsByDetectionClassByKey[key][klass].alpha = Math.min(
         1, Math.max(newAlpha, 0.0))
     },
-    colourUpdated: (state, {payload: {klass, newColour}}: PayloadAction<{klass: `${number}`, newColour: HSL}>) => {
-      if (!state.settingsByDetectionClass) {
+    colourUpdated: (state, {payload: {modelKlasses, klass, newColour}}: PayloadAction<{modelKlasses: DetectionInfo["modelKlasses"], klass: `${number}`, newColour: HSL}>) => {
+      const key = getKeyFromModelKlasses(modelKlasses)
+      if (!mayBeUndefined((state.settingsByDetectionClassByKey[key] ?? {})[klass])) {
         console.error("No settingsByDetectionClass");
         return
       }
-      state.settingsByDetectionClass[klass].colour = newColour
+      state.settingsByDetectionClassByKey[key][klass].colour = newColour
     },
-    hideToggled: (state, {payload: {klass}}: PayloadAction<{klass: `${number}`}>) => {
-      if (!state.settingsByDetectionClass) {
+    hideToggled: (state, {payload: {modelKlasses, klass}}: PayloadAction<{modelKlasses: DetectionInfo["modelKlasses"], klass: `${number}`}>) => {
+      const key = getKeyFromModelKlasses(modelKlasses)
+      if (!mayBeUndefined((state.settingsByDetectionClassByKey[key] ?? {})[klass])) {
         console.error("No settingsByDetectionClass");
         return
       }
-      state.settingsByDetectionClass[klass].hide = !state.settingsByDetectionClass[klass].hide
+      state.settingsByDetectionClassByKey[key][klass].hide = !state.settingsByDetectionClassByKey[key][klass].hide
     },
     confidenceLocationUpdated: (state, action: PayloadAction<ConfidenceLocation>) => {
       state.confidenceLocation = action.payload
@@ -150,7 +176,7 @@ export const {
   playerInfoToggled,
 } = generalSettingsSlice.actions
 
-export const selectSettingsByDetectionClass = (state: RootState) => state.settings.general.settingsByDetectionClass
+export const selectSettingsByDetectionClassByKey = (state: RootState) => state.settings.general.settingsByDetectionClassByKey
 export const selectConfidenceLocation = (state: RootState) => state.settings.general.confidenceLocation
 
 export const selectPlayerInfoShown = (state: RootState) => state.settings.general.showPlayerInfo

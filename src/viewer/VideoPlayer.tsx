@@ -8,7 +8,7 @@ import { ModalPopup } from "../lib/ModalPopup"
 import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, selectVideoAspect, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert, joinedStringFromDict } from "../lib/util"
-import { selectRealOrDefaultSettingsByDetectionClass, selectVisibleDetectionsForCurrentFrame } from "./selectors"
+import { selectSettingsByDetectionClassForCurrectDetections, selectVisibleDetectionsForCurrentFrame } from "./selectors"
 import { ConfidenceLocation, selectConfidenceLocation } from "./generalSettingsSlice"
 import { DetectionsForFrame } from "../lib/detections"
 import { zoomLevels, selectHideDetectionBoxes, selectZoom, zoomSet, } from "./appSlice"
@@ -26,7 +26,7 @@ const VideoCanvas: FunctionComponent<{
 }> = ({videoFile}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
-  const settingsByDetectionClass = useSelector(selectRealOrDefaultSettingsByDetectionClass)
+  const settingsByDetectionClass = useSelector(selectSettingsByDetectionClassForCurrectDetections)
   const confidenceLocation = useSelector(selectConfidenceLocation)
   const videoAspectRatio = useSelector(selectVideoAspect)
   const [containerDimensions, setContainerDimensions] = useState<null | {width: number, height: number, zoom: number}>(null)

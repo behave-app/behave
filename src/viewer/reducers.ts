@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit"
 import type {ATConfig } from "./store"
 import { selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./selectors"
-import { behaviourInfoLineAdded, selectBehaviourInfo } from "./behaviourSlice"
+import { behaviourInfoLineAdded, currentlySelectedLineUpdated, selectBehaviourInfo } from "./behaviourSlice"
 import { assert } from "../lib/util"
 import { behaviourInputSubjectToggle, behaviourInputSubjectUnselected, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut } from "./appSlice"
 import { ShortcutsState } from "./shortcutsSlice"
@@ -17,7 +17,7 @@ void, string , ATConfig
     assert(insertLine)
     const behaviourInfo = selectBehaviourInfo(state)
     assert(behaviourInfo)
-    const insertIndex = selectSelectedBehaviourLine(state)
+    const insertIndex = selectSelectedBehaviourLine(state)!.index + 1
     const behaviourIndicesInLine = new Set(
       [...behaviourInfo.layout.entries()].filter(
         ([_, {type}]) => type === "behaviour")
@@ -26,7 +26,8 @@ void, string , ATConfig
       (word, index) => behaviourIndicesInLine.has(index) ? behaviour : word)
     dispatch(behaviourInputSubjectUnselected())
     dispatch(behaviourInfoLineAdded({
-      line: lineWithBehaviour, insertIndex: insertIndex!.index + 1}))
+      line: lineWithBehaviour, insertIndex: insertIndex}))
+    dispatch(currentlySelectedLineUpdated(insertIndex))
   }
 )
 

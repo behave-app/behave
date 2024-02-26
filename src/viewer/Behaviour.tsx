@@ -129,6 +129,11 @@ const BehaviourEditor: FunctionComponent = () => {
   }
 
   useEffect(() => {
+    if (behaviourInfo.currentlySelectedLine !== null
+      && behaviourInfo.currentlyEditingFieldIndex !== null) {
+      const value = behaviourInfo.lines[behaviourInfo.currentlySelectedLine][behaviourInfo.currentlyEditingFieldIndex]
+      setEditingValue(value)
+    }
     if (inputElementRef.current) {
       inputElementRef.current.focus()
     }

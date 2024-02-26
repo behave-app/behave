@@ -125,7 +125,18 @@ export const behaviourSlice = createSlice({
   }
 })
 
-export const {behaviourDirectorySet, behaviourDirectoryUnset, behaviourInfoCreatedNew, behaviourInfoLineAdded, behaviourInfoLineRemoved, behaviourInfoFieldEdited, behaviourInfoUnset, currentlySelectedLineUpdated, currentlySelectedLineUnset, currentlyEditingFieldIndexSet} = behaviourSlice.actions
+export const {
+  behaviourDirectorySet,
+  behaviourDirectoryUnset,
+  behaviourInfoCreatedNew,
+  behaviourInfoLineAdded,
+  behaviourInfoLineRemoved,
+  behaviourInfoFieldEdited,
+  behaviourInfoUnset,
+  currentlySelectedLineUpdated,
+  currentlySelectedLineUnset,
+  currentlyEditingFieldIndexSet
+} = behaviourSlice.actions
 export default behaviourSlice.reducer
 
 export const selectBehaviourDirectoryPotentiallyNull = (state: RootState) => state.behaviour

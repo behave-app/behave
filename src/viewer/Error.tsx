@@ -1,6 +1,7 @@
 import { FunctionComponent } from "preact";
 import { AppError, MultipleActionsAssignedToPressedKeyException, appErrorCleared, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut } from "./appSlice";
 import * as css from "./error.module.css"
+import * as generalcss from "./general.module.css"
 import { useAppDispatch } from "./store";
 import { ActionAlreadyInUseException, ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, exportPreset, importPreset, nameFromStateKey, } from "./shortcutsSlice";
 import { CONTROLS, ValidControlName } from "./controls";
@@ -31,7 +32,7 @@ const ActionAlreadyInUseExceptionHandler: FunctionComponent<ErrorHandlerProps<Ac
     <div>
       Please change the name to a valid one.
     </div>
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={closeError}>close</button>
     </div>
   </div> 
@@ -43,7 +44,7 @@ const ShortcutPresetExportFailedExceptionHandler: FunctionComponent<ErrorHandler
   return <div className={css.shortcut_preset_export_error}>
     <h2>Exporting of preset group failed</h2>
     <div>Please choose a proper location to save the export file</div>
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={() => {closeError(); void(dispatch(exportPreset(error.callParams)))}}>
         Try again
       </button>
@@ -67,7 +68,7 @@ const ShortcutPresetImportFailedExceptionHandler: FunctionComponent<ErrorHandler
           } section</div>
           : exhausted(error.reason)
     }
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={() => {closeError(); void(dispatch(importPreset(error.callParams)))}}>
         Try again
       </button>
@@ -119,7 +120,7 @@ const MultipleActionsAssignedToPressedKeyExceptionHandler: FunctionComponent<Err
       {error.actions.map(({shortcutsStateKey, action}) =>
         <MAATPKButton shortcutsStateKey={shortcutsStateKey} action={action} />)}
     </div>
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={closeError}>
         Cancel
       </button>
@@ -155,7 +156,7 @@ const UnknownError: FunctionComponent<ErrorHandlerProps<AppError>> = ({error, cl
       You should not see this screen, please report.
       <blockquote>{message}</blockquote>
     </div>
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={closeError}>close</button>
     </div>
   </>

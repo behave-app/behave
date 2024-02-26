@@ -93,6 +93,15 @@ export function range(endOrStart: number, end?: number, step?: number): number[]
 
 }
 
+export function binItems<T, K>(
+  items: ReadonlyArray<T>, keyGen: (item: T, index: number) => K
+): Map<K, T[]> {
+  return items.reduce((myMap, item, index) => {
+    const key = keyGen(item, index)
+    return myMap.set(key, [...(myMap.get(key) ?? []), item])
+  }, new Map<K, T[]>())
+}
+
 export function binIndices<T>(keys: T[]): Map<T, number[]> {
   return keys.reduce((myMap, key, index) =>
     myMap.set(key, [...(myMap.get(key) ?? []), index]), new Map<T, number[]>())
@@ -204,4 +213,37 @@ export function ObjectGet<T extends object, K, D>(obj: T, key: K, defaultValue?:
 
 export function mayBeUndefined<T>(item: T): T | undefined {
   return item
+}
+
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function valueOrError<T extends (...params: any[]) => any>(
+  func: T
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+): (...params: Parameters<T>) => {value: Awaited<ReturnType<T>>} | {error: any} {
+  return (...params) => {
+    try {
+      return {value: func(...params)}
+    } catch (e) {
+      return {error: e}
+    }
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function valueOrErrorAsync<T extends (...params: any[]) => Promise<any>>(
+  func: T
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+): (...params: Parameters<T>) => Promise<{value: Awaited<ReturnType<T>>} | {error: any}> {
+  return async (...params) => {
+    try {
+      return {value: await func(...params)}
+    } catch (e) {
+      return {error: e}
+    }
+  }
+}
+
+export function isTruthy<T>(param: T): param is Exclude<T, null> {
+  return Boolean(param)
 }

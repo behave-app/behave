@@ -1,0 +1,22 @@
+.uploader {
+  width: calc(100vw - 6em);
+  height: calc(100vh - 6em);
+  vertical-align: center;
+  div {
+    margin: .7em;
+  }
+  .warning {
+    border-left: .4em solid red;
+    padding-left: 1.2em;
+    margin: .8em
+  }
+  .file_list {
+    &:empty::after {
+      content: "<no files>";
+      opacity: .6;
+    }
+    li:hover {
+      background-color: hsl(0, 0%, 0%, .1);
+    }
+  }
+}

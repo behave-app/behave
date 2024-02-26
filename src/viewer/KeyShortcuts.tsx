@@ -5,6 +5,7 @@ import { useAppDispatch } from "./store"
 import { keyFromEvent, Key, keyToStrings, keyToString, keyToElements } from "../lib/key"
 import { CONTROLS, ValidControlName } from "./controls"
 import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, } from "./appSlice"
+import * as generalcss from "./general.module.css"
 import * as css from "./keyshortcuts.module.css"
 import { ObjectGet, ObjectKeys, joinedStringFromDict } from "../lib/util"
 import { Icon, ValidIconName } from "../lib/Icon"
@@ -145,7 +146,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   }
 
   return <Dialog className={css.edit_dialog} blur onRequestClose={onRequestClose}>
-    <h2 className={css.show_on_hover_buttons}>
+    <h2 className={generalcss.show_on_hover_buttons}>
       {iconName && <span className={css.icon}><Icon iconName={iconName} /></span>}
       {shortcutsStateKey === "generalShortcuts"
         ? <span className={css.title}>{title}</span>
@@ -173,7 +174,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
               }
             }}
           />}
-          <button className={css.show_on_hover} onClick={() => {
+          <button className={generalcss.show_on_hover} onClick={() => {
             if (editTitleInfo === null) {
               setEditKeyInfo(null)
               setEditTitleInfo({title})
@@ -256,7 +257,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
       }
       <hr />
     </div>
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       {editTitleInfo
         ? <>
           <button onClick={() => trySaveNewAction(editTitleInfo.title)}>
@@ -331,7 +332,7 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
 
   return <div className={joinedStringFromDict({
     [css.item]: true,
-    [css.show_on_hover_buttons]: true,
+    [generalcss.show_on_hover_buttons]: true,
   })}>
     <button disabled={disabled}
       className={joinedStringFromDict({
@@ -356,7 +357,9 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
           singleKey => <kbd>{singleKey}</kbd>)}</div>)}
       </div>
     </button>
-    <button className={css.show_on_hover} onClick={() => setEditPopup(true)}><Icon iconName="edit" /></button>
+    <button className={generalcss.show_on_hover} onClick={() => setEditPopup(true)}>
+      <Icon iconName="edit" />
+    </button>
     {editPopup && <ControlShortcutEditPopup
       onRequestClose={() => setEditPopup(false)}
       onCancelNewShortcut={onCancelNewShortcut}
@@ -400,7 +403,7 @@ const QuickShortcutList: FunctionComponent<QuickShortcutListProps> = (
         )}</dd>
       </>)}
     </dl>
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={onRequestClose}>Close</button>
     </div>
   </Dialog>
@@ -463,7 +466,7 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
       <div>
         This action cannot be undone; all shortcuts in this preset will be deleted.
       </div>
-      <div className={css.button_row}>
+      <div className={generalcss.button_row}>
         <button onClick={() => {
           dispatch(shortcutPresetDeleted(
             {stateKey: shortcutsStateKey, index: confirmDeleteIndex}));
@@ -478,7 +481,7 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
       nameFromStateKey(shortcutsStateKey).toLocaleLowerCase()}</h2>
     <ul className={joinedStringFromDict({[css.editing]: !!editNameInfo})}>
       {shortcutPresets.presets.map(
-        (preset, index) => <li className={css.show_on_hover_buttons}>
+        (preset, index) => <li className={generalcss.show_on_hover_buttons}>
           <span className={css.preset_selected}
             onClick={() => trySwitchIndex(index)}>
             <Icon iconName={index === shortcutPresets.selectedIndex ?
@@ -504,36 +507,36 @@ const PresetEditor: FunctionComponent<PresetEditorProps> = (
             /> : <>{preset.name}</>}
           </span>
           <button title={`Show ${ObjectKeys(preset.shortcuts).length} shortcuts`
-            + `in "${preset.name}" preset`} className={css.show_on_hover}
+            + `in "${preset.name}" preset`} className={generalcss.show_on_hover}
             onClick={() => setShowInfoPreset(preset)}>
             <Icon iconName="info" />
           </button>
-          <button title="Edit preset name" className={css.show_on_hover}
+          <button title="Edit preset name" className={generalcss.show_on_hover}
             onClick={() => setEditNameInfo({index, name: preset.name})}>
             <Icon iconName="edit" /></button>
           {editNameInfo?.index === index &&
             <button title="Save new name" className={joinedStringFromDict({
-              [css.show_on_hover]: true, [css.save_button]: true})}
+              [generalcss.show_on_hover]: true, [css.save_button]: true})}
               disabled={nameEditError}
               onClick={() => trySaveNewName()}>
               <Icon iconName="done" /></button>}
-          <button title="Duplicate preset" className={css.show_on_hover}
+          <button title="Duplicate preset" className={generalcss.show_on_hover}
             onClick={() => dispatch(shortcutPresetAdded({
               stateKey: shortcutsStateKey,
               name: "Copy of " + preset.name.replace(/ \(\d+\)$/, ""),
               shortcuts: preset.shortcuts
             }))}>
             <Icon iconName="content_copy" /></button>
-          <button title="Export preset to file" className={css.show_on_hover}
+          <button title="Export preset to file" className={generalcss.show_on_hover}
             onClick={() => dispatch(exportPreset(
               {stateKey: shortcutsStateKey, index}))}>
             <Icon iconName="download" /></button>
-          <button title="Delete preset" className={css.show_on_hover}
+          <button title="Delete preset" className={generalcss.show_on_hover}
             onClick={() => setConfirmDeleteIndex(index)}>
             <Icon iconName="delete" /></button>
         </li>)}
     </ul> 
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       {editNameInfo ? <><button
         disabled={nameEditError}
         onClick={() => trySaveNewName()}>
@@ -610,7 +613,7 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
     </div>
     {(shortcutsStateKey === "subjectShortcuts"
       || shortcutsStateKey === "behaviourShortcuts") && 
-      <div className={css.button_row}>
+      <div className={generalcss.button_row}>
         <button onClick={() => setIsNewShortcut(true)}>
           <Icon iconName="add" />Add new {
             nameFromStateKey(shortcutsStateKey).toLocaleLowerCase()}
@@ -631,7 +634,7 @@ export const KeyShortcuts: FunctionComponent<Props> = ({onRequestClose}) => {
       shortcutsStateKey => <ShortcutList
         onRequestClose={onRequestClose} shortcutsStateKey={shortcutsStateKey} />)
     }
-    <div className={css.button_row}>
+    <div className={generalcss.button_row}>
       <button onClick={() => onRequestClose()}>Close</button>
       <button onClick={() => alert("TODO")}>reset</button>
     </div>

@@ -68,7 +68,14 @@ export const CONTROLS = {
   class_sliders: createPopupControl({
     iconName: "sliders",
     popupName: "classSliders",
+    selectIsDisabled: state => !selectDetectionInfoPotentiallyNull(state),
     name: "settings for detections",
+  }),
+
+  upload_files: createPopupControl({
+    iconName: "upload_file",
+    popupName: "uploader",
+    name: "Upload files and start a new detection",
   }),
 
   key_shortcut_help_toggle: createPopupControl({

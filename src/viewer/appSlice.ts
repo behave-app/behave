@@ -1,9 +1,9 @@
-import { createAsyncThunk, createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
-import type { ATConfig, RootState } from './store'
+import { createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
+import type { RootState } from './store'
 import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
 
-export type SidebarPopup = "info" | "classSliders" | "keyShortcuts"
+export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader"
 export const zoomLevels = [1, 2, 3, 5] as const
 export type ZoomLevel = number
 
@@ -21,7 +21,7 @@ export const appSlice = createSlice({
   initialState: {
     error: null as AppError | null,
     modalPopupOpen: false,
-    sidebarPopup: null as SidebarPopup | null,
+    sidebarPopup: "uploader" as SidebarPopup | null,
     selectedSubject: null  as null | string,
     hideDetectionBoxes: false,
     zoom: 0 as ZoomLevel,

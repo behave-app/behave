@@ -1,6 +1,7 @@
 import { FunctionComponent } from "preact"
 import * as css from "./icon.module.css"
 import { ICONS } from "./iconlist"
+import '@material-symbols/font-400';
 
 export type ValidIconName = typeof ICONS[number]
 

@@ -44,7 +44,7 @@ export function detectionInfoToString(detectionInfo: DetectionInfo): string {
     4)
 }
 
-function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
+export function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
   const framesInfoCheck: Checker<SingleFrameInfo> = new ObjectChecker({
     required: {
       pts: 0,
@@ -77,13 +77,6 @@ function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
   return (detectionDataFormat.isInstance(data))
 }
 
-export function stringToDetectionInfo(data: string): null | DetectionInfo {
-  const detectionInfo = JSON.parse(data)
-  if (!validateDataIsDetectionInfo(detectionInfo)) {
-    return null
-  }
-  return detectionInfo
-}
 export type DateTimeParts = {
   year: string
   month: string

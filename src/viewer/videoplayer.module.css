@@ -6,6 +6,7 @@
   &.dummy {
     background-color: grey;
     aspect-ratio: 16 / 9;
+    padding: 1em;
   }
 }
 

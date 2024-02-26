@@ -8,10 +8,11 @@ import { useSelector } from "react-redux";
 import { PlayerInfo } from "./PlayerInfo";
 import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
-import { assert, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
+import { assert, exhausted, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectPlayerInfoShown } from "./generalSettingsSlice";
 import { MultipleActionsAssignedToPressedKeyException, appErrorSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
+import { Uploader } from "./Uploader"
 import { Info } from "./Info"
 import { Dialog, suppressShortcutsSelector } from "../lib/Dialog"
 import { useAppDispatch } from "./store"
@@ -53,7 +54,7 @@ const Popup: FunctionComponent = () => {
   const dispatch = useAppDispatch()
   const noSuppressShortcuts = popup === "keyShortcuts"
   return popup && <Dialog noSuppressShortcuts={noSuppressShortcuts}
-    onRequestClose={() => dispatch(sidebarPopupWasClosed())}>
+    onRequestClose={() => dispatch(sidebarPopupWasClosed())} onClose={() => dispatch(sidebarPopupWasClosed())}>
     {(() => {
       switch (popup) {
         case "info":
@@ -62,9 +63,10 @@ const Popup: FunctionComponent = () => {
           return <ClassSliders />
         case "keyShortcuts":
           return <KeyShortcuts onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
+        case "uploader":
+          return <Uploader onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
         default: {
-          const exhaust: never = popup
-          throw new Error(`Exhausted: ${exhaust}`)
+          exhausted(popup)
         }
       }
     })()}

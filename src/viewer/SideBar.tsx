@@ -7,6 +7,7 @@ import { CONTROLS } from "./controls"
 export const SideBar: FunctionComponent = () => {
   return <div className={[viewercss.sidebar, css.sidebar,].join(" ")}>
     <div className={css.sidebar_buttons}>
+      <Button controlInfo={CONTROLS.upload_files} />
       <Button controlInfo={CONTROLS.show_info} />
       <Button controlInfo={CONTROLS.show_controls} />
       <Button controlInfo={CONTROLS.class_sliders} />

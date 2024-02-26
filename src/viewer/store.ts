@@ -4,7 +4,7 @@ import {useDispatch } from "react-redux"
 import {videoFileSlice} from "./videoFileSlice"
 import {videoPlayerSlice} from "./videoPlayerSlice"
 import {detectionsDirectorySlice} from './detectionsSlice'
-import {behaviourSlice} from './behaviourSlice'
+import {behaviourSlice, saveBehaviourToDisk, selectBehaviourFileHandlerAndCsv } from './behaviourSlice'
 import {appSlice} from './appSlice';
 import {settingsReducer} from './settingsSlice';
 import { shortcutsToLocalStorage } from './shortcutsSlice';
@@ -33,27 +33,21 @@ export const store = configureStore({
     immutableCheck: {
       ignoredActions: [
         "videoFile/videoFileSet",
-        "detections/detectionsDirectorySet",
-        "behaviour/behaviourDirectorySet",
-        "videoFile/videoFileSet",
+        "behaviour/behaviourFileHandleSet",
       ],
       ignoredPaths: [
         "videoFile.file",
-        "detections.directory",
-        "behaviour.directory",
+        "behaviour.fileHandle",
       ],
     },
     serializableCheck: {
       ignoredActions: [
         "videoFile/videoFileSet",
-        "detections/detectionsDirectorySet",
-        "behaviour/behaviourDirectorySet",
-        "videoFile/videoFileSet",
+        "behaviour/behaviourFileHandleSet",
       ],
       ignoredPaths: [
         "videoFile.file",
-        "detections.directory",
-        "behaviour.directory",
+        "behaviour.fileHandle",
       ],
     },
   })
@@ -64,16 +58,18 @@ type Callback<T> = {
   callbackFn: (selected: T) => void
   debouce: boolean
   lastSavedState: T
+  lastResult: unknown
   debouceTimeout: undefined | number
 }
 
 function createCallback<T>(
-el: Omit<Callback<T>, "lastSavedState" | "debouceTimeout">
+el: Omit<Callback<T>, "lastSavedState" | "debouceTimeout" | "lastResult">
 ): Callback<T> {
 return {
     ...el,
     lastSavedState: el.selector(store.getState()),
-    debouceTimeout: undefined
+    lastResult: undefined,
+    debouceTimeout: undefined,
 }
 }
 
@@ -86,6 +82,11 @@ const callbacks = {
   general: createCallback({
     selector: state=> state.settings.general,
     callbackFn: generalSettingsToLocalStorage,
+    debouce: true
+  }),
+  behaviourToDisk: createCallback({
+    selector: selectBehaviourFileHandlerAndCsv,
+    callbackFn: saveBehaviourToDisk,
     debouce: true
   }),
 } as const
@@ -103,15 +104,20 @@ function checkCallback(callback: Callback<any>) {
       return
     }
     callback.lastSavedState = newState
-    callback.callbackFn(newState)
+    callback.lastResult = callback.callbackFn(newState)
   }
+
   if (callback.debouce) {
-    if (callback.debouceTimeout !== undefined) {
-      // already debouncing
-      return
-    } else {
-      callback.debouceTimeout = window.setTimeout(saveIfChanged, 100)
-    }
+    // make sure new run can only be scheduled after old run finishes
+    // If function is sync, this should alway resolve directly
+    void(new Promise(resolve => resolve(callback.lastResult)).then(() => {
+      if (callback.debouceTimeout !== undefined) {
+        // already debouncing
+        return
+      } else {
+        callback.debouceTimeout = window.setTimeout(saveIfChanged, 100)
+      }
+    }))
   } else {
     saveIfChanged()
   }

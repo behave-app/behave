@@ -1,11 +1,7 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
 import { BehaveLayout } from './generalSettingsSlice'
-
-export type BehaviourDirectory = {
-  directory: FileSystemDirectoryHandle
-  behaviourFilesByFilename: Record<string, FileSystemFileHandle[]>
-}
+import { createRef } from 'preact'
 
 export type BehaviourLine = Array<string>
 
@@ -23,12 +19,12 @@ export type BehaviourInfo = {
 }
 
 export type BehaviourData = {
-  directory: BehaviourDirectory | null
+  fileHandle: FileSystemFileHandle | null
   behaviourInfo: BehaviourInfo | null
 }
 
 const initialState: BehaviourData = {
-  directory: null,
+  fileHandle: null,
   behaviourInfo: null,
 }
 
@@ -43,10 +39,10 @@ export const behaviourSlice = createSlice({
   name: "behaviour",
   initialState,
   reducers: {
-    behaviourDirectorySet: (state, action: PayloadAction<BehaviourDirectory>) => {
-      state.directory =  action.payload
+    behaviourFileHandleSet: (state, action: PayloadAction<FileSystemFileHandle>) => {
+      state.fileHandle =  action.payload
     },
-    behaviourDirectoryUnset: (state) => { state.directory = null},
+    behaviourFileHandleUnset: (state) => { state.fileHandle = null},
     behaviourInfoCreatedNew: (state, action: PayloadAction<{
       videoFileName: string,
       videoFileHash: string,
@@ -126,8 +122,8 @@ export const behaviourSlice = createSlice({
 })
 
 export const {
-  behaviourDirectorySet,
-  behaviourDirectoryUnset,
+  behaviourFileHandleSet,
+  behaviourFileHandleUnset,
   behaviourInfoCreatedNew,
   behaviourInfoLineAdded,
   behaviourInfoLineRemoved,
@@ -139,18 +135,32 @@ export const {
 } = behaviourSlice.actions
 export default behaviourSlice.reducer
 
-export const selectBehaviourDirectoryPotentiallyNull = (state: RootState) => state.behaviour
-export const selectBehaviourDirectoryIsReady = (state: RootState): state is RootState & {behaviour: BehaviourDirectory} => {
-  return state.behaviour !== null
-}
-export const selectBehaviourDirectoryAssertNotNull = (state: RootState): BehaviourDirectory => {
-  if (!selectBehaviourDirectoryIsReady(state)) {
-    throw new Error("Wrong state")
-  }
-  return state.behaviour
-}
-
 export const selectBehaviourInfo = (state: RootState) => state.behaviour.behaviourInfo
 
+export const selectBehaviourLinesAsCSV = createSelector([
+  (state: RootState) => state.behaviour.behaviourInfo?.lines], lines => lines?.map(
+    line => line.map(
+      word => [",", '"', "\n"].some(char => word.includes(char))
+        ? `"${word.replaceAll('"', '""')}"` : word
+    ).join(",")
+  ).join("\n") ?? null
+)
 
+export const selectBehaviourFileHandlerAndCsv = createSelector([
+    (state: RootState) => state.behaviour.fileHandle,
+  selectBehaviourLinesAsCSV
+], ((fileHandle, csv) => ({
+  fileHandle, csv}))
+)
 
+export const saveBehaviourToDisk = async (
+  {fileHandle, csv}: {fileHandle: BehaviourData["fileHandle"], csv: string | null}
+)=> {
+  if (fileHandle === null || csv === null) {
+    return
+  }
+  console.log("saving")
+  const output_stream = await fileHandle.createWritable()
+  await output_stream.write(csv)
+  await output_stream.close()
+}

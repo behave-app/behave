@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact"
 import * as viewercss from "./viewer.module.css"
 import { useSelector } from "react-redux"
-import { behaviourInfoCreatedNew, behaviourInfoFieldEdited, behaviourInfoUnset, currentlyEditingFieldIndexSet, currentlySelectedLineUnset, currentlySelectedLineUpdated, selectBehaviourInfo, } from "./behaviourSlice"
+import { behaviourFileHandleSet, behaviourInfoCreatedNew, behaviourInfoFieldEdited, behaviourInfoUnset, currentlyEditingFieldIndexSet, currentlySelectedLineUnset, currentlySelectedLineUpdated, selectBehaviourInfo, } from "./behaviourSlice"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectBehaviourLayout, selectFramenumberIndexInLayout } from "./generalSettingsSlice"
 import { useAppDispatch } from "./store"
@@ -12,6 +12,7 @@ import { videoSeekToFrameNumberAndPause } from "./videoPlayerActions"
 import { keyFromEvent } from "../lib/key"
 import { behaviourInputSubjectUnselected } from "./appSlice"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
+import { valueOrErrorAsync } from "src/lib/util"
 
 
 const BehaviourEditor: FunctionComponent = () => {
@@ -187,12 +188,24 @@ const BehaviourCreator: FunctionComponent = () => {
     return <div>Add video file and detection file first</div>
   }
   return <div>
-    <button onClick={() => dispatch(behaviourInfoCreatedNew({
-      videoFileName: videoFile.file.name,
-      videoFileHash: videoFile.xxh64sum,
-      createdDateTime: new Date().toISOString(),
-      layout: defaultLayout,
-    }))}>
+    <button onClick={async () => {
+      const fileHandleOrError = await valueOrErrorAsync(window.showSaveFilePicker)({
+        id: "behaviouFile",
+        startIn: "downloads",
+        suggestedName: videoFile.file.name.endsWith(".mp4")
+          ? videoFile.file.name.slice(0, -4) + ".csv" : undefined,
+        types: [{description: "behave csv file", accept: {"text/csv": [".behave.csv"]}}],
+      })
+      if ("error" in fileHandleOrError) {
+        return
+      }
+      dispatch(behaviourFileHandleSet(fileHandleOrError.value))
+      dispatch(behaviourInfoCreatedNew({
+        videoFileName: videoFile.file.name,
+        videoFileHash: videoFile.xxh64sum,
+        createdDateTime: new Date().toISOString(),
+        layout: defaultLayout,
+      }))}}>
       Create new behaviour file
     </button>
   </div>

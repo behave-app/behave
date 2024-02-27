@@ -142,6 +142,7 @@ export class NumberChecker extends Checker<number> {
   constructor(
     options?: {
       isInt?: boolean,
+      isFinite?: boolean,
       min?: number,
       max?: number,
       valid?: (n: number) => boolean
@@ -154,12 +155,12 @@ export class NumberChecker extends Checker<number> {
         }
       }
       if (options?.min !== undefined) {
-        if (n > options.min) {
+        if (n < options.min) {
           return false
         }
       }
       if (options?.max !== undefined) {
-        if (n < options.max) {
+        if (n > options.max) {
           return false
         }
       }

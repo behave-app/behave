@@ -74,7 +74,7 @@ const SCALES = [
 ] as const;
 
 const TOP_SCALING_FACTOR = 2;
-const BETWEEN_LAYERS_HEIGHT = 10;
+const BETWEEN_LAYERS_HEIGHT_FACTOR = 0.1;
 
 export const DetectionBarDetections: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
@@ -200,7 +200,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
         style={{"--svgWidth": svgRect.width, "--svgHeight": svgRect.height,
           "--totalNumberOfFrames": totalFrames, "--maxCount": scalingInfo[0],
           "--currentFrame": currentFrameNumber,
-          "--between-layers-height": BETWEEN_LAYERS_HEIGHT,
+          "--between-layers-height": svgRect.height * BETWEEN_LAYERS_HEIGHT_FACTOR,
           "--top-scaling-factor": TOP_SCALING_FACTOR
         }}
         onMouseDown={ev => {

@@ -2,8 +2,6 @@ body {
   padding: 0;
   margin: 0;
   --sidebar-width: 2.1em;
-  --detectionbar-height: min(5em, 10vh);
-  --behaviour-height: 5em;
   --controlpanel-width: 10em;
   position: fixed;
 }
@@ -39,11 +37,17 @@ kbd + kbd {
   display: grid;
   grid:
   "sidebar videoplayer controlpanel" 1fr
-  "sidebar detectionbar detectionbar" var(--detectionbar-height)
-  "sidebar behaviour behaviour" var(--behaviour-height)
-  / var(--sidebar-width) 1fr var(--controlpanel-width);
+  "sidebar detectionbar detectionbar" var(--force-detectionbar-height, var(--detectionbar-height))
+  "sidebar behaviour behaviour" var(--force-behaviour-height, var(--behaviourbar-height))
+  / var(--sidebar-width) 1fr var(--force-controlpanel-width, var(--controlpanel-width));
   &.no_controlpanel {
-    --controlpanel-width: 0;
+    --force-controlpanel-width: 0;
+  }
+  &.no_detectionbar {
+    --force-detectionbar-height: 0;
+  }
+  &.no_behaviourbar {
+    --force-behaviour-height: 0;
   }
   height: 100vh;
   width: 100vw;
@@ -72,4 +76,9 @@ kbd + kbd {
   grid-area: behaviour;
   background-color: hsl(140, 50%, 95%);
   overflow: scroll;
+}
+
+.popup_sizer {
+  margin-left: calc(max(var(--sidebar-width) + 1em, 3em));
+  max-width: fit-content;
 }

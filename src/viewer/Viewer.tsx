@@ -9,7 +9,7 @@ import { ControlPanel } from "./ControlPanel";
 import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { assert, exhausted, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
-import { selectControlPanelShown } from "./generalSettingsSlice";
+import { selectBehaviourBarShown, selectBehaviourBarSize, selectControlPanelShown, selectDetectionBarShown, selectDetectionBarSize } from "./generalSettingsSlice";
 import { MultipleActionsAssignedToPressedKeyException, appErrorSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Uploader } from "./Uploader"
@@ -20,9 +20,14 @@ import { keyFromEvent, keyToString } from "../lib/key";
 import { selectActionByKeyString } from "./shortcutsSlice";
 import { executeShortcutAction } from "./reducers";
 import { ErrorPopup } from "./Error";
+import { Sizer} from "./Sizer"
 
 export const Viewer: FunctionComponent = () => {
-  const playerInfoShown = useSelector(selectControlPanelShown)
+  const controlPaneShown = useSelector(selectControlPanelShown)
+  const detectionBarShown = useSelector(selectDetectionBarShown)
+  const detectionBarSize = useSelector(selectDetectionBarSize)
+  const behaviourBarShown = useSelector(selectBehaviourBarShown)
+  const behaviourBarSize = useSelector(selectBehaviourBarSize)
   const error = useSelector(selectAppError)
   useEffect(() => {
     if (!isCompatibleBrowser()) {
@@ -36,16 +41,21 @@ export const Viewer: FunctionComponent = () => {
 
   return <div className={joinedStringFromDict({
     [css.viewer]: true,
-    [css.no_controlpanel]: !playerInfoShown,
-  })}>
+    [css.no_controlpanel]: !controlPaneShown,
+    [css.no_detectionbar]: !detectionBarShown,
+    [css.no_behaviourbar]: !behaviourBarShown,
+  })} style={{
+      "--behaviourbar-height": `${behaviourBarSize.toFixed(1)}vh`,
+      "--detectionbar-height": `${detectionBarSize.toFixed(1)}vh`,
+    }}>
     {error && <ErrorPopup error={error} />}
     <ShortcutsHandler />
     <Popup />
     <SideBar />
     <VideoPlayer />
-    {playerInfoShown && <ControlPanel />}
-    <DetectionBar />
-    <Behaviour />
+    {controlPaneShown && <ControlPanel />}
+    {detectionBarShown && <DetectionBar />}
+    {behaviourBarShown && <Behaviour />}
   </div>
 }
 
@@ -54,6 +64,7 @@ const Popup: FunctionComponent = () => {
   const dispatch = useAppDispatch()
   const noSuppressShortcuts = popup === "keyShortcuts"
   return popup && <Dialog noSuppressShortcuts={noSuppressShortcuts}
+    className={css[`popup_${popup}`]}
     onRequestClose={() => dispatch(sidebarPopupWasClosed())} onClose={() => dispatch(sidebarPopupWasClosed())}>
     {(() => {
       switch (popup) {
@@ -65,6 +76,8 @@ const Popup: FunctionComponent = () => {
           return <KeyShortcuts onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
         case "uploader":
           return <Uploader onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
+        case "sizer":
+          return <Sizer /> 
         default: {
           exhausted(popup)
         }

@@ -4,7 +4,7 @@ import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, i
 import { Key } from '../lib/key'
 import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditingFieldIndex, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
 
-export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader"
+export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader" | "sizer"
 export const zoomLevels = [1, 2, 3, 5] as const
 export type ZoomLevel = number
 

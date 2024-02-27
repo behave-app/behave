@@ -12,6 +12,9 @@ export const SideBar: FunctionComponent = () => {
       <Button controlInfo={CONTROLS.show_controls} />
       <Button controlInfo={CONTROLS.class_sliders} />
       <Button controlInfo={CONTROLS.key_shortcut_help_toggle} />
+      <Button controlInfo={CONTROLS.show_detection_bar} />
+      <Button controlInfo={CONTROLS.show_behaviour_bar} />
+      <Button controlInfo={CONTROLS.sizer} />
     </div>
   </div>
 }

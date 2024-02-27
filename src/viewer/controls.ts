@@ -14,7 +14,7 @@ import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
 import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
 import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditingFieldIndex} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
-import { playerInfoToggled, selectFramenumberIndexInLayout, selectControlPanelShown } from "./generalSettingsSlice";
+import { selectFramenumberIndexInLayout, selectControlPanelShown, controlPaneToggled, selectBehaviourBarShown, behaviourBarToggled, detectionBarToggled, selectDetectionBarShown } from "./generalSettingsSlice";
 
 export type ControlInfo<T> = {
   iconName: ValidIconName
@@ -76,6 +76,12 @@ export const CONTROLS = {
     iconName: "upload_file",
     popupName: "uploader",
     name: "Upload files and start a new detection",
+  }),
+
+  sizer: createPopupControl({
+    iconName: "height",
+    popupName: "sizer",
+    name: "Set the sizes of different elements",
   }),
 
   key_shortcut_help_toggle: createPopupControl({
@@ -161,9 +167,8 @@ export const CONTROLS = {
     iconName: "vertical_align_top",
     description: "previous behaviour line",
     selectIsDisabled: state => {
-      const behaviourInfo = selectBehaviourInfo(state)
-      if (!behaviourInfo) return true
-      const selectedBehaviourLine = selectSelectedBehaviourLine(state)!
+      const selectedBehaviourLine = selectSelectedBehaviourLine(state)
+      if (!selectedBehaviourLine) return true
       return (selectedBehaviourLine.index === 1 && selectedBehaviourLine.rel === "at") || selectedBehaviourLine.index === 0
     },
     selectActionArgument: state => ({
@@ -188,8 +193,10 @@ export const CONTROLS = {
     description: "next behaviour line",
     selectIsDisabled: state => {
       const behaviourInfo = selectBehaviourInfo(state)
-      if (!behaviourInfo) return true
-      const selectedBehaviourLine = selectSelectedBehaviourLine(state)!
+      const selectedBehaviourLine = selectSelectedBehaviourLine(state)
+      if (!behaviourInfo || !selectedBehaviourLine) {
+        return true
+      }
       return selectedBehaviourLine.index === behaviourInfo.lines.length - 1
     },
     selectActionArgument: state => ({
@@ -213,9 +220,10 @@ export const CONTROLS = {
     iconName: "delete",
     description: "remove the selected behaviour line",
     selectIsDisabled: state => {
-      const behaviourInfo = selectBehaviourInfo(state)
-      if (!behaviourInfo) return true
-      const selectedBehaviourLine = selectSelectedBehaviourLine(state)!
+      const selectedBehaviourLine = selectSelectedBehaviourLine(state)
+      if (!selectedBehaviourLine) {
+        return true
+      }
       return selectedBehaviourLine.rel !== "at"
     },
     selectActionArgument: state => ({
@@ -264,7 +272,24 @@ export const CONTROLS = {
     description: "Toggle whether controls and info is shown next to the player",
     selectIsDisabled: () => false,
     selectIsActivated: state => selectControlPanelShown(state),
-    action: dispatch => dispatch(playerInfoToggled())
+    action: dispatch => dispatch(controlPaneToggled())
+  }),
+
+  show_detection_bar: fillAndWrapDefaultControlInfo({
+    iconName: "bar_chart_4_bars",
+    description: "Toggle whether detection bar is shown",
+    selectIsDisabled: () => false,
+    selectIsActivated: state => selectDetectionBarShown(state),
+    action: dispatch => dispatch(detectionBarToggled())
+  }),
+
+
+  show_behaviour_bar: fillAndWrapDefaultControlInfo({
+    iconName: "data_table",
+    description: "Toggle whether behaviour bar is shown",
+    selectIsDisabled: () => false,
+    selectIsActivated: state => selectBehaviourBarShown(state),
+    action: dispatch => dispatch(behaviourBarToggled())
   }),
 
   zoom_toggle: fillAndWrapDefaultControlInfo({

@@ -2,7 +2,7 @@ import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
 import { assert, mayBeUndefined } from '../lib/util'
 import {HSL} from "../lib/colour"
-import { Checker, LiteralChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck';
+import { Checker, LiteralChecker, NumberChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck';
 import { DetectionInfo } from '../lib/detections';
 
 
@@ -26,12 +26,16 @@ export type GeneralSettingsState = {
   settingsByDetectionClassByKey: Record<string, Record<`${number}`, SettingsForDetectionClass>>
   confidenceLocation: ConfidenceLocation
   showControlPanel: boolean
+  detectionBar: {visible: boolean, size: number}
+  behaviourBar: {visible: boolean, size: number}
 }
 
 const defaultGeneralSettings: GeneralSettingsState = {
   settingsByDetectionClassByKey: {},
   confidenceLocation: "outer-right-bottom",
   showControlPanel: true,
+  detectionBar: {visible: true, size: 10},
+  behaviourBar: {visible: true, size: 10},
 }
 
 function isJSON(s: string): boolean {
@@ -63,6 +67,8 @@ export const generalSettingsChecker: Checker<GeneralSettingsState> = getCheckerF
       "outer-left-bottom", "outer-center-bottom", "outer-right-bottom",
     ]),
     showControlPanel: true,
+    detectionBar: {visible: true, size: new NumberChecker({min: 5, max: 45, isFinite: true,})},
+    behaviourBar: {visible: true, size: new NumberChecker({min: 5, max: 45, isFinite: true,})},
 })
 
 const LOCAL_STORAGE_GENERAL_SETTINGS_KEY = "Behave_General_Settings"
@@ -160,9 +166,23 @@ export const generalSettingsSlice = createSlice({
     confidenceLocationUpdated: (state, action: PayloadAction<ConfidenceLocation>) => {
       state.confidenceLocation = action.payload
     },
-    playerInfoToggled: state => {
+    controlPaneToggled: state => {
       state.showControlPanel = !state.showControlPanel
-    }
+    },
+    detectionBarToggled: state => {
+      state.detectionBar.visible = !state.detectionBar.visible
+    },
+    detectionBarSizeSet: (state, {payload: newSize}: PayloadAction<number>) => {
+      assert(Number.isFinite(newSize))
+      state.detectionBar.size = Math.min(45, Math.max(5, newSize))
+    },
+    behaviourBarToggled: state => {
+      state.behaviourBar.visible = !state.behaviourBar.visible
+    },
+    behaviourBarSizeSet: (state, {payload: newSize}: PayloadAction<number>) => {
+      assert(Number.isFinite(newSize))
+      state.behaviourBar.size = Math.min(45, Math.max(5, newSize))
+    },
   }
 })
 
@@ -173,13 +193,25 @@ export const {
   hideToggled,
   colourUpdated,
   confidenceLocationUpdated,
-  playerInfoToggled,
+  controlPaneToggled,
+  detectionBarToggled,
+  detectionBarSizeSet,
+  behaviourBarToggled,
+  behaviourBarSizeSet,
 } = generalSettingsSlice.actions
 
 export const selectSettingsByDetectionClassByKey = (state: RootState) => state.settings.general.settingsByDetectionClassByKey
 export const selectConfidenceLocation = (state: RootState) => state.settings.general.confidenceLocation
 
 export const selectControlPanelShown = (state: RootState) => state.settings.general.showControlPanel
+
+export const selectDetectionBarSize = (state: RootState) => state.settings.general.detectionBar.size
+
+export const selectDetectionBarShown = (state: RootState) => state.settings.general.detectionBar.visible
+
+export const selectBehaviourBarSize = (state: RootState) => state.settings.general.behaviourBar.size
+
+export const selectBehaviourBarShown = (state: RootState) => state.settings.general.behaviourBar.visible
 
 export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
 export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>

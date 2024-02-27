@@ -4,7 +4,7 @@ body {
   --sidebar-width: 2.1em;
   --detectionbar-height: min(5em, 10vh);
   --behaviour-height: 5em;
-  --playerinfo-width: 10em;
+  --controlpanel-width: 10em;
   position: fixed;
 }
 
@@ -37,23 +37,13 @@ kbd + kbd {
 
 .viewer {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr var(--playerinfo-width);
-  grid-template-rows:
-  1fr
-  var(--detectionbar-height)
-  var(--behaviour-height)
-  ;
-  grid-template-areas:
-  "sidebar videoplayer playerinfo"
-  "sidebar detectionbar detectionbar"
-  "sidebar behaviour behaviour"
-  ;
-  &.no_controls {
-    grid-template-areas:
-    "sidebar videoplayer videoplayer"
-    "sidebar detectionbar detectionbar"
-    "sidebar behaviour behaviour"
-    ;
+  grid:
+  "sidebar videoplayer controlpanel" 1fr
+  "sidebar detectionbar detectionbar" var(--detectionbar-height)
+  "sidebar behaviour behaviour" var(--behaviour-height)
+  / var(--sidebar-width) 1fr var(--controlpanel-width);
+  &.no_controlpanel {
+    --controlpanel-width: 0;
   }
   height: 100vh;
   width: 100vw;
@@ -67,8 +57,8 @@ kbd + kbd {
   grid-area: videoplayer;
   overflow: hidden;
 }
-.playerinfo {
-  grid-area: playerinfo;
+.controlpanel {
+  grid-area: controlpanel;
   display: grid;
   grid-template-rows: auto auto
 

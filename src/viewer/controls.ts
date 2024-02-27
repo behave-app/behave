@@ -14,7 +14,7 @@ import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
 import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
 import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditingFieldIndex} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
-import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./generalSettingsSlice";
+import { playerInfoToggled, selectFramenumberIndexInLayout, selectControlPanelShown } from "./generalSettingsSlice";
 
 export type ControlInfo<T> = {
   iconName: ValidIconName
@@ -263,7 +263,7 @@ export const CONTROLS = {
     iconName: "remote_gen",
     description: "Toggle whether controls and info is shown next to the player",
     selectIsDisabled: () => false,
-    selectIsActivated: state => selectPlayerInfoShown(state),
+    selectIsActivated: state => selectControlPanelShown(state),
     action: dispatch => dispatch(playerInfoToggled())
   }),
 

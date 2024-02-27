@@ -1,6 +1,6 @@
 import { FunctionComponent } from "preact";
 import * as viewercss from "./viewer.module.css"
-import * as css from "./playerinfo.module.css"
+import * as css from "./controlpanel.module.css"
 import { useSelector } from "react-redux";
 import { selectPlaybackRate, selectPlayerState } from "./videoPlayerSlice";
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors";
@@ -8,7 +8,7 @@ import { ControlInfo, CONTROLS } from "./controls";
 import { Button } from "./Button";
 
 
-const PlayerInfoDetails: FunctionComponent = () => {
+const ControlPanelDetails: FunctionComponent = () => {
   const currentFrameNumber = useSelector(selectCurrentFrameNumber)
   const currentDateTime = useSelector(selectCurrentFrameDateTime)
 
@@ -23,7 +23,7 @@ const PlayerInfoDetails: FunctionComponent = () => {
   </div>
 }
 
-export const PlayerInfo: FunctionComponent = () => {
+export const ControlPanel: FunctionComponent = () => {
   const playerState = useSelector(selectPlayerState)
   const playbackSpeed = useSelector(selectPlaybackRate)
 
@@ -35,9 +35,9 @@ export const PlayerInfo: FunctionComponent = () => {
           : CONTROLS.pause
   )
 
-  return <div className={viewercss.playerinfo}>
+  return <div className={viewercss.controlpanel}>
     <div>
-      {playerState && <PlayerInfoDetails />}
+      {playerState && <ControlPanelDetails />}
     </div>
     <div className={css.controls}>
       <Button controlInfo={CONTROLS.previous_behaviour_line} />

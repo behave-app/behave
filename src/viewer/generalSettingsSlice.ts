@@ -25,13 +25,13 @@ export type ConfidenceLocation = `${"outer" | "inner"}-${"left" | "center" | "ri
 export type GeneralSettingsState = {
   settingsByDetectionClassByKey: Record<string, Record<`${number}`, SettingsForDetectionClass>>
   confidenceLocation: ConfidenceLocation
-  showPlayerInfo: boolean
+  showControlPanel: boolean
 }
 
 const defaultGeneralSettings: GeneralSettingsState = {
   settingsByDetectionClassByKey: {},
   confidenceLocation: "outer-right-bottom",
-  showPlayerInfo: true,
+  showControlPanel: true,
 }
 
 function isJSON(s: string): boolean {
@@ -62,7 +62,7 @@ export const generalSettingsChecker: Checker<GeneralSettingsState> = getCheckerF
       "inner-left-bottom", "inner-center-bottom", "inner-right-bottom",
       "outer-left-bottom", "outer-center-bottom", "outer-right-bottom",
     ]),
-    showPlayerInfo: true,
+    showControlPanel: true,
 })
 
 const LOCAL_STORAGE_GENERAL_SETTINGS_KEY = "Behave_General_Settings"
@@ -161,7 +161,7 @@ export const generalSettingsSlice = createSlice({
       state.confidenceLocation = action.payload
     },
     playerInfoToggled: state => {
-      state.showPlayerInfo = !state.showPlayerInfo
+      state.showControlPanel = !state.showControlPanel
     }
   }
 })
@@ -179,7 +179,7 @@ export const {
 export const selectSettingsByDetectionClassByKey = (state: RootState) => state.settings.general.settingsByDetectionClassByKey
 export const selectConfidenceLocation = (state: RootState) => state.settings.general.confidenceLocation
 
-export const selectPlayerInfoShown = (state: RootState) => state.settings.general.showPlayerInfo
+export const selectControlPanelShown = (state: RootState) => state.settings.general.showControlPanel
 
 export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
 export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>

@@ -5,11 +5,11 @@ import { VideoPlayer } from "./VideoPlayer";
 import { DetectionBar } from "./DetectionBar";
 import { Behaviour } from "./Behaviour";
 import { useSelector } from "react-redux";
-import { PlayerInfo } from "./PlayerInfo";
+import { ControlPanel } from "./ControlPanel";
 import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { assert, exhausted, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
-import { selectPlayerInfoShown } from "./generalSettingsSlice";
+import { selectControlPanelShown } from "./generalSettingsSlice";
 import { MultipleActionsAssignedToPressedKeyException, appErrorSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Uploader } from "./Uploader"
@@ -22,7 +22,7 @@ import { executeShortcutAction } from "./reducers";
 import { ErrorPopup } from "./Error";
 
 export const Viewer: FunctionComponent = () => {
-  const playerInfoShown = useSelector(selectPlayerInfoShown)
+  const playerInfoShown = useSelector(selectControlPanelShown)
   const error = useSelector(selectAppError)
   useEffect(() => {
     if (!isCompatibleBrowser()) {
@@ -36,14 +36,14 @@ export const Viewer: FunctionComponent = () => {
 
   return <div className={joinedStringFromDict({
     [css.viewer]: true,
-    [css.no_controls]: !playerInfoShown,
+    [css.no_controlpanel]: !playerInfoShown,
   })}>
     {error && <ErrorPopup error={error} />}
     <ShortcutsHandler />
     <Popup />
     <SideBar />
     <VideoPlayer />
-    {playerInfoShown && <PlayerInfo />}
+    {playerInfoShown && <ControlPanel />}
     <DetectionBar />
     <Behaviour />
   </div>

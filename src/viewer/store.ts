@@ -33,7 +33,8 @@ export const store = configureStore({
     immutableCheck: {
       ignoredActions: [
         "videoFile/videoFileSet",
-        "behaviour/behaviourFileHandleSet",
+        "behaviour/behaviourInfoSavedAs",
+        "behaviour/behaviourInfoCreatedNew",
       ],
       ignoredPaths: [
         "videoFile.file",
@@ -43,7 +44,8 @@ export const store = configureStore({
     serializableCheck: {
       ignoredActions: [
         "videoFile/videoFileSet",
-        "behaviour/behaviourFileHandleSet",
+        "behaviour/behaviourInfoSavedAs",
+        "behaviour/behaviourInfoCreatedNew",
       ],
       ignoredPaths: [
         "videoFile.file",

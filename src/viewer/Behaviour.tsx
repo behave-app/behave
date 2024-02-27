@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact"
 import * as viewercss from "./viewer.module.css"
 import { useSelector } from "react-redux"
-import { behaviourFileHandleSet, behaviourInfoCreatedNew, behaviourInfoFieldEdited, behaviourInfoUnset, currentlyEditingFieldIndexSet, currentlySelectedLineUnset, currentlySelectedLineUpdated, selectBehaviourInfo, } from "./behaviourSlice"
+import { behaviourInfoCreatedNew, editBehaviourInfoLineField, setCurrentlyEditingFieldIndex, currentlySelectedLineUnset, currentlySelectedLineUpdated, selectBehaviourInfo, behaviourInfoSubjectUnselected, } from "./behaviourSlice"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectBehaviourLayout, selectFramenumberIndexInLayout } from "./generalSettingsSlice"
 import { useAppDispatch } from "./store"
@@ -10,9 +10,8 @@ import * as css from "./behaviour.module.css"
 import { selectBehaviourLineWithoutBehaviour, selectCurrentFrameNumber, selectSelectedBehaviourLine } from "./selectors"
 import { videoSeekToFrameNumberAndPause } from "./videoPlayerActions"
 import { keyFromEvent } from "../lib/key"
-import { behaviourInputSubjectUnselected } from "./appSlice"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { valueOrErrorAsync } from "src/lib/util"
+import { valueOrErrorAsync } from "../lib/util"
 
 
 const BehaviourEditor: FunctionComponent = () => {
@@ -25,8 +24,8 @@ const BehaviourEditor: FunctionComponent = () => {
   const selectedBehaviourLine = useSelector(selectSelectedBehaviourLine)
   const inputElementRef = useRef<HTMLInputElement>(null)
   const frameNumberIndexInLayout = useSelector(selectFramenumberIndexInLayout)
-  if (!selectedBehaviourLine) {
-    throw new Error("error")
+  if(selectedBehaviourLine === null) {
+    return <div>Wait for video to load</div>
   }
 
   useEffect(() => {
@@ -59,7 +58,7 @@ const BehaviourEditor: FunctionComponent = () => {
       return 
     }
     if (insertLine) {
-      dispatch(behaviourInputSubjectUnselected())
+      dispatch(behaviourInfoSubjectUnselected())
     }
     if (fieldNumber === frameNumberIndexInLayout) {
       console.log("Frame number field not editable")
@@ -73,10 +72,10 @@ const BehaviourEditor: FunctionComponent = () => {
       void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
     }
     setEditingValue(behaviourInfo.lines[lineNumber][fieldNumber])
-    dispatch(currentlyEditingFieldIndexSet({
+    void(dispatch(setCurrentlyEditingFieldIndex({
       currentlyEditingFieldIndex: fieldNumber,
       currentlySelectedLine: lineNumber,
-    }))
+    })))
   }
 
   const selectLine = (lineNumber: number) => {
@@ -85,7 +84,7 @@ const BehaviourEditor: FunctionComponent = () => {
       return 
     }
     if (insertLine) {
-      dispatch(behaviourInputSubjectUnselected())
+      dispatch(behaviourInfoSubjectUnselected())
     }
     const newFrameNumber = parseInt(
       (behaviourInfo.lines[lineNumber] ?? [])[frameNumberIndexInLayout])
@@ -104,7 +103,8 @@ const BehaviourEditor: FunctionComponent = () => {
     if (key === null) {
       if (event.code === "Escape") {
         event.stopPropagation()
-        dispatch(currentlyEditingFieldIndexSet({currentlyEditingFieldIndex: null}))
+        void(dispatch(setCurrentlyEditingFieldIndex(
+          {currentlyEditingFieldIndex: null})))
 
       }
       return;
@@ -120,12 +120,13 @@ const BehaviourEditor: FunctionComponent = () => {
       || behaviourInfo.currentlyEditingFieldIndex === null) {
       return
     }
-    dispatch(behaviourInfoFieldEdited({
+    void(dispatch(editBehaviourInfoLineField({
       lineNumber: behaviourInfo.currentlySelectedLine!,
       fieldNumber: behaviourInfo.currentlyEditingFieldIndex,
       newContent: editingValue
-    }))
-    dispatch(currentlyEditingFieldIndexSet({currentlyEditingFieldIndex: null}))
+    })))
+    void(dispatch(setCurrentlyEditingFieldIndex(
+      {currentlyEditingFieldIndex: null})))
     setEditingValue("")
   }
 
@@ -199,11 +200,8 @@ const BehaviourCreator: FunctionComponent = () => {
       if ("error" in fileHandleOrError) {
         return
       }
-      dispatch(behaviourFileHandleSet(fileHandleOrError.value))
       dispatch(behaviourInfoCreatedNew({
-        videoFileName: videoFile.file.name,
-        videoFileHash: videoFile.xxh64sum,
-        createdDateTime: new Date().toISOString(),
+        fileHandle: fileHandleOrError.value,
         layout: defaultLayout,
       }))}}>
       Create new behaviour file
@@ -211,18 +209,7 @@ const BehaviourCreator: FunctionComponent = () => {
   </div>
 }
 export const Behaviour: FunctionComponent = () => {
-  const videoFile = useSelector(selectVideoFilePotentiallyNull)
   const behaviourInfo = useSelector(selectBehaviourInfo)
-  const dispatch = useAppDispatch()
-
-  useEffect(() => {
-    if (!behaviourInfo) {
-      return
-    }
-    if (!videoFile || videoFile.xxh64sum !== behaviourInfo.sourceFileXxHash64) {
-      dispatch(behaviourInfoUnset())
-    }
-  }, [videoFile, behaviourInfo])
 
   return <div className={viewercss.behaviour}>
     {behaviourInfo ? <BehaviourEditor /> : <BehaviourCreator />}

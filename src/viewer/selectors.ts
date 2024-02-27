@@ -1,6 +1,5 @@
 import { createSelector } from "@reduxjs/toolkit";
-import { selectSelectedSubject } from './appSlice';
-import { selectBehaviourInfo } from "./behaviourSlice";
+import { selectBehaviourInfo, selectCurrentlySelectedSubject } from "./behaviourSlice";
 import { selectDateTimes, selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from "./detectionsSlice";
 import { SettingsForDetectionClass, getKeyFromModelKlasses, selectFramenumberIndexInLayout, selectSettingsByDetectionClassByKey } from './generalSettingsSlice';
 import type { RootState } from './store';
@@ -144,7 +143,7 @@ export const selectSelectedBehaviourLine: ((state: RootState) => null | {index: 
 
 export const selectBehaviourLineWithoutBehaviour = createSelector(
   [
-    selectSelectedSubject, selectBehaviourInfo, selectCurrentFrameNumber,
+    selectCurrentlySelectedSubject, selectBehaviourInfo, selectCurrentFrameNumber,
     selectCurrentFrameInfoPotentiallyNull, selectCurrentFrameDateTime
   ],
   (

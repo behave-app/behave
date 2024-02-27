@@ -1,20 +1,16 @@
-import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { RootState } from './store'
-import { BehaveLayout } from './generalSettingsSlice'
-import { createRef } from 'preact'
+import { createAsyncThunk, createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import type { AppDispatch, ATConfig, RootState } from './store'
+import { BehaveLayout, } from './generalSettingsSlice'
+import { assert, } from '../lib/util'
 
 export type BehaviourLine = Array<string>
 
-
 export type BehaviourInfo = {
-  sourceFileName: string
-  sourceFileXxHash64: string
-  createdDateTime: string
-  lastModifiedDateTime: string
   layout: BehaveLayout
   readonly: boolean
   currentlySelectedLine: null | number
   currentlyEditingFieldIndex: null | number
+  currentlySelectedSubject: null | string
   lines: BehaviourLine[]
 }
 
@@ -35,59 +31,97 @@ export function numberSort<T>(keyFunc?: (item: T) => number): (a: T, b: T) => nu
   return (a: T, b: T) => definedKeyFunc(a) - definedKeyFunc(b)
 }
 
+export function getColumnNamesFromLayout(behviourLayout: BehaveLayout): string[] {
+  return behviourLayout.map(
+    col => {
+      const prefices = ["dateTime:", "comments:"]
+      for (const prefix of prefices) {
+        if (col.type.startsWith(prefix)) {
+          return col.type.slice(prefix.length)
+        }
+      }
+      return col.type
+    }
+  )
+}
+
 export const behaviourSlice = createSlice({
   name: "behaviour",
   initialState,
   reducers: {
-    behaviourFileHandleSet: (state, action: PayloadAction<FileSystemFileHandle>) => {
-      state.fileHandle =  action.payload
+    behaviourInfoUnset: (state) => {
+      state.fileHandle = null
+      state.behaviourInfo = null
     },
-    behaviourFileHandleUnset: (state) => { state.fileHandle = null},
-    behaviourInfoCreatedNew: (state, action: PayloadAction<{
-      videoFileName: string,
-      videoFileHash: string,
-      createdDateTime: string,
-      layout: BehaveLayout
+    behaviourInfoSavedAs: (state, {payload}: PayloadAction<{
+      fileHandle: FileSystemFileHandle,
     }>) => {
+      assert(state.behaviourInfo)
+      state.fileHandle = payload.fileHandle
+      state.behaviourInfo.readonly = false
+    },
+    behaviourInfoLinesSet: (state, {payload}: PayloadAction<{
+      layout: BehaveLayout
+      lines: string[][]
+    }>) => {
+      assert(validateDataIsBehaviourLines(payload.lines, payload.layout))
+      state.fileHandle = null
       state.behaviourInfo = {
-        sourceFileName: action.payload.videoFileName,
-        sourceFileXxHash64: action.payload.videoFileHash,
-        createdDateTime: action.payload.videoFileName,
-        lastModifiedDateTime: action.payload.videoFileName,
+        layout: payload.layout,
+        readonly: true,
+        currentlySelectedLine: null,
+        currentlyEditingFieldIndex: null,
+        currentlySelectedSubject: null,
+        lines: payload.lines,
+      }
+    },
+    behaviourInfoCreatedNew: (state, action: PayloadAction<{
+      layout: BehaveLayout
+      fileHandle: FileSystemFileHandle,
+    }>) => {
+      state.fileHandle = action.payload.fileHandle
+      state.behaviourInfo = {
         layout: action.payload.layout,
         readonly: false,
         currentlySelectedLine: null,
+        currentlySelectedSubject: null,
         currentlyEditingFieldIndex: null,
-        lines: [
-          action.payload.layout.map(l => ["dateTime:", "comments:", ""].map(
-            prefix => l.type.startsWith(prefix) ? l.type.slice(prefix.length) : "")
-            .filter(s => s != "")[0])
-        ],
+        lines: [getColumnNamesFromLayout(action.payload.layout)],
       }
+    },
+    behaviourIfoCurrentlySelectedSubjectToggle: (state, action: PayloadAction<string>) => {
+      assert(state.behaviourInfo)
+      assert(state.behaviourInfo.readonly === false)
+      if (state.behaviourInfo.currentlySelectedSubject === action.payload) {
+        state.behaviourInfo.currentlySelectedSubject = null
+      } else {
+        state.behaviourInfo.currentlySelectedSubject = action.payload
+      }
+    },
+    behaviourInfoSubjectUnselected: (state) => {
+      assert(state.behaviourInfo)
+      state.behaviourInfo.currentlySelectedSubject = null
     },
     behaviourInfoLineAdded: (state, action: PayloadAction<{
       line: BehaviourLine,
       insertIndex: number,
     }>) => {
-      if (!state.behaviourInfo) {
-        throw new Error("No behaviour info")
-      }
+      assert(state.behaviourInfo)
+      assert(state.behaviourInfo.readonly === false)
       state.behaviourInfo.lines.splice(
         action.payload.insertIndex, 0, action.payload.line)
     },
     behaviourInfoLineRemoved: (state, action: PayloadAction<number>) => {
-      if (!state.behaviourInfo) {
-        throw new Error("No behaviour info")
-      }
+      assert(state.behaviourInfo)
+      assert(state.behaviourInfo.readonly === false)
       state.behaviourInfo.lines.splice(
         action.payload, 1)
     },
     behaviourInfoFieldEdited: (state, action: PayloadAction<{
       lineNumber: number, fieldNumber: number, newContent: string
     }>) => {
-      if (!state.behaviourInfo) {
-        throw new Error("No behaviour info")
-      }
+      assert(state.behaviourInfo)
+      assert(state.behaviourInfo.readonly === false)
       const line = state.behaviourInfo.lines[action.payload.lineNumber]
       const field = (line ?? [])[action.payload.fieldNumber]
       if (field === undefined) {
@@ -95,47 +129,51 @@ export const behaviourSlice = createSlice({
       }
       line[action.payload.fieldNumber] = action.payload.newContent
     },
-    behaviourInfoUnset: (state) => {state.behaviourInfo = null},
     currentlySelectedLineUpdated: (state, action: PayloadAction<number>) => {
-      if (!state.behaviourInfo) {
-        throw new Error("No behaviour info")
-      }
+      assert(state.behaviourInfo)
       state.behaviourInfo.currentlySelectedLine = action.payload
     },
     currentlySelectedLineUnset: (state) => {
-      if (!state.behaviourInfo) {
-        throw new Error("No behaviour info")
-      }
+      assert(state.behaviourInfo)
       state.behaviourInfo.currentlySelectedLine = null
       state.behaviourInfo.currentlyEditingFieldIndex = null
     },
-    currentlyEditingFieldIndexSet: (state, action: PayloadAction<{currentlyEditingFieldIndex: number | null, currentlySelectedLine?: number}>) => {
-      if (!state.behaviourInfo) {
-        throw new Error("No behaviour info")
+    currentlyEditingFieldIndexSet: (state, {payload}: PayloadAction<{
+      currentlyEditingFieldIndex: number | null,
+      currentlySelectedLine?: number
+    }>) => {
+      assert(state.behaviourInfo)
+      assert(state.behaviourInfo.readonly === false)
+      if ("currentlySelectedLine" in payload
+        && payload.currentlySelectedLine !== undefined) {
+        state.behaviourInfo.currentlySelectedLine = payload.currentlySelectedLine
       }
-      if ("currentlySelectedLine" in action.payload && action.payload.currentlySelectedLine !== undefined) {
-        state.behaviourInfo.currentlySelectedLine = action.payload.currentlySelectedLine
-      }
-      state.behaviourInfo.currentlyEditingFieldIndex = action.payload.currentlyEditingFieldIndex
+      state.behaviourInfo.currentlyEditingFieldIndex = payload.currentlyEditingFieldIndex
     },
   }
 })
 
 export const {
-  behaviourFileHandleSet,
-  behaviourFileHandleUnset,
-  behaviourInfoCreatedNew,
-  behaviourInfoLineAdded,
-  behaviourInfoLineRemoved,
-  behaviourInfoFieldEdited,
   behaviourInfoUnset,
+  behaviourInfoSavedAs,
+  behaviourInfoLinesSet,
+  behaviourInfoCreatedNew,
+  behaviourInfoSubjectUnselected,
   currentlySelectedLineUpdated,
   currentlySelectedLineUnset,
-  currentlyEditingFieldIndexSet
 } = behaviourSlice.actions
 export default behaviourSlice.reducer
 
+const {
+  currentlyEditingFieldIndexSet,
+  behaviourInfoLineAdded,
+  behaviourInfoLineRemoved,
+  behaviourInfoFieldEdited,
+  behaviourIfoCurrentlySelectedSubjectToggle,
+} = behaviourSlice.actions
+
 export const selectBehaviourInfo = (state: RootState) => state.behaviour.behaviourInfo
+export const selectCurrentlySelectedSubject = (state: RootState) => state.behaviour.behaviourInfo?.currentlySelectedSubject ?? null
 
 export const selectBehaviourLinesAsCSV = createSelector([
   (state: RootState) => state.behaviour.behaviourInfo?.lines], lines => lines?.map(
@@ -159,8 +197,123 @@ export const saveBehaviourToDisk = async (
   if (fileHandle === null || csv === null) {
     return
   }
-  console.log("saving")
   const output_stream = await fileHandle.createWritable()
   await output_stream.write(csv)
   await output_stream.close()
 }
+
+export const validateDataIsBehaviourLines = (
+lines: string[][], behviourLayout: BehaveLayout
+): boolean => {
+  if (lines.length < 1) {
+    console.warn("Should have at least one line")
+    return false;
+  }
+  if (!getColumnNamesFromLayout(behviourLayout).every(
+    (colname, index) => colname === lines[0][index])) {
+    console.warn("First line should match layout (for now)", behviourLayout, lines[0])
+    return false
+  }
+  if (!lines.every(line => line.length === behviourLayout.length)) {
+    console.warn("Each line should have the same number of entries")
+    return false
+  }
+  const frameNumberIndex = behviourLayout.findIndex(
+    col => col.type === "frameNumber")
+  if (!lines.slice(1).every(
+    line => /^([1-9][0-9]*)|0$/.test(line[frameNumberIndex]))) {
+    console.warn("All frame numbers should be int-strings")
+    return false
+  }
+  return true
+}
+
+export const csvToLines = (csv: string): string[][] => {
+  const lines = csv.split("\n")
+  const partLines: string[][] = []
+  for (let i=0; i < lines.length; i++) {
+    let line: string | null = lines[i]
+    const parts: string[] = []
+    while (line !== null) {
+      if (line[0] === '"') {
+        let index = '"'.length // skip first quote
+        while (true) {
+          index = line.indexOf('"', index)
+          if (index === -1) {
+            // quoted enter
+            i++
+            line += lines[i]
+          } else if (line[index + 1] === '"') {
+            // quoted double quote
+            index += 2
+            continue
+          } else if (line[index + 1] === "," || line[index + 1] === undefined) {
+            // end of field
+            parts.push(line.slice(1, index).replaceAll('""', '"'))
+            line = line[index + 1] === "," ? line.slice(index + 2) : null
+            break
+          } else {
+            throw new Error("Corrupt")
+          }
+        }
+      } else {
+        const index = line.indexOf(",")
+        if (index === -1) {
+          parts.push(line)
+          line = null
+        } else {
+          parts.push(line.slice(0, index))
+          line = line.slice(index + 1)
+        }
+      }
+    }
+    partLines.push(parts)
+  }
+  return partLines
+}
+
+
+export type NoWritableBehaviourFileException = {
+  error: "NoWritableBehaviourFileException"
+  reason: "no file" | "read only"
+}
+
+function noWritableBehaviourFileException (
+  exception: Omit<NoWritableBehaviourFileException, "error">
+): NoWritableBehaviourFileException {
+  return {
+    error: "NoWritableBehaviourFileException",
+    ...exception
+  }
+}
+
+function checkEditableThunkCreator<T>(
+  func: (params: T) => Parameters<AppDispatch>[0]
+) {
+  return createAsyncThunk<
+    void, T, ATConfig<NoWritableBehaviourFileException>>
+    (
+      `behaviour/${func.toString()}WithEditableCheck`,
+      async (params, {getState, dispatch, rejectWithValue}) => {
+        const state = getState()
+        if(state.behaviour.behaviourInfo === null) {
+          throw rejectWithValue(noWritableBehaviourFileException({reason: "no file"}))
+
+    }
+    if (state.behaviour.behaviourInfo.readonly === true) {
+      throw rejectWithValue(noWritableBehaviourFileException({reason: "read only"}))
+    }
+    dispatch(func(params))
+  }
+)
+}
+
+export const setCurrentlyEditingFieldIndex = checkEditableThunkCreator(currentlyEditingFieldIndexSet)
+
+export const addBehaviourInfoLine = checkEditableThunkCreator(behaviourInfoLineAdded)
+
+export const removeBehaviourInfoLine = checkEditableThunkCreator(behaviourInfoLineRemoved)
+
+export const editBehaviourInfoLineField = checkEditableThunkCreator(behaviourInfoFieldEdited)
+
+export const toggleBehaviourInfoCurrentlySelectedSubject = checkEditableThunkCreator(behaviourIfoCurrentlySelectedSubjectToggle)

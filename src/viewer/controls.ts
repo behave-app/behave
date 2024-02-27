@@ -11,8 +11,8 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSelectedSubject, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
-import { behaviourInfoLineRemoved, currentlyEditingFieldIndexSet, currentlySelectedLineUpdated, selectBehaviourInfo} from "./behaviourSlice";
+import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
+import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditingFieldIndex} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
 import { playerInfoToggled, selectFramenumberIndexInLayout, selectPlayerInfoShown } from "./generalSettingsSlice";
 
@@ -225,7 +225,7 @@ export const CONTROLS = {
       if (selectedBehaviourLine.rel !== "at") {
         throw new Error("Should be 'at'")
       }
-      dispatch(behaviourInfoLineRemoved(selectedBehaviourLine.index))
+      void(dispatch(removeBehaviourInfoLine(selectedBehaviourLine.index)))
     }
   }),
 
@@ -235,7 +235,7 @@ export const CONTROLS = {
     selectIsDisabled: state => {
       const line = selectSelectedBehaviourLine(state)
       const behaviourInfo = selectBehaviourInfo(state)
-      const subjectSelected = selectSelectedSubject(state)
+      const subjectSelected = selectCurrentlySelectedSubject(state)
       return (
         subjectSelected !== null
         || !behaviourInfo
@@ -251,11 +251,11 @@ export const CONTROLS = {
       behaviourInfo: selectBehaviourInfo(state)!,
     }),
     action: (dispatch, {selectedBehaviourLine, behaviourInfo}) => {
-      dispatch(currentlyEditingFieldIndexSet({
+      void(dispatch(setCurrentlyEditingFieldIndex({
         currentlySelectedLine: selectedBehaviourLine.index,
         currentlyEditingFieldIndex: behaviourInfo.layout.findIndex(
             col => col.type.startsWith("comments:"))
-      }))
+      })))
     }
   }),
 

@@ -2,6 +2,7 @@ import { createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
 import type { RootState } from './store'
 import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
+import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditingFieldIndex, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
 
 export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader"
 export const zoomLevels = [1, 2, 3, 5] as const
@@ -14,15 +15,13 @@ export type MultipleActionsAssignedToPressedKeyException = {
 }
 
 
-export type AppError = (SerializedError & {error: "SerializedError"}) | ActionAlreadyInUseException | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException
+export type AppError = (SerializedError & {error: "SerializedError"}) | ActionAlreadyInUseException | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException | NoWritableBehaviourFileException
 
 export const appSlice = createSlice({
   name: "app",
   initialState: {
     error: null as AppError | null,
-    modalPopupOpen: false,
     sidebarPopup: "uploader" as SidebarPopup | null,
-    selectedSubject: null  as null | string,
     hideDetectionBoxes: false,
     zoom: 0 as ZoomLevel,
     lastKeyPressed: null as Key | null
@@ -35,17 +34,6 @@ export const appSlice = createSlice({
       state.sidebarPopup = (state.sidebarPopup === payload ? null : payload)
     },
     sidebarPopupWasClosed: state => {state.sidebarPopup = null},
-    modalPopupOpened: state => {state.modalPopupOpen = true},
-    modalPopupClosed: state => {state.modalPopupOpen = false},
-    behaviourInputSubjectToggle: (state, action: PayloadAction<string>) => {
-      if (state.selectedSubject === action.payload) {
-        state.selectedSubject = null
-      } else {
-        state.selectedSubject = action.payload
-      }
-    },
-    behaviourInputSubjectUnselected: (state) => {
-      state.selectedSubject = null},
     hideDetectionBoxesToggled: state => {
       state.hideDetectionBoxes = !state.hideDetectionBoxes},
     zoomToggled: (state) => {
@@ -78,29 +66,72 @@ export const appSlice = createSlice({
           state.error = action.payload
         }
       })
+      .addCase(setCurrentlyEditingFieldIndex.rejected, (state, action) => {
+        if (action.payload === undefined) {
+          state.error = {error: "SerializedError", ...action.error}
+        } else {
+          state.error = action.payload
+        }
+      })
+      .addCase(removeBehaviourInfoLine.rejected, (state, action) => {
+        if (action.payload === undefined) {
+          state.error = {error: "SerializedError", ...action.error}
+        } else {
+          state.error = action.payload
+        }
+      })
+      .addCase(editBehaviourInfoLineField.rejected, (state, action) => {
+        if (action.payload === undefined) {
+          state.error = {error: "SerializedError", ...action.error}
+        } else {
+          state.error = action.payload
+        }
+      })
+      .addCase(addBehaviourInfoLine.rejected, (state, action) => {
+        if (action.payload === undefined) {
+          state.error = {error: "SerializedError", ...action.error}
+        } else {
+          state.error = action.payload
+        }
+      })
+      .addCase(toggleBehaviourInfoCurrentlySelectedSubject.rejected, (state, action) => {
+        if (action.payload === undefined) {
+          state.error = {error: "SerializedError", ...action.error}
+        } else {
+          state.error = action.payload
+        }
+      })
   }
 })
 
 export default appSlice.reducer
 
-export const {appErrorSet, appErrorCleared, modalPopupOpened, modalPopupClosed, behaviourInputSubjectToggle, behaviourInputSubjectUnselected, sidebarPopupWasToggled, sidebarPopupWasClosed, hideDetectionBoxesToggled, zoomToggled, zoomSet, lastKeyPressedSet} = appSlice.actions
+export const {
+  appErrorSet,
+  appErrorCleared,
+  sidebarPopupWasToggled,
+  sidebarPopupWasClosed,
+  hideDetectionBoxesToggled,
+  zoomToggled,
+  zoomSet,
+  lastKeyPressedSet
+} = appSlice.actions
+
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
-export const selectSelectedSubject = (state: RootState) => state.app.selectedSubject
 export const selectAppError = (state: RootState) => state.app.error
-export const selectModalPopupIsOpen = (state: RootState) => state.app.modalPopupOpen
 
 export const selectIsWaitingForSubjectShortcut = (state: RootState) => (
   !!(state.videoFile
-    && !state.app.modalPopupOpen
-    && state.behaviour.behaviourInfo)
+    && state.detections.detectionInfo
+  )
 )
 
 export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
   !!(state.videoFile
-    && !state.app.modalPopupOpen
+    && state.detections.detectionInfo
     && state.behaviour.behaviourInfo
-    && state.app.selectedSubject !== null)
+    && state.behaviour.behaviourInfo.currentlySelectedSubject !== null)
 )
 export const selectHideDetectionBoxes = (state: RootState) => state.app.hideDetectionBoxes
 export const selectZoom = (state: RootState) => state.app.zoom

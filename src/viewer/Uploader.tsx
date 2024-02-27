@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useSelector } from "react-redux";
-import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
+import { videoFileSet } from "./videoFileSlice";
 import { useAppDispatch } from "./store";
 import { assert, binItems, isTruthy, valueOrError, valueOrErrorAsync } from "../lib/util";
 import * as css from "./uploader.module.css"
@@ -9,6 +9,8 @@ import * as generalcss from "./general.module.css"
 import { Icon } from "../lib/Icon";
 import { validateDataIsDetectionInfo } from "../lib/detections";
 import { detectionsInfoSet } from "./detectionsSlice";
+import { behaviourInfoLinesSet, behaviourInfoUnset, csvToLines, validateDataIsBehaviourLines } from "./behaviourSlice";
+import { selectBehaviourLayout } from "./generalSettingsSlice";
 
 type Props = {
   onRequestClose: () => void
@@ -21,6 +23,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   const [dragState, setDragState] = useState<DragState>("nodrag")
   const dispatch = useAppDispatch()
   const [error, setError] = useState<string|null>()
+  const behaviourLayout = useSelector(selectBehaviourLayout)
 
   useEffect(() => {
     const aimedAt = window.document.documentElement
@@ -150,11 +153,26 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         detectionInfo.sourceFileXxHash64 = videoHash
       }
       assert(detectionInfo.sourceFileXxHash64 === videoHash)
+      let behaviourLines: null | string[][] = null
       if (behaviourFile) {
-        // TODO validate behaviours
+        const behaviourCSV = await behaviourFile.text()
+        const linesOrError = valueOrError(csvToLines)(behaviourCSV)
+        if ("error" in linesOrError || !validateDataIsBehaviourLines(
+          linesOrError.value, behaviourLayout)) {
+          setError("The behaviour file is corrupted, and cannot be opened")
+          return
+        }
+        behaviourLines = linesOrError.value
       }
+
       dispatch(videoFileSet({file: videoFile, xxh64sum: videoHash}))
       dispatch(detectionsInfoSet(detectionInfo))
+      if (behaviourLines) {
+        dispatch(behaviourInfoLinesSet(
+          {layout: behaviourLayout, lines: behaviourLines}))
+      } else {
+        dispatch(behaviourInfoUnset())
+      }
       onRequestClose()
     }
 
@@ -167,6 +185,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
 
     return <div className={css.uploader}>
       <h2>Welcome to Behave</h2>
+      {error !== null && <div className={css.warning}>
+        Selecting files failed: {error}</div>
+      }
       {!correctCounts
         ? <div className={css.warning}>
           We need one video file (<code>*.behave.mp4</code>) and an accompanying

@@ -8,10 +8,11 @@ import { CONTROLS, ValidControlName } from "./controls";
 import { keyToElements} from "../lib/key";
 import { Dialog } from "../lib/Dialog";
 import { exhausted, joinedStringFromDict } from "../lib/util";
-import { executeShortcutAction } from "./reducers";
+import { createNewBehaviourFileOrCreateWritable, executeShortcutAction } from "./reducers";
 import { useSelector } from "react-redux";
 import type { RootState } from "./store"
 import { Icon } from "../lib/Icon";
+import { NoWritableBehaviourFileException } from "./behaviourSlice";
 
 type ErrorHandlerProps<T> = {
   error: AppError & T
@@ -128,23 +129,53 @@ const MultipleActionsAssignedToPressedKeyExceptionHandler: FunctionComponent<Err
   </div>
 }
 
+const NoWritableBehaviourFileExceptionHandler: FunctionComponent<ErrorHandlerProps<NoWritableBehaviourFileException>> = ({error, closeError}) => {
+  const dispatch = useAppDispatch()
+
+  return <div className={css.multiple_actions_assigned_to_pressed_key_exception}>
+    <h2>{error.reason === "no file" ? "No behaviour file" : "Behaviour file is read only"}</h2>
+    <div>
+      In order to edit the behaviour file, you first have to {error.reason ===
+        "read only" && "save a writable copy or "}create a new one.
+    </div>
+    <div className={generalcss.button_row}>
+      <button onClick={() => dispatch(createNewBehaviourFileOrCreateWritable(
+        {action: "create"})).unwrap().then(closeError)}>
+        Create a new behaviour file
+      </button>
+      {error.reason === "read only" && <button
+        onClick={() => dispatch(createNewBehaviourFileOrCreateWritable(
+          {action: "make writable"})).unwrap().then(closeError)}>
+        Save writable copy of current behaviour file
+      </button>}
+      <button onClick={closeError}>
+        Cancel
+      </button>
+    </div>
+  </div>
+}
+
 export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {
   const dispatch = useAppDispatch()
   const closeError = () => {dispatch(appErrorCleared())}
 
-  return <Dialog blur onRequestClose={closeError} type="error">
-    {error.error === "SerializedError"
-      ? <UnknownError {...{error, closeError}} />
-        : error.error === "ActionAlreadyInUseException"
-          ? <ActionAlreadyInUseExceptionHandler {...{error, closeError}} />
-          : error.error === "ShortcutPresetExportFailedException"
-            ? <ShortcutPresetExportFailedExceptionHandler {...{error, closeError}} />
-            : error.error === "ShortcutPresetImportFailedException"
-              ? <ShortcutPresetImportFailedExceptionHandler {...{error, closeError}} />
-              : error.error === "MultipleActionsAssignedToPressedKeyException"
-                ? <MultipleActionsAssignedToPressedKeyExceptionHandler {...{error, closeError}} />
-                : exhausted(error)
-    }
+  return <Dialog blur onRequestClose={closeError} type="error">{(() => {
+    switch (error.error) {
+      case "SerializedError":
+        return <UnknownError {...{error, closeError}} />
+      case "ActionAlreadyInUseException":
+        return <ActionAlreadyInUseExceptionHandler {...{error, closeError}} />
+      case "ShortcutPresetExportFailedException":
+        return <ShortcutPresetExportFailedExceptionHandler {...{error, closeError}} />
+      case "ShortcutPresetImportFailedException":
+        return <ShortcutPresetImportFailedExceptionHandler {...{error, closeError}} />
+      case "MultipleActionsAssignedToPressedKeyException":
+        return <MultipleActionsAssignedToPressedKeyExceptionHandler {...{error, closeError}} />
+      case "NoWritableBehaviourFileException":
+        return <NoWritableBehaviourFileExceptionHandler {...{error, closeError}} />
+      default:
+        exhausted(error)
+    }})()}
   </Dialog>
 }
 

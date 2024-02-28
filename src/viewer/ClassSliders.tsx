@@ -14,7 +14,7 @@ import { selectHideDetectionBoxes } from "./appSlice"
 import { useEffect } from "preact/hooks"
 import * as css from "./classsliders.module.css"
 import { selectCurrentFrameDateTime, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
-import { formatDateTimeParts } from "src/lib/detections"
+import { formatDateTimeParts } from "../lib/detections"
 
 type Props = {
   onRequestClose: () => void

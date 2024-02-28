@@ -1,12 +1,23 @@
 .sidebar {
   position: relative;
-}
-.sidebar_buttons {
-  font-size: 22px;
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  gap: .3em;
-  padding-top: .3em;
+  .top_bottom_buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    box-sizing: border-box;
+    padding: .8em 0;
+    .sidebar_buttons {
+      font-size: 22px;
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      align-items: stretch;
+      gap: .3em;
+      & > button {
+        width: unset;
+      }
+    }
+  }
 }

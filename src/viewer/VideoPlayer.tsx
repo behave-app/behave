@@ -177,7 +177,9 @@ const VideoCanvas: FunctionComponent = () => {
     if (!videoRef.current || !videoUrl) {
       return
     }
+    videoRef.current.pause();
     videoRef.current.load();
+    videoRef.current.currentTime = 0
   }, [videoUrl, videoRef.current])
 
   const syncState = (e: Event) => {

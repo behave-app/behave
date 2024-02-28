@@ -16,7 +16,7 @@ export async function getOutputFilename(file: File): Promise<string> {
   const parts = file.name.split(".")
   const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
   const hash = await xxh64sum(file)
-  const filename = [...baseparts, hash, "mp4"].join(".")
+  const filename = [...baseparts, hash, "behave", "mp4"].join(".")
   return filename
 }
 

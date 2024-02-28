@@ -1,3 +1,7 @@
+.class_sliders_dialog {
+  & > div {
+    margin: .2em 0;
+  }
   :global(.picker_closed) > * {
     & > .confidence_location_box {
       width: 2.7em;
@@ -85,4 +89,5 @@
       padding: .1em;
     }
   }
+}
 

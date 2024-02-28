@@ -63,19 +63,20 @@ const Popup: FunctionComponent = () => {
   const popup = useSelector(selectSidebarPopup)
   const dispatch = useAppDispatch()
   const noSuppressShortcuts = popup === "keyShortcuts"
+  const closePopup = () => dispatch(sidebarPopupWasClosed())
   return popup && <Dialog noSuppressShortcuts={noSuppressShortcuts}
     className={css[`popup_${popup}`]}
-    onRequestClose={() => dispatch(sidebarPopupWasClosed())} onClose={() => dispatch(sidebarPopupWasClosed())}>
+    onRequestClose={closePopup} onClose={closePopup}>
     {(() => {
       switch (popup) {
         case "info":
           return <Info />
         case "classSliders":
-          return <ClassSliders />
+          return <ClassSliders onRequestClose={closePopup} />
         case "keyShortcuts":
-          return <KeyShortcuts onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
+          return <KeyShortcuts onRequestClose={closePopup} /> 
         case "uploader":
-          return <Uploader onRequestClose={() => dispatch(sidebarPopupWasClosed())} /> 
+          return <Uploader onRequestClose={closePopup} /> 
         case "sizer":
           return <Sizer /> 
         default: {

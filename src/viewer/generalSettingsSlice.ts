@@ -25,6 +25,7 @@ export type ConfidenceLocation = `${"outer" | "inner"}-${"left" | "center" | "ri
 export type GeneralSettingsState = {
   settingsByDetectionClassByKey: Record<string, Record<`${number}`, SettingsForDetectionClass>>
   confidenceLocation: ConfidenceLocation
+  timeOffsetSeconds: number
   showControlPanel: boolean
   detectionBar: {visible: boolean, size: number}
   behaviourBar: {visible: boolean, size: number}
@@ -33,6 +34,7 @@ export type GeneralSettingsState = {
 const defaultGeneralSettings: GeneralSettingsState = {
   settingsByDetectionClassByKey: {},
   confidenceLocation: "outer-right-bottom",
+  timeOffsetSeconds: 0,
   showControlPanel: true,
   detectionBar: {visible: true, size: 10},
   behaviourBar: {visible: true, size: 10},
@@ -66,6 +68,7 @@ export const generalSettingsChecker: Checker<GeneralSettingsState> = getCheckerF
       "inner-left-bottom", "inner-center-bottom", "inner-right-bottom",
       "outer-left-bottom", "outer-center-bottom", "outer-right-bottom",
     ]),
+  timeOffsetSeconds: new NumberChecker({isFinite: true, isInt: true}),
     showControlPanel: true,
     detectionBar: {visible: true, size: new NumberChecker({min: 5, max: 45, isFinite: true,})},
     behaviourBar: {visible: true, size: new NumberChecker({min: 5, max: 45, isFinite: true,})},
@@ -183,6 +186,11 @@ export const generalSettingsSlice = createSlice({
       assert(Number.isFinite(newSize))
       state.behaviourBar.size = Math.min(45, Math.max(5, newSize))
     },
+    timeOffsetSecondsSet: (state, {payload: newOffsetSeconds}: PayloadAction<number>) => {
+      assert(Number.isFinite(newOffsetSeconds))
+      assert(Number.isSafeInteger(newOffsetSeconds))
+      state.timeOffsetSeconds = newOffsetSeconds
+    }
   }
 })
 
@@ -198,6 +206,7 @@ export const {
   detectionBarSizeSet,
   behaviourBarToggled,
   behaviourBarSizeSet,
+  timeOffsetSecondsSet,
 } = generalSettingsSlice.actions
 
 export const selectSettingsByDetectionClassByKey = (state: RootState) => state.settings.general.settingsByDetectionClassByKey
@@ -212,6 +221,8 @@ export const selectDetectionBarShown = (state: RootState) => state.settings.gene
 export const selectBehaviourBarSize = (state: RootState) => state.settings.general.behaviourBar.size
 
 export const selectBehaviourBarShown = (state: RootState) => state.settings.general.behaviourBar.visible
+
+export const selectTimeOffsetSeconds = (state: RootState) => state.settings.general.timeOffsetSeconds
 
 export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
 export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>

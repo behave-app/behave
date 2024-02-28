@@ -1,6 +1,6 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import { DetectionInfo, getPartsFromTimestamp, } from '../lib/detections'
+import { DetectionInfo } from '../lib/detections'
 
 export type DetectionsDirectory = {
   directory: FileSystemDirectoryHandle
@@ -56,59 +56,6 @@ export const selectDetectionsDirectoryAssertNotNull = (state: RootState): Detect
   return state.detections.directory
 }
 export const selectDetectionInfoPotentiallyNull = (state: RootState) => state.detections.detectionInfo
-
-export const selectDateTimes = createSelector(
-  [selectDetectionInfoPotentiallyNull],
-  (detectionInfo): null | ReturnType<typeof getPartsFromTimestamp>[] => {
-    if (!detectionInfo) {
-      return null
-    }
-    const frameInfosWithTs = detectionInfo.framesInfo
-      .filter(frameInfo => "timestamp" in frameInfo)
-      .map(frameInfo => ({
-      ...frameInfo,
-      timestampParts: getPartsFromTimestamp(frameInfo.timestamp!)
-    }))
-    if (frameInfosWithTs.length < 2) {
-    console.warn("too few timestamps")
-      return null
-    }
-    if (new Set(frameInfosWithTs
-    .map(fi => fi.timestampParts.tz)).size !== 1) {
-    console.warn("Not all items have same TZ")
-      return null
-    }
-    let index = 0
-    const p2 = (n: number) => n.toString().padStart(2, "0")
-    const p4 = (n: number) => n.toString().padStart(4, "0")
-    const calculateTimestamp = (pts: number): ReturnType<typeof getPartsFromTimestamp> => {
-      const [start, end] = frameInfosWithTs.slice(index, index + 2)
-      const pos = (pts - start.pts) / (end.pts - start.pts)
-      if (pos > 1 && frameInfosWithTs.length > index + 2) {
-        index++
-        return calculateTimestamp(pts)
-      }
-      const ts = Math.round(
-        (start.timestampParts.date.valueOf() + pos * (
-          end.timestampParts.date.valueOf() - start.timestampParts.date.valueOf()
-        )) / 1000) * 1000 + start.timestampParts.tzOffsetHours * 60 * 60 * 1000
-      const date = new Date(ts)
-      return {
-        date,
-        year: p4(date.getUTCFullYear()),
-        month: p2(date.getUTCMonth() + 1),
-        day: p2(date.getUTCDate()),
-        hour: p2(date.getUTCHours()),
-        minute: p2(date.getUTCMinutes()),
-        second: p2(date.getUTCSeconds()),
-        tz: start.timestampParts.tz,
-        tzOffsetHours: start.timestampParts.tzOffsetHours,
-      }
-    }
-    return detectionInfo.framesInfo.map(
-      frameInfo => calculateTimestamp(frameInfo.pts))
-  }
-)
 
 export const selectFps = (state: RootState) => {
   const detectionInfo = selectDetectionInfoPotentiallyNull(state)

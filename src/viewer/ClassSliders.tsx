@@ -1,25 +1,32 @@
 import { FunctionComponent } from "react"
 import { useSelector } from "react-redux"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { ConfidenceLocation, alphaUpdated, colourUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, getKeyFromModelKlasses, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClassByKey, settingsByDetectionClassUpdated } from "./generalSettingsSlice"
+import { ConfidenceLocation, alphaUpdated, colourUpdated, confidenceCutoffUpdated, confidenceLocationUpdated, getKeyFromModelKlasses, hideToggled, selectConfidenceLocation, selectSettingsByDetectionClassByKey, selectTimeOffsetSeconds, settingsByDetectionClassUpdated, timeOffsetSecondsSet } from "./generalSettingsSlice"
 import { useAppDispatch } from "./store"
 import { assert, joinedStringFromDict } from "../lib/util"
 import { Picker } from "../lib/Picker"
 import { Detection } from "./VideoPlayer"
 import * as videoplayercss from "./videoplayer.module.css"
+import * as generalcss from "./general.module.css"
 import { HSL, hslEquals, hslToLuminance, hslToString } from "../lib/colour"
 import { Icon } from "../lib/Icon"
 import { selectHideDetectionBoxes } from "./appSlice"
 import { useEffect } from "preact/hooks"
 import * as css from "./classsliders.module.css"
-import { selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
+import { selectCurrentFrameDateTime, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
 
-export const ClassSliders: FunctionComponent = () => {
+type Props = {
+  onRequestClose: () => void
+}
+
+export const ClassSliders: FunctionComponent<Props> = ({onRequestClose}) => {
   const settingsByDetectionClassByKey = useSelector(selectSettingsByDetectionClassByKey)
   const settingsByDetectionClass = useSelector(selectSettingsByDetectionClassForCurrectDetections)
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const confidenceLocation = useSelector(selectConfidenceLocation)
   const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
+  const timeOffsetSeconds = useSelector(selectTimeOffsetSeconds)
+  const currentFrameDateTime = useSelector(selectCurrentFrameDateTime)
   const dispatch = useAppDispatch()
 
   useEffect(() => {
@@ -59,9 +66,24 @@ export const ClassSliders: FunctionComponent = () => {
     })
   })
 
-  return <>
-    <h2>Settings per detection class</h2>
-    Confidence location:
+  return <div className={css.class_sliders_dialog}>
+    <h2>Quick settings</h2>
+    <h3>Time offset seconds</h3>
+    <div>
+      The timestamps on the video files may not line up completely with the
+      timestamps that one wishes to use in the Behaviour csv file. If so, it's
+      possible to make a small adjustment here. Usually this will be &plusmn;1 or
+      &plusmn;2 seconds, however nothing is stopping you to use e.g. 3602 seconds if
+      there was a problem with timezones.
+    </div>
+    <input type="number" value={timeOffsetSeconds} onChange={
+      e => dispatch(timeOffsetSecondsSet(e.currentTarget.valueAsNumber))} />
+    {currentFrameDateTime && <div>This makes timestamp of current frame: <b>
+      {currentFrameDateTime.day}-{currentFrameDateTime.month}-
+      {currentFrameDateTime.year} {currentFrameDateTime.hour}:
+      {currentFrameDateTime.minute}:{currentFrameDateTime.second})
+    </b></div>}
+    <h3>Confidence location</h3>
     <Picker onChange={newValue => dispatch(confidenceLocationUpdated(
       newValue as ConfidenceLocation))}
       value={confidenceLocation}
@@ -76,8 +98,8 @@ export const ClassSliders: FunctionComponent = () => {
             <div data-value={confidenceLocation} title={confidenceLocation}>
               <svg viewBox="0 0 64 64"
                 style={{
-                "--video-width": "64px",
-                "--video-height": "64px",
+                  "--video-width": "64px",
+                  "--video-height": "64px",
                 }}
                 className={joinedStringFromDict({
                   [videoplayercss.overlay]: true,
@@ -99,7 +121,8 @@ export const ClassSliders: FunctionComponent = () => {
     </Picker>
     <h3>Settings per class</h3>
     <div>
-      Please note that these settings are stored separately each list of classes.
+      Please note that these settings are stored separately for each list of
+      classes.
       You only see the settings here that match the classes used in the current
       detection file.
       So if you set the settings below to something for when you have 2 classes
@@ -176,11 +199,15 @@ export const ClassSliders: FunctionComponent = () => {
                 <span class={css.range_value}>{value.alpha.toFixed(2)}</span>
               </td>
 
-        </tr>
-      })}
+            </tr>
+          })}
       </tbody>
-      </table>
-  </>
+    </table>
+    <hr />
+    <div className={generalcss.button_row}>
+      <button onClick={onRequestClose}>Close</button>
+    </div>
+  </div>
 }
 
 const ColourBox: FunctionComponent<{colour: HSL}> = ({colour}) => {

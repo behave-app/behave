@@ -133,15 +133,14 @@ export const selectDateTimes = createSelector(
 )
 
 
-export const selectCurrentFrameDateTime = createSelector(
-  [selectCurrentFrameNumber, selectDateTimes],
-  (currentFrameNumber, datetimes) => {
-    if (!datetimes || currentFrameNumber === null) {
-      return null
-    }
-    return datetimes[currentFrameNumber]
+export const selectCurrentFrameDateTime = (state: RootState) => {
+  const currentFrameNumber = selectCurrentFrameNumber(state)
+  const datetimes = selectDateTimes(state)
+  if (!datetimes || currentFrameNumber === null) {
+    return null
   }
-)
+  return datetimes[currentFrameNumber]
+}
 
 export const selectCurrentFrameInfoPotentiallyNull = createSelector(
   // using delayed selector, because of circulair import

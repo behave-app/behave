@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
 
 export type VideoFile = {
@@ -30,3 +30,8 @@ export const selectVideoFile = (state: RootState): VideoFile => {
   }
   return state.videoFile
 }
+
+export const selectVideoUrl = createSelector(
+  [selectVideoFilePotentiallyNull],
+  videoFile => videoFile === null ? null : URL.createObjectURL(videoFile.file)
+)

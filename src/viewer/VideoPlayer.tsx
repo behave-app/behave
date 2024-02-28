@@ -3,7 +3,7 @@ import { useAppDispatch } from "./store"
 import * as viewercss from "./viewer.module.css"
 import * as css from "./videoplayer.module.css"
 import { useSelector } from "react-redux"
-import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
+import { selectVideoFilePotentiallyNull, selectVideoUrl } from "./videoFileSlice"
 import { useRef, useState, useEffect} from 'preact/hooks'
 import { playerStateSet, selectVideoAspect, videoPlayerElementIdSet } from "./videoPlayerSlice"
 import { assert, joinedStringFromDict } from "../lib/util"
@@ -21,9 +21,9 @@ const DummyCanvas: FunctionComponent = () => {
   </div>
 }
 
-const VideoCanvas: FunctionComponent<{
-  videoFile: File
-}> = ({videoFile}) => {
+const VideoCanvas: FunctionComponent = () => {
+  const videoUrl = useSelector(selectVideoUrl)
+  assert(videoUrl !== null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const detections = useSelector(selectVisibleDetectionsForCurrentFrame)
   const settingsByDetectionClass = useSelector(selectSettingsByDetectionClassForCurrectDetections)
@@ -116,6 +116,7 @@ const VideoCanvas: FunctionComponent<{
       setContainerDimensions(null)
     }
   }, [videoRef.current])
+  console.log(videoUrl)
 
   useEffect(() => {
     const container = containerRef.current
@@ -172,12 +173,18 @@ const VideoCanvas: FunctionComponent<{
     setZoomOrigin({x: focusX, y: focusY})
   }, [zoom, zoom !== 0 && mouseCoords])
 
+  useEffect(() => {
+    if (!videoRef.current || !videoUrl) {
+      return
+    }
+    videoRef.current.load();
+  }, [videoUrl, videoRef.current])
+
   const syncState = (e: Event) => {
     copyAndDispatchPlayerState(e.target as HTMLVideoElement)
   }
 
   const haveHorizontalSpace = !!containerDimensions  && videoAspectRatio !== null && containerDimensions.width / containerDimensions.height > videoAspectRatio 
-
   const [videoWidth, videoHeight] = (!containerDimensions || videoAspectRatio === null)
   ? [0, 0] : haveHorizontalSpace
   ? [containerDimensions.height * videoAspectRatio, containerDimensions.height]
@@ -220,7 +227,7 @@ const VideoCanvas: FunctionComponent<{
       onSeeked={syncState}
       onTimeUpdate={syncState}
     >
-      <source src={URL.createObjectURL(videoFile)} />
+      <source src={videoUrl} />
     </video>
   </div>
 }
@@ -231,7 +238,7 @@ export const VideoPlayer: FunctionComponent = () => {
 
   return <div className={joinedStringFromDict({[viewercss.videoplayer]: true, "videoplayer_toplevel": true})}>
     {videoFile
-      ? <VideoCanvas videoFile={videoFile.file} />
+      ? <VideoCanvas />
       : <DummyCanvas />
     }
   </div>

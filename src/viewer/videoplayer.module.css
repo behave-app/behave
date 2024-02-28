@@ -36,7 +36,6 @@
   --text-height: 1lh;
   --text-size: .8em;
   font-size: var(--text-size);
-  font-family: Arial, helvetica, sans-serif;
   font-variant-numeric: tabular-nums;
   .detection {
     &.hide {

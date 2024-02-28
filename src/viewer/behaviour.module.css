@@ -1,7 +1,6 @@
 .table {
   border-collapse: collapse;
   font-size: 0.8em;
-  font-family: Arial, helvetica, sans-serif;
   width: 100%;
   tr.aboutToBeInserted {
     background-color: hsl(140, 50%, 90%);

@@ -44,7 +44,6 @@
       }
       .range_value {
         font-size: .7em;
-        font-family: Arial, Helvetica, sans-serif;
         font-variant: tabular-nums;
         width: 100%;
         position: absolute;
@@ -52,7 +51,6 @@
         top: 0;
       }
       &:nth-child(4) {
-        font-family: Arial, Helvetica, sans-serif;
         font-variant: tabular-nums;
         .counts {
           display: block;
@@ -84,7 +82,6 @@
       border: 1px solid black;
       box-sizing: border-box;
       font-size: .8em;
-      font-family: Arial, Helvetica, sans-serif;
       font-variant: tabular-nums;
       padding: .1em;
     }

@@ -1,11 +1,9 @@
 .intro {
   margin: .9em 3em;
   opacity: 0.5;
-  font-family: Arial, helvetica, sans-serif;
   font-size: .9em;
 }
 .shortcut_list {
-  font-family: Arial, helvetica, sans-serif;
   padding: 0 2em;
 
   --column-gap: .7em;
@@ -69,7 +67,6 @@
 }
 .current_preset_select {
   margin: 1.5em;
-  font-family: Arial, helvetica, sans-serif;
   .active_preset {
     font-weight: bold;
   }
@@ -160,7 +157,6 @@
 }
 .preset_editor {
   max-width: 50vw;
-  font-family: Arial, helvetica, sans-serif;
   ul {
     padding: 0;
     li {

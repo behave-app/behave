@@ -1,7 +1,6 @@
 .uploader {
   width: calc(100vw - 6em);
   height: calc(100vh - 6em);
-  vertical-align: center;
   div {
     margin: .7em;
   }
@@ -10,13 +9,19 @@
     padding-left: 1.2em;
     margin: .8em
   }
-  .file_list {
-    &:empty::after {
-      content: "<no files>";
-      opacity: .6;
-    }
-    li:hover {
-      background-color: hsl(0, 0%, 0%, .1);
+  dd {
+    --dd-margin-left: 3em;
+    margin-left: var(--dd-margin-left);
+    .file_list {
+      padding-left: 0;
+      width: calc(100% - var(--dd-margin-left) - 2em);
+      &:empty::after {
+        content: "<no files>";
+        opacity: .6;
+      }
+      li:hover {
+        background-color: hsl(0, 0%, 0%, .1);
+      }
     }
   }
 }

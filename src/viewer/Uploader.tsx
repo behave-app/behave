@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useSelector } from "react-redux";
-import { videoFileSet } from "./videoFileSlice";
+import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
 import { useAppDispatch } from "./store";
 import { assert, binItems, isTruthy, valueOrError, valueOrErrorAsync } from "../lib/util";
 import * as css from "./uploader.module.css"
@@ -24,6 +24,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   const dispatch = useAppDispatch()
   const [error, setError] = useState<string|null>()
   const behaviourLayout = useSelector(selectBehaviourLayout)
+  const videoFileAlreadyLoaded = useSelector(selectVideoFilePotentiallyNull) !== null
 
   useEffect(() => {
     const aimedAt = window.document.documentElement
@@ -198,8 +199,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
           detection file (<code>*.behave.det.json</code>) to continue.
           In addition a single behaviour file (<code>*.behave.csv</code>) may
           be uploaded.
-          Please <button onClick={onSelectFileUpload}>
-            upload more files here</button> (or drag and drop them in),
+          Please upload more files below (or drag and drop them in),
           or remove any excess files below.
           You can always reload this page to start again.
         </div>
@@ -233,10 +233,17 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         </>
         )}
       </dl>
+      <hr />
       <div className={generalcss.button_row}>
         <button disabled={!(correctCounts && matchingHashes)}
           onClick={selectTheseFiles}>
           Start
+        </button>
+        <button disabled={!videoFileAlreadyLoaded} onClick={onRequestClose}>
+          Cancel
+        </button>
+        <button onClick={onSelectFileUpload}>
+          Upload more files
         </button>
       </div>
     </div>
@@ -248,7 +255,19 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       This app lets you generate csv (Excel) files from Videos and Detection files. TODO: enhance explanation, add link.
     </div>
     <div>
-      Start by dragging in a Video and a Detection file (and possibly a Behave file), or <button onClick={onSelectFileUpload}>select them here</button>
+      Start by dragging in a Video and a Detection file (and possibly a Behave file), or upload files below
+    </div>
+    <hr />
+    <div className={generalcss.button_row}>
+      <button disabled>
+        Start
+      </button>
+      <button disabled={!videoFileAlreadyLoaded} onClick={onRequestClose}>
+        Cancel
+      </button>
+      <button onClick={onSelectFileUpload}>
+        Upload files
+      </button>
     </div>
   </div>
 }

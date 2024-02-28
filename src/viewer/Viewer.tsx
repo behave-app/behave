@@ -10,7 +10,7 @@ import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { assert, exhausted, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectBehaviourBarShown, selectBehaviourBarSize, selectControlPanelShown, selectDetectionBarShown, selectDetectionBarSize } from "./generalSettingsSlice";
-import { MultipleActionsAssignedToPressedKeyException, appErrorSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed} from "./appSlice"
+import { MultipleActionsAssignedToPressedKeyException, appErrorSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed, sidebarPopupWasToggled} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Uploader } from "./Uploader"
 import { Info } from "./Info"
@@ -64,6 +64,24 @@ const Popup: FunctionComponent = () => {
   const dispatch = useAppDispatch()
   const noSuppressShortcuts = popup === "keyShortcuts"
   const closePopup = () => dispatch(sidebarPopupWasClosed())
+  useEffect(() => {
+    if (popup === "uploader") {
+      return
+    }
+    const aimedAt = window.document.documentElement
+    const dragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer || event.dataTransfer.items.length === 0) {
+        return
+      }
+      if ([...event.dataTransfer.items].every(item => item.kind !== "file")) {
+        return
+      }
+      dispatch(sidebarPopupWasToggled("uploader"))
+    }
+    aimedAt.addEventListener("dragenter", dragEnter)
+    return () => aimedAt.removeEventListener("dragenter", dragEnter)
+
+  }, [popup])
   return popup && <Dialog noSuppressShortcuts={noSuppressShortcuts}
     className={css[`popup_${popup}`]}
     onRequestClose={closePopup} onClose={closePopup}>

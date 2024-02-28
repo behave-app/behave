@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact"
 import { useSelector } from "react-redux"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
-import { selectCurrentFrameNumber, selectDateTimes, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
+import { selectCurrentFrameDateTime, selectCurrentFrameNumber, selectDateTimes, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
 import { selectDetectionFilename, selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
 import { selectCurrentTime, selectDuration } from "./videoPlayerSlice"
 import { ObjectEntries, ObjectKeys, assert, formatTime } from "../lib/util"
@@ -32,6 +32,7 @@ export const Info: FunctionComponent = () => {
   const dateTimes = useSelector(selectDateTimes)
   const settingsByDetectionClass = useSelector(selectSettingsByDetectionClassForCurrectDetections)
   const behaviourInfo = useSelector(selectBehaviourInfo)
+  const currentDateTime = useSelector(selectCurrentFrameDateTime)
 
   const shownTotalByClass = (() => {
     if (!detectionInfo || !settingsByDetectionClass) {
@@ -61,14 +62,16 @@ export const Info: FunctionComponent = () => {
     <dl className={css.info_list}>
       <dt>Video file</dt>
       <dd>{video?.file.name ?? "No video file loaded"}</dd>
-      <dt>Current playback time / Total playback time</dt>
+      <dt>Current / total playback time</dt>
       <dd>{currentTime !== null && formatTime(currentTime)} / {
         totalTime !== null && formatTime(totalTime)}</dd>
-      <dt>Current frame number / Total number of frames</dt>
+      <dt>Current / total frame number</dt>
       <dd>{currentFrameNumber} / {detectionInfo && detectionInfo.totalNumberOfFrames}</dd>
-      <dt>Real-world start and end time</dt>
+      <dt>Real-world start - end time (current time)</dt>
       <dd>{dateTimes && dateTimes.length
-        && formatInterval(dateTimes.at(0)!, dateTimes.at(-1)!)}</dd>
+        && formatInterval(dateTimes.at(0)!, dateTimes.at(-1)!)}
+      {currentDateTime &&
+          ` (${formatDateTimeParts(currentDateTime, "%Y-%m-%d %H:%M:%S")})`}</dd>
       <dt>Detection file</dt>
       <dd>{detectionFileName ?? "No detection file loaded"}</dd>
       <dt>Number of detections:</dt>

@@ -116,7 +116,6 @@ const VideoCanvas: FunctionComponent = () => {
       setContainerDimensions(null)
     }
   }, [videoRef.current])
-  console.log(videoUrl)
 
   useEffect(() => {
     const container = containerRef.current

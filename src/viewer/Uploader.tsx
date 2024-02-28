@@ -8,7 +8,7 @@ import * as css from "./uploader.module.css"
 import * as generalcss from "./general.module.css"
 import { Icon } from "../lib/Icon";
 import { validateDataIsDetectionInfo } from "../lib/detections";
-import { detectionsInfoSet } from "./detectionsSlice";
+import { detectionFileNameSet, detectionsInfoSet } from "./detectionsSlice";
 import { behaviourInfoLinesSet, behaviourInfoUnset, csvToLines, validateDataIsBehaviourLines } from "./behaviourSlice";
 import { selectBehaviourLayout } from "./generalSettingsSlice";
 
@@ -166,10 +166,14 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       }
 
       dispatch(videoFileSet({file: videoFile, xxh64sum: videoHash}))
+      dispatch(detectionFileNameSet(detectionFile.name))
       dispatch(detectionsInfoSet(detectionInfo))
       if (behaviourLines) {
-        dispatch(behaviourInfoLinesSet(
-          {layout: behaviourLayout, lines: behaviourLines}))
+        dispatch(behaviourInfoLinesSet({
+          filename: behaviourFile!.name,
+          layout: behaviourLayout,
+          lines: behaviourLines
+        }))
       } else {
         dispatch(behaviourInfoUnset())
       }
@@ -232,7 +236,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       <div className={generalcss.button_row}>
         <button disabled={!(correctCounts && matchingHashes)}
           onClick={selectTheseFiles}>
-          Submit
+          Start
         </button>
       </div>
     </div>

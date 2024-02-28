@@ -112,3 +112,19 @@ export function getPartsFromTimestamp(
     tzOffsetHours,
   }
 }
+
+export function formatDateTimeParts(parts: DateTimeParts, format: string): string {
+  return format.replaceAll(/%./g, match => {
+    switch (match) {
+      case "%Y": return parts.year
+      case "%m": return parts.month
+      case "%d": return parts.day
+      case "%H": return parts.hour
+      case "%M": return parts.minute
+      case "%S": return parts.second
+      case "%%": return "%"
+      default:
+        throw new Error(`Unknown format: ${match}`)
+    }
+  })
+}

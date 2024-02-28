@@ -6,6 +6,7 @@ import { assert, } from '../lib/util'
 export type BehaviourLine = Array<string>
 
 export type BehaviourInfo = {
+  filename: string
   layout: BehaveLayout
   readonly: boolean
   currentlySelectedLine: null | number
@@ -61,18 +62,18 @@ export const behaviourSlice = createSlice({
       state.behaviourInfo.readonly = false
     },
     behaviourInfoLinesSet: (state, {payload}: PayloadAction<{
+      filename: string,
       layout: BehaveLayout
       lines: string[][]
     }>) => {
       assert(validateDataIsBehaviourLines(payload.lines, payload.layout))
       state.fileHandle = null
       state.behaviourInfo = {
-        layout: payload.layout,
+        ...payload,
         readonly: true,
         currentlySelectedLine: null,
         currentlyEditingFieldIndex: null,
         currentlySelectedSubject: null,
-        lines: payload.lines,
       }
     },
     behaviourInfoCreatedNew: (state, action: PayloadAction<{
@@ -81,6 +82,7 @@ export const behaviourSlice = createSlice({
     }>) => {
       state.fileHandle = action.payload.fileHandle
       state.behaviourInfo = {
+        filename: action.payload.fileHandle.name,
         layout: action.payload.layout,
         readonly: false,
         currentlySelectedLine: null,

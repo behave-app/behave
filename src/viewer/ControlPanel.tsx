@@ -6,6 +6,7 @@ import { selectPlaybackRate, selectPlayerState } from "./videoPlayerSlice";
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors";
 import { ControlInfo, CONTROLS } from "./controls";
 import { Button } from "./Button";
+import { formatDateTimeParts } from "../lib/detections";
 
 
 const ControlPanelDetails: FunctionComponent = () => {
@@ -17,8 +18,8 @@ const ControlPanelDetails: FunctionComponent = () => {
     {currentDateTime && 
     <div>
         Timestamp: <div>
-          {currentDateTime.day}-{currentDateTime.month}-{currentDateTime.year} {currentDateTime.hour}:{currentDateTime.minute}:{currentDateTime.second}
-          </div>
+          {formatDateTimeParts(currentDateTime, "%Y-%m-%d %H:%M:%S")}
+        </div>
       </div>}
   </div>
 }

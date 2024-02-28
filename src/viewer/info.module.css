@@ -1,0 +1,22 @@
+.model_klass_list {
+  margin: 0;
+  padding: 0;
+  > li {
+    margin-left: 0;
+    display: block;
+  }
+  .colour_block {
+    display: inline-block;
+    margin: 0 .2em;
+    width: .8em;
+    height: .8em;
+    border: 1px solid black;
+    box-sizing: border-box;
+    background-color: var(--colour);
+  }
+}
+.info_list {
+  dd {
+    margin-bottom: .3em;
+  }
+}

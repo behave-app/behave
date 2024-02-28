@@ -14,6 +14,7 @@ import { selectHideDetectionBoxes } from "./appSlice"
 import { useEffect } from "preact/hooks"
 import * as css from "./classsliders.module.css"
 import { selectCurrentFrameDateTime, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
+import { formatDateTimeParts } from "src/lib/detections"
 
 type Props = {
   onRequestClose: () => void
@@ -79,9 +80,7 @@ export const ClassSliders: FunctionComponent<Props> = ({onRequestClose}) => {
     <input type="number" value={timeOffsetSeconds} onChange={
       e => dispatch(timeOffsetSecondsSet(e.currentTarget.valueAsNumber))} />
     {currentFrameDateTime && <div>This makes timestamp of current frame: <b>
-      {currentFrameDateTime.day}-{currentFrameDateTime.month}-
-      {currentFrameDateTime.year} {currentFrameDateTime.hour}:
-      {currentFrameDateTime.minute}:{currentFrameDateTime.second})
+      {formatDateTimeParts(currentFrameDateTime, "%Y-%m-%d %H:%M:%S")}
     </b></div>}
     <h3>Confidence location</h3>
     <Picker onChange={newValue => dispatch(confidenceLocationUpdated(

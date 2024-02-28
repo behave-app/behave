@@ -2,18 +2,13 @@ import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
 import { DetectionInfo } from '../lib/detections'
 
-export type DetectionsDirectory = {
-  directory: FileSystemDirectoryHandle
-  detectionsByFilename: Record<string, FileSystemFileHandle[]>
-}
-
 export type DetectionsData = {
-  directory: DetectionsDirectory | null
+  detectionFileName: string | null
   detectionInfo: DetectionInfo | null
 }
 
 const initialState: DetectionsData = {
-  directory: null,
+  detectionFileName: null,
   detectionInfo: null,
 }
 
@@ -21,12 +16,8 @@ export const detectionsDirectorySlice = createSlice({
   name: "detections",
   initialState,
   reducers: {
-    detectionsDirectorySet: (state, action: PayloadAction<DetectionsDirectory>) => {
-      state.directory = action.payload
-    },
-    detectionsDirectoryUnset: (state) => {
-      state.directory = null
-    },
+    detectionFileNameSet: (state, {payload}: PayloadAction<string | null>) => {
+      state.detectionFileName = payload},
     detectionsInfoSet: (state, action: PayloadAction<DetectionInfo>) => {
       state.detectionInfo = action.payload
     },
@@ -37,25 +28,16 @@ export const detectionsDirectorySlice = createSlice({
 })
 
 export const {
-  detectionsDirectorySet,
-  detectionsDirectoryUnset,
   detectionsInfoSet,
   detectionsInfoUnset,
+  detectionFileNameSet,
 } = detectionsDirectorySlice.actions
 
 export default detectionsDirectorySlice.reducer
 
-export const selectDetectionsDirectoryPotentiallyNull = (state: RootState) => state.detections.directory
-export const selectDetectionsDirectoryIsReady = (state: RootState): state is RootState & {detections: {directory: DetectionsDirectory}} => {
-  return state.detections.directory !== null
-}
-export const selectDetectionsDirectoryAssertNotNull = (state: RootState): DetectionsDirectory => {
-  if (!selectDetectionsDirectoryIsReady(state)) {
-    throw new Error("Wrong state")
-  }
-  return state.detections.directory
-}
 export const selectDetectionInfoPotentiallyNull = (state: RootState) => state.detections.detectionInfo
+
+export const selectDetectionFilename = (state: RootState) => state.detections.detectionFileName
 
 export const selectFps = (state: RootState) => {
   const detectionInfo = selectDetectionInfoPotentiallyNull(state)

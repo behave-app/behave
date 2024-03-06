@@ -11,7 +11,7 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomToggled } from "./appSlice";
+import { MAX_ZOOM, SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomChanged} from "./appSlice";
 import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditingFieldIndex} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
 import { selectFramenumberIndexInLayout, selectControlPanelShown, controlPaneToggled, selectBehaviourBarShown, behaviourBarToggled, detectionBarToggled, selectDetectionBarShown } from "./generalSettingsSlice";
@@ -29,11 +29,13 @@ export type ControlInfo<T> = {
 type OptionalControlInfoKeys = "selectIsDisabled" | "selectIsActivated" | "selectActionArgument"
 
 function fillAndWrapDefaultControlInfo<T>(
-info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys>,
+info: Partial<ControlInfo<T>> & Omit<ControlInfo<T>, OptionalControlInfoKeys> & {
+    selectIsDisabledAdditional?: ControlInfo<T>["selectIsDisabled"]
+  },
 ): ControlInfo<T> {
   return {
     selectIsActivated: () => false,
-    selectIsDisabled: (state: RootState) => selectPlayerState(state) === null,
+    selectIsDisabled: (state: RootState) => selectPlayerState(state) === null || (info.selectIsDisabledAdditional ?? (() => false))(state),
     selectActionArgument: (state: RootState) => (
       info.selectActionArgument ?? (() => undefined as T))(state),
     ...info,
@@ -293,11 +295,18 @@ export const CONTROLS = {
     action: dispatch => dispatch(behaviourBarToggled())
   }),
 
-  zoom_toggle: fillAndWrapDefaultControlInfo({
+  zoom_in: fillAndWrapDefaultControlInfo({
     iconName: "zoom_in",
-    description: "Toggle zoom follow mouse",
-    selectIsActivated: state => selectZoom(state) > 1,
-    action: dispatch => dispatch(zoomToggled()),
+    description: "Zoom in",
+    selectIsDisabledAdditional: state => state.app.zoom === MAX_ZOOM,
+    action: dispatch => dispatch(zoomChanged(0.5)),
+  }),
+
+  zoom_out: fillAndWrapDefaultControlInfo({
+    iconName: "zoom_out",
+    description: "Zoom out",
+    selectIsDisabledAdditional: state => state.app.zoom === 0,
+    action: dispatch => dispatch(zoomChanged(-0.5)),
   }),
 } as const
 

@@ -13,7 +13,7 @@
   align-self: end;
 }
 
-.playback_speed {
+.playback_speed, .zoom_level {
   overflow: hidden;
   font-size: .6em;
   font-variant: tabular-nums;

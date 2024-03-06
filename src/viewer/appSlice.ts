@@ -5,8 +5,7 @@ import { Key } from '../lib/key'
 import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditingFieldIndex, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
 
 export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader" | "sizer"
-export const zoomLevels = [1, 2, 3, 5] as const
-export type ZoomLevel = number
+export const MAX_ZOOM = 5
 
 export type MultipleActionsAssignedToPressedKeyException = {
   error: "MultipleActionsAssignedToPressedKeyException",
@@ -23,7 +22,7 @@ export const appSlice = createSlice({
     error: null as AppError | null,
     sidebarPopup: "uploader" as SidebarPopup | null,
     hideDetectionBoxes: false,
-    zoom: 0 as ZoomLevel,
+    zoom: 0,
     lastKeyPressed: null as Key | null
   },
   reducers: {
@@ -36,10 +35,8 @@ export const appSlice = createSlice({
     sidebarPopupWasClosed: state => {state.sidebarPopup = null},
     hideDetectionBoxesToggled: state => {
       state.hideDetectionBoxes = !state.hideDetectionBoxes},
-    zoomToggled: (state) => {
-      state.zoom = state.zoom === 0 ? 1 : 0},
-    zoomSet: (state, {payload}: PayloadAction<ZoomLevel>) => {
-      state.zoom = payload},
+    zoomChanged: (state, {payload: diff}: PayloadAction<number>) => {
+      state.zoom = Math.min(Math.max(0, state.zoom + diff), MAX_ZOOM)},
     lastKeyPressedSet: (state, {payload}: PayloadAction<Key | null>) => {
       state.lastKeyPressed = payload},
   },
@@ -112,8 +109,7 @@ export const {
   sidebarPopupWasToggled,
   sidebarPopupWasClosed,
   hideDetectionBoxesToggled,
-  zoomToggled,
-  zoomSet,
+  zoomChanged,
   lastKeyPressedSet
 } = appSlice.actions
 
@@ -135,4 +131,5 @@ export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
 )
 export const selectHideDetectionBoxes = (state: RootState) => state.app.hideDetectionBoxes
 export const selectZoom = (state: RootState) => state.app.zoom
+export const selectZoomLevel = (state: RootState) => 2 ** state.app.zoom
 export const selectLastKeyPressed = (state: RootState) => state.app.lastKeyPressed

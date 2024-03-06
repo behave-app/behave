@@ -70,6 +70,8 @@ const defaultInitialState: ShortcutsState = {
           speed_up: [{code: "KeyC"}],
           edit_comment_for_current_line: [{modifiers: ["shiftKey"], code: "Digit1"}],
           key_shortcut_help_toggle: [{modifiers: ["shiftKey"], code: "Slash"}],
+          zoom_in: [{modifiers: ["shiftKey"], code: "Equal"}, {code: "Equal"}],
+          zoom_out: [{code: "Minus"}],
         },
       },
     ]

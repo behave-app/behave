@@ -10,7 +10,7 @@ import { assert, joinedStringFromDict } from "../lib/util"
 import { selectSettingsByDetectionClassForCurrectDetections, selectVisibleDetectionsForCurrentFrame } from "./selectors"
 import { ConfidenceLocation, selectConfidenceLocation } from "./generalSettingsSlice"
 import { DetectionsForFrame } from "../lib/detections"
-import { zoomLevels, selectHideDetectionBoxes, selectZoom, zoomSet, } from "./appSlice"
+import { selectHideDetectionBoxes, selectZoomLevel, zoomChanged} from "./appSlice"
 import { HSL, hslToLuminance, hslToString } from "../lib/colour"
 import { Icon } from "../lib/Icon"
 
@@ -33,15 +33,8 @@ const VideoCanvas: FunctionComponent = () => {
   const [mouseCoords, setMouseCoords] = useState({x: 0, y: 0})
   const hideDetectionBoxes = useSelector(selectHideDetectionBoxes)
   const dispatch = useAppDispatch()
-  const zoom = useSelector(selectZoom)
-  const [zoomOrigin, setZoomOrigin] = useState({x: "0px", y: "0px"})
+  const zoom = useSelector(selectZoomLevel)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [shiftPressed, setShiftPressed] = useState(false)
-
-  const clickAction = shiftPressed
-    ? (zoom === 0 ? null : "zoom-out")
-    : zoom === zoomLevels.length - 1
-    ? "zoom-out-all" : "zoom-in"
 
   const copyAndDispatchPlayerState = (video: HTMLVideoElement) => {
     dispatch(playerStateSet({
@@ -56,22 +49,6 @@ const VideoCanvas: FunctionComponent = () => {
       videoHeight: video.videoHeight,
     }))
   }
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      setShiftPressed(e.shiftKey)
-    }
-    const onKeyUp = (e: KeyboardEvent) => {
-      setShiftPressed(e.shiftKey)
-    }
-    document.documentElement.addEventListener("keyup", onKeyUp)
-    document.documentElement.addEventListener("keydown", onKeyDown)
-    return () => {
-      document.documentElement.removeEventListener("keyup", onKeyUp)
-      document.documentElement.removeEventListener("keydown", onKeyDown)
-    }
-
-  }, [])
 
   useEffect(() => {
     assert(!!videoRef.current,
@@ -117,60 +94,34 @@ const VideoCanvas: FunctionComponent = () => {
     }
   }, [videoRef.current])
 
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) {
+  const onMouseMove = (e: MouseEvent) => {
+    const container = e.currentTarget as HTMLDivElement
+    const parent = container.parentElement
+    if(!parent) {
       return
     }
-    const onMouseMove = (e: MouseEvent) => {
-      setShiftPressed(e.shiftKey)
-      const parent = container.parentElement
-      if(!parent) {
-        return
-      }
-      const bounding = parent.getBoundingClientRect()
-      setMouseCoords({
-        x: e.clientX - bounding.left,
-        y: e.clientY - bounding.top,
-      })
-    }
-    container.addEventListener("mousemove", onMouseMove)
-    return () => container.removeEventListener("mousemove", onMouseMove)
-  }, [containerRef.current, containerRef.current?.parentElement])
+    const bounding = parent.getBoundingClientRect()
+    setMouseCoords({
+      x: e.clientX - bounding.left,
+      y: e.clientY - bounding.top,
+    })
+  }
 
-
-  useEffect(() => {
-    if (!containerRef.current) {
+  const onWheel = (e: WheelEvent) => {
+    if (!e.ctrlKey) {
       return
     }
-    const container = containerRef.current
-    const onClick = (e: MouseEvent) => {
-      if (e.shiftKey) {
-        if (zoom === 0) {
-          console.log("zoom out is no-op when at minimal zoom")
-        } else {
-          dispatch(zoomSet(zoom - 1))
-        }
-      } else {
-        if (zoom === zoomLevels.length - 1) {
-          dispatch(zoomSet(0))
-        } else {
-          dispatch(zoomSet(zoom + 1))
-        }
-      }
+    if (e.deltaY === 0) {
+    return
     }
-    container.addEventListener("click", onClick)
-    return () => container.removeEventListener("click", onClick)
-  }, [containerRef.current, zoom])
+    dispatch(zoomChanged(e.deltaY * 0.1))
+  }
 
-  useEffect(() => {
-    if (zoom === 0) {
-      return;
-    }
-    const focusX = `${mouseCoords.x.toFixed(0)}px`
-    const focusY = `${mouseCoords.y.toFixed(0)}px`
-    setZoomOrigin({x: focusX, y: focusY})
-  }, [zoom, zoom !== 0 && mouseCoords])
+  const zoomOrigin = {
+    x: `${mouseCoords.x.toFixed(0)}px`,
+    y: `${mouseCoords.y.toFixed(0)}px`,
+  }
+
 
   useEffect(() => {
     if (!videoRef.current || !videoUrl) {
@@ -193,16 +144,14 @@ const VideoCanvas: FunctionComponent = () => {
 
   return <div ref={containerRef} className={joinedStringFromDict({
     [css.container]: true,
-    [css.cursor_zoomin]: clickAction === "zoom-in",
-    [css.cursor_zoomout]: clickAction === "zoom-out" || clickAction === "zoom-out-all"
     })} style={{
-      "--zoom": zoomLevels[zoom],
+      "--zoom": zoom,
       "--focus-x": zoomOrigin.x,
       "--focus-y": zoomOrigin.y,
       "--video-width": `${videoWidth.toFixed(1)}px`,
       "--video-height": `${videoHeight.toFixed(1)}px`,
       "--video-zoom": `${containerDimensions?.zoom.toFixed(3)}`,
-    }}>
+    }} onMouseMove={onMouseMove} onWheel={onWheel}>
     {settingsByDetectionClass && detections && !hideDetectionBoxes && <svg className={css.overlay}
       viewBox={`0 0 ${videoWidth} ${videoHeight}`}
       height={`${videoHeight}px`} width={`${videoWidth}px`}

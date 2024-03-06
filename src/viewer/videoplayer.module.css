@@ -15,12 +15,6 @@
     width: var(--video-width);
     height: var(--video-height);
   }
-  &.cursor_zoomin .canvas {
-    cursor: zoom-in;
-  }
-  &.cursor_zoomout .canvas {
-    cursor: zoom-out;
-  }
   width: calc(var(--zoom) * 100%);
   height: calc(var(--zoom) * 100%);
   transition: width .3s, height .3s;

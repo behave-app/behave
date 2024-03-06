@@ -10,7 +10,7 @@
     transition: background-color .2s, opacity .2s;
     border: none;
     background-color: hsl(0, 0%, 0%, 0);
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: hsl(0, 0%, 0%, .2);
     }
   }

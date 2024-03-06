@@ -181,7 +181,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
             } else {
               trySaveNewAction(editTitleInfo.title)
             }}}>
-            <Icon iconName="edit" />
+            <Icon iconName={editTitleInfo ? "check" : "edit"} />
           </button>
         </>}
     </h2>
@@ -222,16 +222,16 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
                 key === "edit" ? editKeyInfo!.key : key).map(
                   singleKey => <kbd>{singleKey}</kbd>)}
             </div>
-            <button 
+            <button disabled={!!editTitleInfo} 
               onClick={() => {
-                setEditTitleInfo(null);
+                if (editTitleInfo) return
                 setEditKeyInfo(key === "edit" ? null : {
                   index, key: {}})}}>
               <Icon iconName="edit" />
             </button>
-            <button 
+            <button disabled={!!editTitleInfo} 
               onClick={() => {
-                setEditTitleInfo(null)
+                if (editTitleInfo) return
                 dispatch(shortcutKeyRemoved({
                   key: key as Key,
                   stateKey: shortcutsStateKey,
@@ -242,15 +242,15 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
             </button>
           </div>)}
       </div>
-        <button className={css.add_button_small}
-          onClick={() => {setEditTitleInfo(null); setEditKeyInfo({
+        <button disabled={!!editTitleInfo} className={css.add_button_small}
+          onClick={() => {if (editTitleInfo) return; setEditKeyInfo({
             index: keys.length, key: {}})}} >
           <Icon iconName="add" />
         </button>
       </>
 
-        : <button disabled={action === null}
-        onClick={() => {setEditTitleInfo(null); setEditKeyInfo({
+        : <button disabled={!!editTitleInfo || action === null}
+        onClick={() => {if (editTitleInfo) return; setEditKeyInfo({
           index: keys.length, key: {}})}} >
         <Icon iconName="add" /> Add your first keystroke
       </button>

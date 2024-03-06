@@ -137,11 +137,11 @@
         }
         &.editing_key .shortcut_key {
           background-color: hsl(0, 0%, 100%, .8);
-          border: 1px solid hsl(0, 0%, 0%, .8);
+          border: 2px solid hsl(240, 100%, 40%, .8);
           &:empty{
             color: silver;
             &::after {
-              content: "<record keystroke>";
+              content: "<recording keystroke> (press key now)";
             }
           }
         }

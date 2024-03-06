@@ -4,7 +4,7 @@ import * as css from "./controlpanel.module.css"
 import { useSelector } from "react-redux";
 import { selectPlaybackRate, selectPlayerState } from "./videoPlayerSlice";
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors";
-import { ControlInfo, CONTROLS } from "./controls";
+import { CONTROLS } from "./controls";
 import { Button } from "./Button";
 import { formatDateTimeParts } from "../lib/detections";
 
@@ -29,13 +29,6 @@ export const ControlPanel: FunctionComponent = () => {
   const playbackSpeed = useSelector(selectPlaybackRate)
 
 
-  const playControl: ControlInfo<unknown> = (
-    !playerState ? CONTROLS.play_pause
-      : playerState.ended ? CONTROLS.restart
-        : playerState.paused ? CONTROLS.play
-          : CONTROLS.pause
-  )
-
   return <div className={viewercss.controlpanel}>
     <div>
       {playerState && <ControlPanelDetails />}
@@ -48,7 +41,7 @@ export const ControlPanel: FunctionComponent = () => {
       <Button controlInfo={CONTROLS.hide_detection_boxes} />
       <Button controlInfo={CONTROLS.next_frame_with_detection} />
       <Button controlInfo={CONTROLS.previous_frame} />
-      <Button controlInfo={playControl} />
+      <Button controlInfo={CONTROLS.play_pause} />
       <Button controlInfo={CONTROLS.next_frame} />
       <Button controlInfo={CONTROLS.speed_down} />
       <div className={css.playback_speed}>{

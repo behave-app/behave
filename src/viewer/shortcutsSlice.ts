@@ -64,7 +64,7 @@ const defaultInitialState: ShortcutsState = {
           hide_detection_boxes: [{code: "KeyW"}],
           next_frame_with_detection: [{code: "KeyE"}],
           previous_frame: [{code: "KeyA"}],
-          play_pause: [{code: "KeyS"}, {code: "KeyX"}],
+          play_pause: [{code: "KeyS"}, {code: "Space"}],
           next_frame: [{code: "KeyD"}],
           speed_down: [{code: "KeyZ"}],
           speed_up: [{code: "KeyC"}],

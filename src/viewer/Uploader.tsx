@@ -22,7 +22,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   const [fileSystemHandles, setFileSystemHandles] = useState<ReadonlyArray<FileSystemHandle >>([])
   const [dragState, setDragState] = useState<DragState>("nodrag")
   const dispatch = useAppDispatch()
-  const [error, setError] = useState<string|null>()
+  const [error, setError] = useState<string|null>(null)
   const behaviourLayout = useSelector(selectBehaviourLayout)
   const videoFileAlreadyLoaded = useSelector(selectVideoFilePotentiallyNull) !== null
 

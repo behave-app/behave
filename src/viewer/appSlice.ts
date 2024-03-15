@@ -1,5 +1,5 @@
-import { createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
-import type { RootState } from './store'
+import { createAsyncThunk, createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
+import type { ATConfig, RootState } from './store'
 import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
 import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditingFieldIndex, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
@@ -23,7 +23,8 @@ export const appSlice = createSlice({
     sidebarPopup: "uploader" as SidebarPopup | null,
     hideDetectionBoxes: false,
     zoom: 0,
-    lastKeyPressed: null as Key | null
+    lastKeyPressed: null as Key | null,
+    fullscreen: false,
   },
   reducers: {
     appErrorSet: (state, {payload: error}: PayloadAction<AppError>) => {
@@ -39,6 +40,9 @@ export const appSlice = createSlice({
       state.zoom = Math.min(Math.max(0, state.zoom + diff), MAX_ZOOM)},
     lastKeyPressedSet: (state, {payload}: PayloadAction<Key | null>) => {
       state.lastKeyPressed = payload},
+    fullscreenSet: (state, {payload}: PayloadAction<boolean>) => {
+      state.fullscreen = payload
+    },
   },
   extraReducers: builder => {
     builder
@@ -110,12 +114,14 @@ export const {
   sidebarPopupWasClosed,
   hideDetectionBoxesToggled,
   zoomChanged,
-  lastKeyPressedSet
+  lastKeyPressedSet,
+  fullscreenSet,
 } = appSlice.actions
 
 
 export const selectSidebarPopup = (state: RootState) => state.app.sidebarPopup
 export const selectAppError = (state: RootState) => state.app.error
+export const selectFullscreen = (state: RootState) => state.app.fullscreen
 
 export const selectIsWaitingForSubjectShortcut = (state: RootState) => (
   !!(state.videoFile
@@ -133,3 +139,18 @@ export const selectHideDetectionBoxes = (state: RootState) => state.app.hideDete
 export const selectZoom = (state: RootState) => state.app.zoom
 export const selectZoomLevel = (state: RootState) => 2 ** state.app.zoom
 export const selectLastKeyPressed = (state: RootState) => state.app.lastKeyPressed
+
+export const toggleFullscreen = createAsyncThunk<void, void, ATConfig>(
+  "app/toggleFullscreen",
+  async (_, {getState}) => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+    } else {
+      if (!getState().app.sidebarPopup) {
+        await document.documentElement.requestFullscreen()
+      } else {
+        console.warn("Cannot do fullscreen while popup is active")
+      }
+    }
+  }
+)

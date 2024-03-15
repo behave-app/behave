@@ -13,6 +13,7 @@ export const SideBar: FunctionComponent = () => {
         <Button controlInfo={CONTROLS.class_sliders} />
         <Button controlInfo={CONTROLS.key_shortcut_help_toggle} />
         <Button controlInfo={CONTROLS.sizer} />
+        <Button controlInfo={CONTROLS.fullscreen} />
       </div>
       <div className={css.sidebar_buttons}>
         <Button controlInfo={CONTROLS.show_controls} />

@@ -11,7 +11,7 @@ import { ValidIconName } from "../lib/Icon";
 import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoPlayerSlice";
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
-import { MAX_ZOOM, SidebarPopup, hideDetectionBoxesToggled, selectHideDetectionBoxes, selectSidebarPopup, selectZoom, sidebarPopupWasToggled, zoomChanged} from "./appSlice";
+import { MAX_ZOOM, SidebarPopup, hideDetectionBoxesToggled, selectFullscreen, selectHideDetectionBoxes, selectSidebarPopup, sidebarPopupWasToggled, toggleFullscreen, zoomChanged} from "./appSlice";
 import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditingFieldIndex} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
 import { selectFramenumberIndexInLayout, selectControlPanelShown, controlPaneToggled, selectBehaviourBarShown, behaviourBarToggled, detectionBarToggled, selectDetectionBarShown } from "./generalSettingsSlice";
@@ -307,6 +307,14 @@ export const CONTROLS = {
     description: "Zoom out",
     selectIsDisabledAdditional: state => state.app.zoom === 0,
     action: dispatch => dispatch(zoomChanged(-0.5)),
+  }),
+
+  fullscreen: fillAndWrapDefaultControlInfo({
+    iconName: "fullscreen",
+    description: "Toggle full screen",
+    selectIsDisabled: () => !document.fullscreenEnabled,
+    selectIsActivated: state => selectFullscreen(state),
+    action: dispatch => dispatch(toggleFullscreen()),
   }),
 } as const
 

@@ -66,9 +66,9 @@ kbd + kbd {
 }
 .controlpanel {
   grid-area: controlpanel;
-  display: grid;
-  grid-template-rows: auto auto
-
+  display: flex;
+  flex-flow: column nowrap;
+  overflow-y: scroll;
 }
 
 .detectionbar {

@@ -91,7 +91,7 @@ export const behaviourSlice = createSlice({
         lines: [getColumnNamesFromLayout(action.payload.layout)],
       }
     },
-    behaviourIfoCurrentlySelectedSubjectToggle: (state, action: PayloadAction<string>) => {
+    behaviourInfoCurrentlySelectedSubjectToggle: (state, action: PayloadAction<string>) => {
       assert(state.behaviourInfo)
       assert(state.behaviourInfo.readonly === false)
       if (state.behaviourInfo.currentlySelectedSubject === action.payload) {
@@ -171,7 +171,7 @@ const {
   behaviourInfoLineAdded,
   behaviourInfoLineRemoved,
   behaviourInfoFieldEdited,
-  behaviourIfoCurrentlySelectedSubjectToggle,
+  behaviourInfoCurrentlySelectedSubjectToggle,
 } = behaviourSlice.actions
 
 export const selectBehaviourInfo = (state: RootState) => state.behaviour.behaviourInfo
@@ -318,4 +318,4 @@ export const removeBehaviourInfoLine = checkEditableThunkCreator(behaviourInfoLi
 
 export const editBehaviourInfoLineField = checkEditableThunkCreator(behaviourInfoFieldEdited)
 
-export const toggleBehaviourInfoCurrentlySelectedSubject = checkEditableThunkCreator(behaviourIfoCurrentlySelectedSubjectToggle)
+export const toggleBehaviourInfoCurrentlySelectedSubject = checkEditableThunkCreator(behaviourInfoCurrentlySelectedSubjectToggle)

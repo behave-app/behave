@@ -1,16 +1,22 @@
-.zoom_controls {
-  --button-size: calc(1em + 16px);
-  display: grid;
-  grid-template-columns: var(--button-size) var(--button-size) var(--button-size);
-  font-size: 1rem;
-  align-self: end;
-}
-.controls {
+.general_controls {
   --button-size: calc(1em + 16px);
   display: grid;
   grid-template-columns: var(--button-size) var(--button-size) var(--button-size);
   font-size: 2rem;
   align-self: end;
+}
+
+.other_controls {
+  display: flex;
+  flex-flow: column nowrap;
+  h2 {
+    font-size: 1.3em;
+    margin-bottom: .2em;
+  }
+}
+
+.active_explain {
+  display: block;
 }
 
 .playback_speed, .zoom_level {

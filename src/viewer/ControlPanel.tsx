@@ -7,7 +7,14 @@ import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors
 import { CONTROLS } from "./controls";
 import { Button } from "./Button";
 import { formatDateTimeParts } from "../lib/detections";
-import { selectZoomLevel } from "./appSlice";
+import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectZoomLevel } from "./appSlice";
+import { selectActiveBehaviourShortcutPreset, selectActiveSubjectShortcutPreset, } from "./shortcutsSlice";
+import { ObjectEntries } from "../lib/util";
+import { useAppDispatch } from "./store";
+import { toggleBehaviourInfoCurrentlySelectedSubject } from "./behaviourSlice";
+import { keyToStrings } from "../lib/key";
+import { Icon } from "../lib/Icon";
+import { addBehaviourLine } from "./reducers";
 
 
 const ControlPanelDetails: FunctionComponent = () => {
@@ -17,25 +24,16 @@ const ControlPanelDetails: FunctionComponent = () => {
   return <div>
     <div>Framenumber: {currentFrameNumber}</div>
     {currentDateTime && 
-    <div>
-        Timestamp: <div>
-          {formatDateTimeParts(currentDateTime, "%Y-%m-%d %H:%M:%S")}
-        </div>
+      <div>
+        {formatDateTimeParts(currentDateTime, "%Y-%m-%d %H:%M:%S")}
       </div>}
   </div>
 }
 
-export const ControlPanel: FunctionComponent = () => {
-  const playerState = useSelector(selectPlayerState)
+const ControlPanelGeneralControls: FunctionComponent = () => {
   const playbackSpeed = useSelector(selectPlaybackRate)
   const zoomLevel = useSelector(selectZoomLevel)
-
-
-  return <div className={viewercss.controlpanel}>
-    <div>
-      {playerState && <ControlPanelDetails />}
-    </div>
-    <div className={css.controls}>
+  return <>
       <Button controlInfo={CONTROLS.previous_behaviour_line} />
       <Button controlInfo={CONTROLS.delete_selected_behaviour_line} />
       <Button controlInfo={CONTROLS.next_behaviour_line} />
@@ -55,6 +53,53 @@ export const ControlPanel: FunctionComponent = () => {
       <Button controlInfo={CONTROLS.edit_comment_for_current_line} />
       <div />
       <Button controlInfo={CONTROLS.key_shortcut_help_toggle} />
+    </>
+}
+
+const ControlPanelOtherControls: FunctionComponent<{
+  type: "subject" | "behaviour"}> = ({type}) => {
+  const subjects = useSelector(type === "subject" ?
+    selectActiveSubjectShortcutPreset : selectActiveBehaviourShortcutPreset)
+  const active = useSelector(type === "subject" ?
+    selectIsWaitingForSubjectShortcut : selectIsWaitingForBehaviourShortcut)
+  const dispatch = useAppDispatch()
+
+  return <>
+      {ObjectEntries(subjects.shortcuts).map(([action, keys]) =>
+        <button disabled={!active} title={action + (keys.length ? " (shortcut: "
+        + keys.map(key => keyToStrings(key).join("-")).map(k => "`" + k + "`").join(", ")
+        + ")": "")}
+        onClick={async () => {if (active) {
+          if (type === "subject") {
+            await dispatch(toggleBehaviourInfoCurrentlySelectedSubject(action))
+          } else {
+            await dispatch(addBehaviourLine(action))
+          }
+      }}}>
+      <Icon iconName={type === "subject" ? "cruelty_free" : "sprint"} />
+        {action}
+        </button>
+    )}
+    </>
+}
+
+export const ControlPanel: FunctionComponent = () => {
+  const playerState = useSelector(selectPlayerState)
+
+  return <div className={viewercss.controlpanel}>
+    <div>
+      {playerState && <ControlPanelDetails />}
+    </div>
+    <div className={css.general_controls}>
+      <ControlPanelGeneralControls />
+    </div>
+    <div className={css.other_controls}>
+      <h2>Subjects</h2>
+      <ControlPanelOtherControls type="subject" />
+    </div>
+    <div className={css.other_controls}>
+      <h2>Behaviours</h2>
+      <ControlPanelOtherControls type="behaviour" />
     </div>
   </div>
 }

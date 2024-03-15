@@ -51,7 +51,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     title: string} >(null)
   const actionsByKey = useSelector(selectActionByKeyString)
   const duplicateActions = keys.map(key => keyToString(key)).flatMap(
-    keyString => actionsByKey[keyString].filter(
+    keyString => actionsByKey[keyString]!.filter(
       a => !(a.action === action && a.shortcutsStateKey === shortcutsStateKey)))
 
   const shortcutsPreset = useSelector(
@@ -215,7 +215,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
           (key, index) => <div className={joinedStringFromDict({
             [css.shortcut_row]: true,
             [css.editing_key]: key === "edit",
-            [css.shortcut_is_duplicate]: key !== "edit" && actionsByKey[keyToString(key)].length > 1,
+            [css.shortcut_is_duplicate]: key !== "edit" && actionsByKey[keyToString(key)]!.length > 1,
           })}>
             <div className={css.shortcut_key}>
               {keyToStringsSpecial(
@@ -303,7 +303,7 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
     ? CONTROLS[action as ValidControlName] : null
   const actionsByKey = useSelector(selectActionByKeyString)
   const duplicateActions = keys.map(key => keyToString(key)).flatMap(
-    keyString => actionsByKey[keyString].filter(
+    keyString => actionsByKey[keyString]!.filter(
       a => !(a.action === action && a.shortcutsStateKey === shortcutsStateKey)))
 
   const disabled = useSelector(

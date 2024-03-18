@@ -18,8 +18,6 @@ jobs:
       - name: Determine version number
         run: >
           set -e; echo "BEHAVE_VERSION=$(python determine_version_number.py)" >> $GITHUB_ENV
-      - name: Test
-        run: echo $BEHAVE_VERSION
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -28,7 +26,7 @@ jobs:
         uses: actions/cache@v3
         with:
           key: libavjs-files--${{ hashFiles('libav.js/*') }}
-          path: public/app/bundled/libavjs/
+          path: public/app/bundled/
       - name: update cache timestamps
         # this will update the timestamps on the cache
         # this is necessary since the Dockerfile will always be newer (gets

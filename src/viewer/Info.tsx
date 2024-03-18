@@ -58,8 +58,10 @@ export const Info: FunctionComponent = () => {
   })()
 
   return <>
-    <h2>Behave version DEV</h2>
+    <h2>Behave</h2>
     <dl className={css.info_list}>
+      <dt>Behave version</dt>
+      <dd>{document.body.dataset.behaveVersion}</dd>
       <dt>Video file</dt>
       <dd>{video?.file.name ?? "No video file loaded"}</dd>
       <dt>Current / total playback time</dt>

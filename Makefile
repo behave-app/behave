@@ -1,5 +1,19 @@
 DOCKER ?= nerdctl.lima
 BEHAVE_VERSION ?= DEV
+BEHAVE_VERSION := $(subst $$,,$(BEHAVE_VERSION))
+BEHAVE_VERSION_ALLOWED_CHARS := $(shell echo {a..z} {A..Z} {0..9} '( _ - . )')
+
+CLEAN_VAR := $(subst $() $(),,$(BEHAVE_VERSION))
+$(info CLEAR_VAR: $(CLEAN_VAR))
+$(foreach char,$(BEHAVE_VERSION_ALLOWED_CHARS),$(eval CLEAN_VAR := $(subst $(char),,$(CLEAN_VAR))))
+
+# Check if anything is left
+ifeq ($(CLEAN_VAR),)
+$(info Variable contains only allowed characters)
+else
+$(error Variable contains disallowed characters: $(CLEAN_VAR))
+endif
+
 DOCKER_TMPDIR ?= /tmp/lima/
 ENVIRONMENT ?= development
 LIBAVJS_VERSION := 4.8.6.0.1
@@ -54,7 +68,6 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@./node_modules/eslint/bin/eslint.js src
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
-	@echo version=${BEHAVE_VERSION} | grep -E '^[a-zA-Z0-9._= -]*$$'
 	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"))) > $@.part
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part

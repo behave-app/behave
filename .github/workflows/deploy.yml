@@ -12,6 +12,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Determine version number
+        run: >
+          echo "BEHAVE_VERSION=$(git log --date=iso8601-strict --pretty=format:'%H %ad %d' --decorate=full | python -c'
+          import sys
+          import re
+
+          lines = [line for line in sys.stdin.read().split("\n") if len(line)]
+          tag = ""
+          since_last_tag = 0
+          for line in lines[::-1]:
+            sha, dt, rest = line.split(" ", 2)
+            match = re.search(r"\brefs/tags/(v\d[^),]+)", rest)
+            if match:
+              tag = match.group(1)
+              since_last_tag = 0
+            else:
+              since_last_tag += 1
+            print(tag if since_last_tag == 0 else f"{tag}-dev{since_last_tag} ({sha[:7]})")
+          ' | tail -n 1) >> $GITHUB_ENV
+      - name: Test
+        run: echo $BEHAVE_VERSION
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:

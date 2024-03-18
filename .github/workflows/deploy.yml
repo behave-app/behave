@@ -17,6 +17,7 @@ jobs:
           fetch-tags: true
       - name: Determine version number
         run: >
+          set -e
           echo "BEHAVE_VERSION=$(python determine_version_number.py)" >> $GITHUB_ENV
       - name: Test
         run: echo $BEHAVE_VERSION

@@ -17,7 +17,7 @@ jobs:
           fetch-tags: true
       - name: Determine version number
         run: >
-          echo "BEHAVE_VERSION=$(python determine_version_number) >> $GITHUB_ENV
+          echo "BEHAVE_VERSION=$(python determine_version_number)" >> $GITHUB_ENV
       - name: Test
         run: echo $BEHAVE_VERSION
       - name: Set up Docker Buildx

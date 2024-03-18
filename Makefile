@@ -1,4 +1,5 @@
 DOCKER ?= nerdctl.lima
+BEHAVE_VERSION ?= DEV
 DOCKER_TMPDIR ?= /tmp/lima/
 ENVIRONMENT ?= development
 LIBAVJS_VERSION := 4.8.6.0.1
@@ -20,7 +21,7 @@ ENTRYPOINTS := \
     ./src/viewer/index.tsx
 OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
-.PHONY=all public/app/bundled/libavjs lint
+.PHONY=all public/app/bundled/libavjs lint public/app/tsc
 
 all: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(HTML_TARGET_FILES) public/app/bundled/tfjs-wasm
 
@@ -53,9 +54,11 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@./node_modules/eslint/bin/eslint.js src
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
+	@echo version=${BEHAVE_VERSION} | grep -E '^[a-zA-Z0-9._= -]*$$'
 	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"))) > $@.part
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part
+	@echo "s|___BEHAVE_VERSION___|${BEHAVE_VERSION}|g" >> $@.part
 	@ mv $@.part $@
 
 $(HTML_TARGET_FILES): public/%.html: %.html public/app/tsc

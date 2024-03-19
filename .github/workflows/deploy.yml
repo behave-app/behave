@@ -1,6 +1,8 @@
 name: Deploy to AWS (release)
 on:
   push:
+    tags:
+      - "v*"
     branches:
       - "main"
 permissions:
@@ -42,4 +44,4 @@ jobs:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::442430797903:role/behave-claude-apps-com-UploadRole-bcTUZbepmRpa
       - name: Deploy
-        run: aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 public s3://behave.claude-apps.com/website/
+        run: (git tag --points-at $(git rev-parse HEAD) | grep 'v\d') && aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 public s3://behave.claude-apps.com/website/ || aws s3 sync --delete --content-encoding utf8 public s3://behave.claude-apps.com/website/beta/main

@@ -21,7 +21,7 @@ exec("git log  --date='format-local:%Y-%m-%dT%H:%MZ' '--pretty=format:%H %ad %d'
       if (error) {
         throw error;
       }
-      const local_changes = stdout.split("\n").length
+      const local_changes = stdout.split("\n").filter(l => l.length).length
 
       console.log([
         `${tag}`,

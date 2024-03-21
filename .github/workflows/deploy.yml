@@ -38,15 +38,24 @@ jobs:
         run: make -t public/app/bundled/libavjs || true
       - name: Build
         run: DOCKER="docker buildx" BEHAVE_VERSION="$(echo "${BEHAVE_VERSION}" | sed 's/\$/$$/g')" DOCKER_TMPDIR=/tmp ENVIRONMENT=production make lint all
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        with:
+          name: built-app
+          path: public
+  deploy-beta:
+      runs-on: ubuntu-22.04
+      needs: build
+      steps:
+      - uses: actions/download-artifact@master
+        name: Download artifact
+        with:
+          name: built-app
+          path: public
       - name: Set AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::442430797903:role/behave-claude-apps-com-UploadRole-bcTUZbepmRpa
-  deploy-beta:
-      runs-on: ubuntu-22.04
-      needs: build
-      steps:
       - name: Deploy to live
-
-        run: (git tag --points-at $(git rev-parse HEAD) | grep 'v\d') && aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 public s3://behave.claude-apps.com/website/ || aws s3 sync --delete --content-encoding utf8 public s3://behave.claude-apps.com/website/beta/main
+        run: aws s3 sync --delete --content-encoding utf8 public s3://behave.claude-apps.com/website/beta/main

@@ -1,7 +1,7 @@
 const TAG_PREFIX = "refs/tags/"
 const TAG_MATCH = /^refs\/tags\/v\d/
 import {exec} from "child_process"
-exec("git log  --date='format-local:%Y-%m-%dT%H:%MZ' '--pretty=format:%H %ad %d' --decorate=full", {env: {TZ: "UTC0"}, HOME: ""}, 
+exec("git log  --date='format-local:%Y-%m-%dT%H:%M UTC' '--pretty=format:%H %ad %d' --decorate=full", {env: {TZ: "UTC0"}, HOME: ""}, 
   (error, stdout, stderr) => {
     if (error) {
       throw error;

@@ -11,12 +11,10 @@ import { selectBehaviourLineWithoutBehaviour, selectCurrentFrameNumber, selectSe
 import { videoSeekToFrameNumberAndPause } from "./videoPlayerActions"
 import { keyFromEvent, keyToString, keyToStrings } from "../lib/key"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { ObjectEntries, assert, getDuplicateIndices, mayBeUndefined, valueOrErrorAsync } from "../lib/util"
+import { ObjectEntries, getDuplicateIndices, mayBeUndefined, valueOrErrorAsync } from "../lib/util"
 import { Icon } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { selectActionByKeyString, selectActiveBehaviourShortcutPreset, selectActiveSubjectShortcutPreset } from "./shortcutsSlice"
-import { lastKeyPressedSet } from "./appSlice"
-import { executeShortcutAction } from "./reducers"
+import { selectActiveBehaviourShortcutPreset, selectActiveSubjectShortcutPreset } from "./shortcutsSlice"
 
 const BehaviourEditor: FunctionComponent = () => {
   const [editingValue, setEditingValue] = useState("")

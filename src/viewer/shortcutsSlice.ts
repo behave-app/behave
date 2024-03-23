@@ -72,6 +72,7 @@ const defaultInitialState: ShortcutsState = {
           key_shortcut_help_toggle: [{modifiers: ["shiftKey"], code: "Slash"}],
           zoom_in: [{modifiers: ["shiftKey"], code: "Equal"}, {code: "Equal"}],
           zoom_out: [{code: "Minus"}],
+          zoom_out_full: [{modifiers: ["shiftKey"], code: "Minus"}],
         },
       },
     ]

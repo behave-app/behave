@@ -36,6 +36,8 @@ export const appSlice = createSlice({
     sidebarPopupWasClosed: state => {state.sidebarPopup = null},
     hideDetectionBoxesToggled: state => {
       state.hideDetectionBoxes = !state.hideDetectionBoxes},
+    zoomSet: (state, {payload: zoom}: PayloadAction<number>) => {
+      state.zoom = Math.min(Math.max(0, zoom), MAX_ZOOM)},
     zoomChanged: (state, {payload: diff}: PayloadAction<number>) => {
       state.zoom = Math.min(Math.max(0, state.zoom + diff), MAX_ZOOM)},
     lastKeyPressedSet: (state, {payload}: PayloadAction<Key | null>) => {
@@ -113,6 +115,7 @@ export const {
   sidebarPopupWasToggled,
   sidebarPopupWasClosed,
   hideDetectionBoxesToggled,
+  zoomSet,
   zoomChanged,
   lastKeyPressedSet,
   fullscreenSet,

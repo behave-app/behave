@@ -2,7 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit"
 import type {ATConfig } from "./store"
 import { selectBehaviourLineWithoutBehaviour, selectSelectedBehaviourLine } from "./selectors"
 import { addBehaviourInfoLine, behaviourInfoCreatedNew, behaviourInfoSavedAs, behaviourInfoSubjectUnselected, currentlySelectedLineUpdated, selectBehaviourInfo, toggleBehaviourInfoCurrentlySelectedSubject } from "./behaviourSlice"
-import { assert, valueOrErrorAsync } from "../lib/util"
+import { assert, asyncSleep, valueOrErrorAsync } from "../lib/util"
 import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut } from "./appSlice"
 import { ShortcutsState } from "./shortcutsSlice"
 import { CONTROLS, ValidControlName } from "./controls"
@@ -87,6 +87,10 @@ ATConfig
     assert(videoFile)
     if (action === "make writable") {
       assert(behaviourInfo)
+    }
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      await asyncSleep(1000)
     }
     const fileHandleOrError = await valueOrErrorAsync(window.showSaveFilePicker)({
       id: "behaviouFile",

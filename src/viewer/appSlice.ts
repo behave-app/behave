@@ -145,15 +145,11 @@ export const selectLastKeyPressed = (state: RootState) => state.app.lastKeyPress
 
 export const toggleFullscreen = createAsyncThunk<void, void, ATConfig>(
   "app/toggleFullscreen",
-  async (_, {getState}) => {
+  async () => {
     if (document.fullscreenElement) {
       await document.exitFullscreen()
     } else {
-      if (!getState().app.sidebarPopup) {
-        await document.documentElement.requestFullscreen()
-      } else {
-        console.warn("Cannot do fullscreen while popup is active")
-      }
+      await document.documentElement.requestFullscreen()
     }
   }
 )

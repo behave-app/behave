@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { useSelector } from "react-redux";
 import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
 import { useAppDispatch } from "./store";
-import { assert, binItems, isTruthy, valueOrError, valueOrErrorAsync } from "../lib/util";
+import { assert, asyncSleep, binItems, isTruthy, valueOrError, valueOrErrorAsync } from "../lib/util";
 import * as css from "./uploader.module.css"
 import * as generalcss from "./general.module.css"
 import { Icon } from "../lib/Icon";
@@ -70,6 +70,10 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   }, [])
 
   const onSelectFileUpload = async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      await asyncSleep(1000)
+    }
     const handlesOrError = await valueOrErrorAsync(window.showOpenFilePicker)({
       id: "selectInputFiles",
       multiple: true,

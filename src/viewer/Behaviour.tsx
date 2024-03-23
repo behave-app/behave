@@ -11,7 +11,7 @@ import { selectBehaviourLineWithoutBehaviour, selectCurrentFrameNumber, selectSe
 import { videoSeekToFrameNumberAndPause } from "./videoPlayerActions"
 import { keyFromEvent, keyToString, keyToStrings } from "../lib/key"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { ObjectEntries, getDuplicateIndices, mayBeUndefined, valueOrErrorAsync } from "../lib/util"
+import { ObjectEntries, asyncSleep, getDuplicateIndices, mayBeUndefined, valueOrErrorAsync } from "../lib/util"
 import { Icon } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
 import { selectActiveBehaviourShortcutPreset, selectActiveSubjectShortcutPreset } from "./shortcutsSlice"
@@ -289,6 +289,10 @@ const BehaviourCreator: FunctionComponent = () => {
   }
   return <div>
     <button onClick={async () => {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+        await asyncSleep(1000)
+      }
       const fileHandleOrError = await valueOrErrorAsync(window.showSaveFilePicker)({
         id: "behaviouFile",
         startIn: "downloads",

@@ -10,7 +10,7 @@ import { KeyShortcuts } from "./KeyShortcuts";
 import { useEffect } from "react";
 import { assert, exhausted, isCompatibleBrowser, joinedStringFromDict, mayBeUndefined } from "../lib/util";
 import { selectBehaviourBarShown, selectBehaviourBarSize, selectControlPanelShown, selectDetectionBarShown, selectDetectionBarSize } from "./generalSettingsSlice";
-import { MultipleActionsAssignedToPressedKeyException, appErrorSet, fullscreenSet, lastKeyPressedSet, selectAppError, selectFullscreen, selectSidebarPopup, sidebarPopupWasClosed, sidebarPopupWasToggled} from "./appSlice"
+import { MultipleActionsAssignedToPressedKeyException, appErrorSet, fullscreenSet, lastKeyPressedSet, selectAppError, selectSidebarPopup, sidebarPopupWasClosed, sidebarPopupWasToggled} from "./appSlice"
 import { ClassSliders } from "./ClassSliders"
 import { Uploader } from "./Uploader"
 import { Info } from "./Info"
@@ -72,19 +72,9 @@ export const Viewer: FunctionComponent = () => {
 
 const Popup: FunctionComponent = () => {
   const popup = useSelector(selectSidebarPopup)
-  const fullscreen = useSelector(selectFullscreen)
   const dispatch = useAppDispatch()
   const noSuppressShortcuts = popup === "keyShortcuts"
   const closePopup = () => dispatch(sidebarPopupWasClosed())
-
-  useEffect(() => {
-    if (popup && fullscreen) {
-      console.warn("Popup and fullscreen do not go together, because of Chrome bug")
-      console.warn("When file picker is opened while in full screen on mac....")
-      void(document.exitFullscreen())
-    }
-  }, [popup, fullscreen])
-
 
   useEffect(() => {
     if (popup === "uploader") {

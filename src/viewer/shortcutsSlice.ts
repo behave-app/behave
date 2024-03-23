@@ -3,7 +3,7 @@ import { PayloadAction, createAsyncThunk, createSelector, createSlice } from '@r
 import { Key, areEqualKeys, keyChecker, keyToString } from "../lib/key"
 import { ArrayChecker, Checker, LiteralChecker, NumberChecker, ObjectChecker, RecordChecker, StringChecker, getCheckerFromObject } from '../lib/typeCheck'
 import type { ValidControlName } from './controls'
-import { ObjectEntries, ObjectKeys, assert } from '../lib/util'
+import { ObjectEntries, ObjectKeys, assert, asyncSleep } from '../lib/util'
 
 
 export type Shortcuts<T extends string = string> = Record<T, Key[]>
@@ -338,6 +338,10 @@ ATConfig<ShortcutPresetExportFailedException>>(
     assert(preset)
     let file: FileSystemFileHandle
     try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+        await asyncSleep(1000)
+      }
       file = await window.showSaveFilePicker({
         id: "presets",
         startIn: "downloads",
@@ -363,7 +367,7 @@ ATConfig<ShortcutPresetExportFailedException>>(
     await outputstream.close()
   }
 )
-  
+
 export type ShortcutPresetImportFailedException = {
   error: "ShortcutPresetImportFailedException"
   callParams: {stateKey: keyof ShortcutsState},
@@ -388,6 +392,10 @@ void, ShortcutPresetImportFailedException["callParams"], ATConfig<ShortcutPreset
     assert(presets)
     let file: FileSystemFileHandle
     try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+        await asyncSleep(1000)
+      }
       const files = await window.showOpenFilePicker({
         id: "presets",
         startIn: "downloads",

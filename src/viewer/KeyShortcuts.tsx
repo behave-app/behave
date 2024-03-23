@@ -185,7 +185,7 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
           </button>
         </>}
     </h2>
-    <h3>Status</h3>
+    <h3>Status <span title="The status shows whether a button is disabled (cannot be used right now), or active (the button toggles a state that is active right now)"><Icon iconName="info" /></span></h3>
     <div>
       {disabled && "[disabled]"} {activated && "[active]"}
       {!(disabled || activated) && "normal"}

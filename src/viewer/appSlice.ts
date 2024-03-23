@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction, SerializedError } from '@
 import type { ATConfig, RootState } from './store'
 import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
-import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditingFieldIndex, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
+import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditing, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
 
 export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader" | "sizer"
 export const MAX_ZOOM = 5
@@ -69,7 +69,7 @@ export const appSlice = createSlice({
           state.error = action.payload
         }
       })
-      .addCase(setCurrentlyEditingFieldIndex.rejected, (state, action) => {
+      .addCase(setCurrentlyEditing.rejected, (state, action) => {
         if (action.payload === undefined) {
           state.error = {error: "SerializedError", ...action.error}
         } else {

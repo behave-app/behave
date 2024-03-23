@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact"
 import * as viewercss from "./viewer.module.css"
 import { useSelector } from "react-redux"
-import { behaviourInfoCreatedNew, editBehaviourInfoLineField, setCurrentlyEditingFieldIndex, currentlySelectedLineUnset, currentlySelectedLineUpdated, selectBehaviourInfo, behaviourInfoSubjectUnselected, } from "./behaviourSlice"
+import { behaviourInfoCreatedNew, editBehaviourInfoLineField, setCurrentlyEditing, currentlySelectedLineUnset, currentlySelectedLineUpdated, selectBehaviourInfo, behaviourInfoSubjectUnselected, } from "./behaviourSlice"
 import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectBehaviourLayout, selectFramenumberIndexInLayout } from "./generalSettingsSlice"
 import { useAppDispatch } from "./store"
@@ -9,10 +9,14 @@ import { useEffect, useRef, useState } from "react"
 import * as css from "./behaviour.module.css"
 import { selectBehaviourLineWithoutBehaviour, selectCurrentFrameNumber, selectSelectedBehaviourLine } from "./selectors"
 import { videoSeekToFrameNumberAndPause } from "./videoPlayerActions"
-import { keyFromEvent } from "../lib/key"
+import { keyFromEvent, keyToString, keyToStrings } from "../lib/key"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
-import { valueOrErrorAsync } from "../lib/util"
-
+import { ObjectEntries, assert, getDuplicateIndices, mayBeUndefined, valueOrErrorAsync } from "../lib/util"
+import { Icon } from "../lib/Icon"
+import { Dialog } from "../lib/Dialog"
+import { selectActionByKeyString, selectActiveBehaviourShortcutPreset, selectActiveSubjectShortcutPreset } from "./shortcutsSlice"
+import { lastKeyPressedSet } from "./appSlice"
+import { executeShortcutAction } from "./reducers"
 
 const BehaviourEditor: FunctionComponent = () => {
   const [editingValue, setEditingValue] = useState("")
@@ -44,15 +48,17 @@ const BehaviourEditor: FunctionComponent = () => {
 
   useEffect(() => {
     if (behaviourInfo.currentlySelectedLine !== null
-      && behaviourInfo.currentlyEditingFieldIndex === null
+      && behaviourInfo.currentlyEditing === null
       && currentFrameNumber !== parseInt(
         (behaviourInfo.lines[behaviourInfo.currentlySelectedLine] ?? [])[frameNumberIndexInLayout])
     ) {
       dispatch(currentlySelectedLineUnset())
     }
-  }, [currentFrameNumber, behaviourInfo.currentlyEditingFieldIndex])
+  }, [currentFrameNumber, behaviourInfo.currentlyEditing])
 
-  const startEditingField = (lineNumber: number, fieldNumber: number) => {
+  const startEditingField = (
+    lineNumber: number, fieldIndex: number,
+    type: "subject" | "behaviour" | "free") => {
     if (lineNumber === 0) {
       console.warn("Not allowed editing the header line")
       return 
@@ -60,10 +66,17 @@ const BehaviourEditor: FunctionComponent = () => {
     if (insertLine) {
       dispatch(behaviourInfoSubjectUnselected())
     }
-    if (fieldNumber === frameNumberIndexInLayout) {
-      console.log("Frame number field not editable")
+    if (fieldIndex === frameNumberIndexInLayout) {
+      console.warn("Frame number field not editable")
+      return
     }
-    if (behaviourInfo.currentlyEditingFieldIndex !== null) {
+    if (type !== "free" && behaviourInfo.layout[fieldIndex].type !== type) {
+      console.warn(`Editing ${behaviourInfo.layout[fieldIndex].type} field '
+        + 'as ${type}`)
+      return
+
+    }
+    if (behaviourInfo.currentlyEditing !== null) {
       saveEdit()
     }
     const newFrameNumber = parseInt(
@@ -71,9 +84,9 @@ const BehaviourEditor: FunctionComponent = () => {
     if (!isNaN(newFrameNumber)) {
       void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
     }
-    setEditingValue(behaviourInfo.lines[lineNumber][fieldNumber])
-    void(dispatch(setCurrentlyEditingFieldIndex({
-      currentlyEditingFieldIndex: fieldNumber,
+    setEditingValue(behaviourInfo.lines[lineNumber][fieldIndex])
+    void(dispatch(setCurrentlyEditing({
+      currentlyEditing: {fieldIndex, type},
       currentlySelectedLine: lineNumber,
     })))
   }
@@ -96,15 +109,14 @@ const BehaviourEditor: FunctionComponent = () => {
 
   const editFieldKeyDown = (event: KeyboardEvent) => {
     if (behaviourInfo.currentlySelectedLine === null
-      || behaviourInfo.currentlyEditingFieldIndex === null) {
+      || behaviourInfo.currentlyEditing === null) {
       return
     }
     const key = keyFromEvent(event)
     if (key === null) {
       if (event.code === "Escape") {
         event.stopPropagation()
-        void(dispatch(setCurrentlyEditingFieldIndex(
-          {currentlyEditingFieldIndex: null})))
+        void(dispatch(setCurrentlyEditing({currentlyEditing: null})))
 
       }
       return;
@@ -117,31 +129,31 @@ const BehaviourEditor: FunctionComponent = () => {
 
   const saveEdit = () => {
     if (behaviourInfo.currentlySelectedLine === null
-      || behaviourInfo.currentlyEditingFieldIndex === null) {
+      || behaviourInfo.currentlyEditing === null) {
       return
     }
     void(dispatch(editBehaviourInfoLineField({
       lineNumber: behaviourInfo.currentlySelectedLine!,
-      fieldNumber: behaviourInfo.currentlyEditingFieldIndex,
+      fieldIndex: behaviourInfo.currentlyEditing.fieldIndex,
       newContent: editingValue
     })))
-    void(dispatch(setCurrentlyEditingFieldIndex(
-      {currentlyEditingFieldIndex: null})))
+    void(dispatch(setCurrentlyEditing({currentlyEditing: null})))
     setEditingValue("")
   }
 
   useEffect(() => {
     if (behaviourInfo.currentlySelectedLine !== null
-      && behaviourInfo.currentlyEditingFieldIndex !== null) {
-      const value = behaviourInfo.lines[behaviourInfo.currentlySelectedLine][behaviourInfo.currentlyEditingFieldIndex]
+      && behaviourInfo.currentlyEditing !== null
+      && behaviourInfo.currentlyEditing.type === "free") {
+      const value = behaviourInfo.lines[behaviourInfo.currentlySelectedLine][behaviourInfo.currentlyEditing.fieldIndex]
       setEditingValue(value)
     }
     if (inputElementRef.current) {
       inputElementRef.current.focus()
     }
-  }, [behaviourInfo.currentlyEditingFieldIndex, behaviourInfo.currentlySelectedLine])
+  }, [behaviourInfo.currentlyEditing?.type, behaviourInfo.currentlySelectedLine])
 
-  return <table className={css.table}
+  return <><table className={css.table}
     ref={tableRef}
     style={Object.fromEntries(behaviourInfo.layout.map(
       ({width}, index) => [`--width_${index + 1}`, width === "*" ? "auto" : `${width}em`]))}>
@@ -152,21 +164,38 @@ const BehaviourEditor: FunctionComponent = () => {
             selectedBehaviourLine.rel == "at" ? css.selectedLine
               : css.selectedLineAfter) : ""
         return <><tr className={className}>
-          {line.map((item, fieldIndex) => <td>
-            {fieldIndex !== frameNumberIndexInLayout
-              && behaviourInfo.currentlySelectedLine === index
-              && behaviourInfo.currentlyEditingFieldIndex === fieldIndex
-              ? <input ref={inputElementRef} onKeyDown={editFieldKeyDown} onInput={
-                e => setEditingValue((e.target as HTMLInputElement).value)}
-                onBlur={() => saveEdit()}
-                value={editingValue} />
-              : <span
-                onClick={() => selectLine(index)}
-                onDblClick={() => startEditingField(index, fieldIndex)}
-              >
-                {item}
-              </span>}
-          </td>)}
+          {line.map((item, fieldIndex) => {
+            const type = behaviourInfo.layout[fieldIndex].type
+            return <td><span>
+              {fieldIndex !== frameNumberIndexInLayout
+                && behaviourInfo.currentlySelectedLine === index
+                && behaviourInfo.currentlyEditing !== null
+                && behaviourInfo.currentlyEditing.fieldIndex === fieldIndex
+                && behaviourInfo.currentlyEditing.type === "free"
+                ? <input ref={inputElementRef} onKeyDown={editFieldKeyDown}
+                  onInput={
+                  e => setEditingValue((e.target as HTMLInputElement).value)}
+                  onBlur={() => saveEdit()}
+                  value={editingValue} />
+                : <>
+                  <span
+                    onClick={() => selectLine(index)}
+                    onDblClick={() => startEditingField(index, fieldIndex, "free")}
+                  >
+                    {item}
+                  </span>
+                  {index !== 0
+                    && (type === "subject" || type === "behaviour")
+                    && <span className={css.dropdown}
+                      onClick={() => {
+                        startEditingField(index, fieldIndex, type)
+                      }}>
+                      <Icon iconName="arrow_drop_down" />
+                    </span>}
+                </>
+              }
+            </span></td>
+          })}
         </tr>
           {insertLine && (selectedBehaviourLine.index === index) && 
             <tr className={css.aboutToBeInserted}>
@@ -177,6 +206,78 @@ const BehaviourEditor: FunctionComponent = () => {
       })}
     </tbody>
   </table>
+    {behaviourInfo.currentlyEditing !== null
+      && behaviourInfo.currentlyEditing.type !== "free"
+      && <DropDownSelect
+        type={behaviourInfo.currentlyEditing.type}
+        onRequestClose={() => 
+        void(dispatch(setCurrentlyEditing({currentlyEditing: null})))} />}
+  </>
+}
+
+type DropDownSelectProps = {
+  type: "subject" | "behaviour",
+  onRequestClose: () => void
+}
+
+const DropDownSelect: FunctionComponent<DropDownSelectProps> = (
+  {type, onRequestClose}) => {
+  const behaviourInfo = useSelector(selectBehaviourInfo)!
+  const dispatch = useAppDispatch()
+  const subjects = useSelector(type === "subject" ?
+    selectActiveSubjectShortcutPreset : selectActiveBehaviourShortcutPreset)
+
+  const actionKeyPairs = ObjectEntries(subjects.shortcuts).flatMap(
+  ([action, keys]) => keys.map(key => [action, key] as const))
+  const duplicates = new Set(getDuplicateIndices(actionKeyPairs.map(
+    ak => keyToString(ak[1]))).flat())
+
+
+  // Note this will overwrite the former key with the latter if there are duplicates
+  const actionByKey = Object.fromEntries(
+    actionKeyPairs.filter((_, index) => !duplicates.has(index))
+      .map(([action, key]) => [keyToString(key), action]))
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const key = keyFromEvent(e)
+      if (key === null) {
+        return;
+      }
+      const selectedAction = mayBeUndefined(actionByKey[keyToString(key)])
+      if (selectedAction) {
+        e.preventDefault()
+        saveAction(selectedAction)
+      }
+    }
+    document.documentElement.addEventListener("keydown", onKeyDown)
+    return () => document.documentElement.removeEventListener("keydown", onKeyDown)
+  }, [subjects])
+
+  const saveAction = (action: string) => {
+    if (behaviourInfo.currentlySelectedLine === null
+      || behaviourInfo.currentlyEditing === null) {
+      return
+    }
+    void(dispatch(editBehaviourInfoLineField({
+      lineNumber: behaviourInfo.currentlySelectedLine!,
+      fieldIndex: behaviourInfo.currentlyEditing.fieldIndex,
+      newContent: action,
+    })))
+    void(dispatch(setCurrentlyEditing({currentlyEditing: null})))
+  }
+
+  return <Dialog onRequestClose={onRequestClose} className={css.subject_behaviour_picker}>
+    {ObjectEntries(subjects.shortcuts).map(([action, keys]) =>
+      <button title={action + (keys.length ? " (shortcut: "
+        + keys.map(key => keyToStrings(key).join("-")).map(k => "`" + k + "`").join(", ")
+        + ")": "")}
+        onClick={() => saveAction(action)}>
+        <Icon iconName={type === "subject" ? "cruelty_free" : "sprint"} />
+        {action}
+      </button>
+    )}
+  </Dialog>
 }
 
 const BehaviourCreator: FunctionComponent = () => {

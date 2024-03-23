@@ -12,11 +12,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 0.3em;
-    & > span, & > input {
-      display: block;
+    & > span {
+      display: flex;
+      align-content: stretch;
+      flex-flow: row nowrap;
       width: 100%;
-      border: 0;
-      height: 1lh;
+      & > input {
+        width: 100%;
+      }
+      & > span, & > input {
+        border: 0;
+        height: 1lh;
+        box-sizing: border-box;
+        flex: 1;
+        &.dropdown {
+          cursor: pointer;
+          flex: 0;
+        }
+      }
     }
   }
 
@@ -57,5 +70,17 @@
   }
   tr.selectedLineAfter {
     border-bottom: 3px solid hsl(140, 50%, 30%);
+  }
+}
+
+.subject_behaviour_picker {
+  max-width: fit-content;
+  min-width: 20em;
+  display: flex;
+  flex-flow: column nowrap;
+  align-content: stretch;
+  button {
+    max-width: 80vw;
+    overflow: ellipsis;
   }
 }

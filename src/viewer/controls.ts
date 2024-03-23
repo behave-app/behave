@@ -12,7 +12,7 @@ import { selectPlayerState, PLAYBACK_RATES, selectPlaybackRate, } from "./videoP
 import { AppDispatch, RootState } from "./store"
 import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
 import { MAX_ZOOM, SidebarPopup, hideDetectionBoxesToggled, selectFullscreen, selectHideDetectionBoxes, selectSidebarPopup, sidebarPopupWasToggled, toggleFullscreen, zoomChanged, zoomSet} from "./appSlice";
-import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditingFieldIndex} from "./behaviourSlice";
+import { currentlySelectedLineUpdated, removeBehaviourInfoLine, selectBehaviourInfo, selectCurrentlySelectedSubject, setCurrentlyEditing} from "./behaviourSlice";
 import { selectSelectedBehaviourLine } from "./selectors";
 import { selectFramenumberIndexInLayout, selectControlPanelShown, controlPaneToggled, selectBehaviourBarShown, behaviourBarToggled, detectionBarToggled, selectDetectionBarShown } from "./generalSettingsSlice";
 
@@ -250,7 +250,7 @@ export const CONTROLS = {
       return (
         subjectSelected !== null
         || !behaviourInfo
-        || behaviourInfo.currentlyEditingFieldIndex !== null
+        || behaviourInfo.currentlyEditing !== null
         || behaviourInfo.layout.findIndex(
             col => col.type.startsWith("comments:")) === -1
         || !line
@@ -262,10 +262,10 @@ export const CONTROLS = {
       behaviourInfo: selectBehaviourInfo(state)!,
     }),
     action: (dispatch, {selectedBehaviourLine, behaviourInfo}) => {
-      void(dispatch(setCurrentlyEditingFieldIndex({
+      void(dispatch(setCurrentlyEditing({
         currentlySelectedLine: selectedBehaviourLine.index,
-        currentlyEditingFieldIndex: behaviourInfo.layout.findIndex(
-            col => col.type.startsWith("comments:"))
+        currentlyEditing: {fieldIndex: behaviourInfo.layout.findIndex(
+            col => col.type.startsWith("comments:")), type: "free"}
       })))
     }
   }),

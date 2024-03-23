@@ -10,7 +10,7 @@ export type BehaviourInfo = {
   layout: BehaveLayout
   readonly: boolean
   currentlySelectedLine: null | number
-  currentlyEditingFieldIndex: null | number
+  currentlyEditing: null | {fieldIndex: number, type: "subject" | "behaviour" | "free"}
   currentlySelectedSubject: null | string
   lines: BehaviourLine[]
 }
@@ -72,7 +72,7 @@ export const behaviourSlice = createSlice({
         ...payload,
         readonly: true,
         currentlySelectedLine: null,
-        currentlyEditingFieldIndex: null,
+        currentlyEditing: null,
         currentlySelectedSubject: null,
       }
     },
@@ -87,7 +87,7 @@ export const behaviourSlice = createSlice({
         readonly: false,
         currentlySelectedLine: null,
         currentlySelectedSubject: null,
-        currentlyEditingFieldIndex: null,
+        currentlyEditing: null,
         lines: [getColumnNamesFromLayout(action.payload.layout)],
       }
     },
@@ -120,16 +120,16 @@ export const behaviourSlice = createSlice({
         action.payload, 1)
     },
     behaviourInfoFieldEdited: (state, action: PayloadAction<{
-      lineNumber: number, fieldNumber: number, newContent: string
+      lineNumber: number, fieldIndex: number, newContent: string
     }>) => {
       assert(state.behaviourInfo)
       assert(state.behaviourInfo.readonly === false)
       const line = state.behaviourInfo.lines[action.payload.lineNumber]
-      const field = (line ?? [])[action.payload.fieldNumber]
+      const field = (line ?? [])[action.payload.fieldIndex]
       if (field === undefined) {
         throw new Error("Line / Field do not exist")
       }
-      line[action.payload.fieldNumber] = action.payload.newContent
+      line[action.payload.fieldIndex] = action.payload.newContent
     },
     currentlySelectedLineUpdated: (state, action: PayloadAction<number>) => {
       assert(state.behaviourInfo)
@@ -138,10 +138,10 @@ export const behaviourSlice = createSlice({
     currentlySelectedLineUnset: (state) => {
       assert(state.behaviourInfo)
       state.behaviourInfo.currentlySelectedLine = null
-      state.behaviourInfo.currentlyEditingFieldIndex = null
+      state.behaviourInfo.currentlyEditing = null
     },
-    currentlyEditingFieldIndexSet: (state, {payload}: PayloadAction<{
-      currentlyEditingFieldIndex: number | null,
+    currentlyEditingSet: (state, {payload}: PayloadAction<{
+      currentlyEditing: BehaviourInfo["currentlyEditing"]
       currentlySelectedLine?: number
     }>) => {
       assert(state.behaviourInfo)
@@ -150,7 +150,7 @@ export const behaviourSlice = createSlice({
         && payload.currentlySelectedLine !== undefined) {
         state.behaviourInfo.currentlySelectedLine = payload.currentlySelectedLine
       }
-      state.behaviourInfo.currentlyEditingFieldIndex = payload.currentlyEditingFieldIndex
+      state.behaviourInfo.currentlyEditing = payload.currentlyEditing
     },
   }
 })
@@ -167,7 +167,7 @@ export const {
 export default behaviourSlice.reducer
 
 const {
-  currentlyEditingFieldIndexSet,
+  currentlyEditingSet,
   behaviourInfoLineAdded,
   behaviourInfoLineRemoved,
   behaviourInfoFieldEdited,
@@ -310,12 +310,17 @@ function checkEditableThunkCreator<T>(
 )
 }
 
-export const setCurrentlyEditingFieldIndex = checkEditableThunkCreator(currentlyEditingFieldIndexSet)
+export const setCurrentlyEditing = checkEditableThunkCreator(
+  currentlyEditingSet)
 
-export const addBehaviourInfoLine = checkEditableThunkCreator(behaviourInfoLineAdded)
+export const addBehaviourInfoLine = checkEditableThunkCreator(
+  behaviourInfoLineAdded)
 
-export const removeBehaviourInfoLine = checkEditableThunkCreator(behaviourInfoLineRemoved)
+export const removeBehaviourInfoLine = checkEditableThunkCreator(
+  behaviourInfoLineRemoved)
 
-export const editBehaviourInfoLineField = checkEditableThunkCreator(behaviourInfoFieldEdited)
+export const editBehaviourInfoLineField = checkEditableThunkCreator(
+  behaviourInfoFieldEdited)
 
-export const toggleBehaviourInfoCurrentlySelectedSubject = checkEditableThunkCreator(behaviourInfoCurrentlySelectedSubjectToggle)
+export const toggleBehaviourInfoCurrentlySelectedSubject = checkEditableThunkCreator(
+  behaviourInfoCurrentlySelectedSubjectToggle)

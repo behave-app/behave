@@ -8,6 +8,7 @@ import {getNumberOfFrames, Video} from "../lib/video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfo, detectionInfoToString, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
+import { assert } from '../lib/util'
 export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 
 
@@ -110,13 +111,11 @@ export async function convert(
     playbackFps: video.videoInfo.fps,
     framesInfo: []
   }
-  let framenr = 0;
   let lastProgress = Date.now()
-  while (true) {
-    const videoFrame = await video.getFrame(framenr)
-    if (videoFrame === "EOF" || videoFrame === null) {
-      break
-    }
+  let frameCount = 0
+  for await (const [framenr, videoFrame] of video.getFrames()) {
+    assert(frameCount > 0 || framenr == 0, "first frame should have nr 0")
+    frameCount++
     const singleFrameInfo = {
       ...video.getInfoForFrame(framenr),
       detections: []
@@ -160,7 +159,6 @@ export async function convert(
       onProgress({"converting": progress})
       lastProgress = now
     }
-    framenr++
   }
   const framesWithTimestamp = detectionInfo.framesInfo.map((fi, index) =>
   [index, fi.timestamp === undefined ? null
@@ -172,7 +170,7 @@ export async function convert(
   const completeDetectionInfo = {
     ...detectionInfo,
     recordFps,
-    totalNumberOfFrames: framenr
+    totalNumberOfFrames: frameCount
   }
   await video.deinit()
   const stringData = detectionInfoToString(completeDetectionInfo)

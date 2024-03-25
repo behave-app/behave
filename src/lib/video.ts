@@ -809,16 +809,68 @@ export class Video {
     videoDecoder.close()
   }
 
-  async *getFrames(): AsyncGenerator<VideoFrame, void, void> {
-    let frameNumber = 0
-    while (true) {
-      const frame = await this.getFrame(frameNumber)
-      if (frame === "EOF" || frame === null) {
-        return
-      }
-      yield frame
-      frameNumber++
+  async *getFrames(): AsyncGenerator<readonly [number, VideoFrame], void, void> {
+    // extra code, much much faster esp if not in focus
+    const USE_TIMEOUT_FREE_GETFRAMES = true
+    if (USE_TIMEOUT_FREE_GETFRAMES) {
+      await this.packetStreamSeek(0)
+      const timestampToFramenumber: Record<number, number> = {}
+      const frames: (readonly [number, VideoFrame])[] = []
+      const videoDecoder = await this.getInitialisedVideoDecoder(frame => 
+        frames.push([timestampToFramenumber[frame.timestamp], frame] as const)
+      )
+      const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
+        this.libav, this.videoStream) as VideoDecoderConfig;
+      const isAnnexB = !(decoderConfig.description ?? null)
+      const startTick = this.videoInfo.startTick
+      const frameDurationTicks = this.videoInfo.frameDurationTicks
 
+      while (true) {
+        const {endOfFile, videoPackets} = await this.doReadMulti()
+        for (const packet of videoPackets) {
+          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
+          const framenr = (pts - startTick) / frameDurationTicks
+          if (this.frameInfo && !this.frameInfo.has(framenr)) {
+            const frameInfo = {
+              ...extractFrameInfo(packet, isAnnexB),
+              pts,
+              dts: this.libav.i64tof64(packet.dts!, packet.dtshi!)
+            }
+            this.frameInfo.set(framenr, frameInfo)
+          }
+          const timestamp = pts * this.ticksToUsFactor
+          timestampToFramenumber[timestamp] = framenr
+          const chunk = new EncodedVideoChunk({
+            type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
+            timestamp,
+            duration: 100,
+            data: packet.data.buffer,
+          })
+          videoDecoder.decode(chunk)
+          while (frames.length) {
+            yield frames.shift()!
+          }
+        }
+        if (endOfFile) {
+          await videoDecoder.flush()
+          while (frames.length) {
+            yield frames.shift()!
+          }
+          videoDecoder.close()
+          break
+        }
+      }
+      return
+    } else {
+      let frameNumber = 0
+      while (true) {
+        const frame = await this.getFrame(frameNumber)
+        if (frame === "EOF" || frame === null) {
+          return
+        }
+        yield [frameNumber, frame] as const
+        frameNumber++
+      }
     }
   }
 

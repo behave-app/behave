@@ -8,8 +8,6 @@ import {setBackend, convert, getOutputFilename} from "./tfjs"
 import {YoloSettingsDialog, YoloSettings, YOLO_SETTINGS_STORAGE_KEY, YoloSettingsWithoutModel, loadModelFromOPFS} from "./YoloSettings"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
-import { Dialog } from "../lib/Dialog"
-import { EXTENSIONS } from "../lib/constants"
 import { Icon } from "../lib/Icon"
 
 function fileFilter(file: File, extension: string): boolean {

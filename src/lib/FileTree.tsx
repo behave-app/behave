@@ -17,25 +17,34 @@ async function fromAsync<T>(source: Iterable<T> | AsyncIterable<T>): Promise<T[]
   return items
 }
 
-export async function readFileSystemHandle(fshs: FileSystemHandle[], fileFilter: (file: File) => boolean): Promise<FileTreeBranch> {
+export async function readFileSystemHandle(
+  fshs: FileSystemHandle[],
+  fileFilter: (file: File) => boolean,
+): Promise<[FileTreeBranch, ReadonlyArray<File>]> {
   const result: FileTreeBranch = new Map()
+  const rejectedFiles: File[] = []
   for (const fsh of fshs) {
     if (fsh instanceof FileSystemFileHandle) {
       const file = await fsh.getFile()
       if (fileFilter(file)) {
         result.set(fsh.name, {file: await fsh.getFile()})
+      } else {
+        rejectedFiles.push(file)
       }
     } else if (fsh instanceof FileSystemDirectoryHandle) {
-      result.set(fsh.name, await readFileSystemHandle(
-        await fromAsync(fsh.values()), fileFilter))
+      const [subtree, subrejected] = await readFileSystemHandle(
+        await fromAsync(fsh.values()), fileFilter)
+      rejectedFiles.concat(subrejected)
+      result.set(fsh.name, subtree)
     } else {
       throw new Error(`Unhandled case: ${fsh}`);
     }
   }
   pruneDeadBranches(result)
-  return new Map(
-    [...result.entries()]
-      .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true})))
+  return [
+    new Map([...result.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true}))),
+    rejectedFiles]
 }
 
 export type FileTreeLeaf = {

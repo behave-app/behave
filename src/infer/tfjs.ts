@@ -9,6 +9,7 @@ import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfo, detectionInfoToString, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
 import { assert } from '../lib/util'
+import { EXTENSIONS } from '../lib/constants'
 export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 
 
@@ -16,7 +17,7 @@ export async function getOutputFilename(file: File): Promise<string> {
   const parts = file.name.split(".")
   const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
   const hash = await xxh64sum(file)
-  const filename = [...baseparts, hash, "behave.det", "json"].join(".")
+  const filename = [...baseparts, ".", hash, EXTENSIONS.detectionFile].join("")
   return filename
 }
 export type YoloBackend = "wasm" | "webgl" | "webgpu"

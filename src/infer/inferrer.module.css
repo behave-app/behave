@@ -10,3 +10,16 @@ h1 {
 .files {
   border: .2em solid hsl(240, 100%, 50%);
 }
+
+.more_info > * {
+  margin: .7em 1.3em;
+}
+
+.checkbox {
+  border: 0;
+  background-color: unset;
+}
+
+.single_button {
+  margin: .7em 1.3em;
+}

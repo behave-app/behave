@@ -19,7 +19,11 @@ export function Convertor(): JSX.Element {
   const [state, setState] = useState<"uploading" | "converting" | "done">("uploading")
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
-    const newFiles = await readFileSystemHandle(fileSystemHandles, file => fileFilter(file, "MTS"))
+    const [newFiles, rejectedFiles] = await readFileSystemHandle(
+      fileSystemHandles, file => fileFilter(file, "MTS"))
+    if (rejectedFiles.length) {
+      alert(`${rejectedFiles.length} files were rejected, because they are not the right type. Only MTS files are accepted for now.`)
+    }
     setFiles(files => new Map([...files, ...newFiles]))
   }
   function removeFile(path: string[]) {

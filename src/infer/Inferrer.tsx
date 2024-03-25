@@ -8,6 +8,9 @@ import {setBackend, convert, getOutputFilename} from "./tfjs"
 import {YoloSettingsDialog, YoloSettings, YOLO_SETTINGS_STORAGE_KEY, YoloSettingsWithoutModel, loadModelFromOPFS} from "./YoloSettings"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
+import { Dialog } from "../lib/Dialog"
+import { EXTENSIONS } from "../lib/constants"
+import { Icon } from "../lib/Icon"
 
 function fileFilter(file: File, extension: string): boolean {
   return !file.name.startsWith(".") && file.name.endsWith("." + extension)
@@ -20,7 +23,11 @@ export function Inferrer(): JSX.Element {
 
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
-    const newFiles = await readFileSystemHandle(fileSystemHandles, file => fileFilter(file, "MTS"))
+    const [newFiles, rejectedFiles] = await readFileSystemHandle(
+      fileSystemHandles, file => fileFilter(file, "MTS"))
+    if (rejectedFiles.length) {
+      alert(`${rejectedFiles.length} files were rejected, because they are not the right type. Only MTS files are accepted for now.`)
+    }
     setFiles(files => new Map([...files, ...newFiles]))
   }
   function removeFile(path: string[]) {
@@ -72,7 +79,46 @@ export function Inferrer(): JSX.Element {
     })())
   }, [])
 
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null)
+  const [preventSleep, setPreventSleep] = useState(false)
 
+  useEffect(() => {
+    if (!preventSleep || state !== "converting" || wakeLock) {
+      return
+    }
+    let localWakeLock: WakeLockSentinel | null = null
+    void(navigator.wakeLock.request("screen").then(wakeLock => {
+      localWakeLock = wakeLock;
+      localWakeLock.addEventListener("release", wakelockReleased)
+      setWakeLock(wakeLock)
+      console.log("lock created")
+    }))
+    const wakelockReleased = async () => {
+      console.log("lock release")
+      if (localWakeLock) {
+        localWakeLock.removeEventListener("release", wakelockReleased)
+        localWakeLock = null
+        setWakeLock(null)
+      }
+    }
+    const restoreWakelock = async () => {
+      if (document.visibilityState === "visible") {
+        localWakeLock = await navigator.wakeLock.request("screen");
+        localWakeLock.addEventListener("release", wakelockReleased)
+        setWakeLock(localWakeLock)
+        console.log("lock recovered")
+      }
+    }
+    document.addEventListener("visibilitychange", restoreWakelock)
+    return () => {
+      document.removeEventListener("visibilitychange", restoreWakelock)
+      if (localWakeLock) {
+        void(localWakeLock.release().then(() => {
+          console.log("lock destroyed")
+        }))
+      }
+    }
+  }, [preventSleep, state])
 
   return <>
     <h1>Detect items on videos</h1>
@@ -82,25 +128,35 @@ export function Inferrer(): JSX.Element {
         {...{yoloSettings, setYoloSettings}} />
       : (<>
         <div className={css.explanation}>
-          This page allows detection of items on videos, and saving the result as csv. You need to upload a YOLOv8 Web model.
+          This page allows detection of items on videos, and saving the result as csv (inference).
         </div>
         {yoloSettings ? <div className={css.explanation}>
-          Loaded model: {yoloSettings.model.name} ({yoloSettings.yoloVersion} / {yoloSettings.backend})
+          Loaded model: {yoloSettings.model.name} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
+          onClick={() => setState("selectmodel")}
+        >change</button>
         </div> : <div className={css.explanation}>
             At the moment no yolo model is selected. Running this way means that no
             detection is done on the videos. It means you can still use all the
             tools in Behave, you just don't have any detections.
-        </div>}
-        <button disabled={!(state==="uploading" && files.size > 0)}
-          onClick={doConvertAll}
-        >Start conversion</button>
-        <button disabled={state!=="uploading"}
-          onClick={() => setState("selectmodel")}
-        >change model</button>
-        <div className={css.files}>
-          {files.size ? <FileTree {...{files, removeFile}} /> : "Add files to convert"}
+            <button disabled={state!=="uploading"}
+              onClick={() => setState("selectmodel")}
+            >add a model</button>
+          </div>}
+        <div>
+          <button className={css.checkbox}
+            onClick={() => setPreventSleep(x => !x)}>
+            <Icon iconName={preventSleep ? "check_box" : "check_box_outline_blank"}
+            />
+          </button>
+          Prevent sleep while inference is running.
         </div>
-        {state === "uploading" && <Upload addFiles={addFiles} />}
+        <div className={css.files}>
+          <FileTree {...{files, removeFile}} />
+          {state === "uploading" && <Upload addFiles={addFiles} />}
+        </div>
+        <button className={css.single_button} disabled={!(state==="uploading" && files.size > 0)}
+          onClick={doConvertAll}
+        >Start inference</button>
       </>)}
   </>
 }

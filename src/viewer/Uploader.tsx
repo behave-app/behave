@@ -11,6 +11,7 @@ import { validateDataIsDetectionInfo } from "../lib/detections";
 import { detectionFileNameSet, detectionsInfoSet } from "./detectionsSlice";
 import { behaviourInfoLinesSet, behaviourInfoUnset, csvToLines, validateDataIsBehaviourLines } from "./behaviourSlice";
 import { selectBehaviourLayout } from "./generalSettingsSlice";
+import { EXTENSIONS } from "../lib/constants"
 
 type Props = {
   onRequestClose: () => void
@@ -79,9 +80,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       multiple: true,
       types: [
         {description: "behave files", accept: {
-          "application/json": [".behave.det.json"],
-          "video/mp4": [".behave.mp4"],
-          "text/csv": [".behave.csv"]
+          "application/json": [EXTENSIONS.detectionFile],
+          "video/mp4": [EXTENSIONS.videoFile],
+          "text/csv": [EXTENSIONS.behaviourFile]
         }}]
     })
     if ("error" in handlesOrError) {
@@ -110,9 +111,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     type TypeKey = typeof keys[number]
     const filesByType = binItems<FileSystemHandle, TypeKey>(fileSystemHandles,
       fh => fh.kind === "directory" ? "other"
-      : fh.name.toLocaleLowerCase().endsWith(".behave.mp4") ? "video"
-      : fh.name.toLocaleLowerCase().endsWith(".behave.det.json") ? "detection"
-      : fh.name.toLocaleLowerCase().endsWith(".behave.csv") ? "behaviour"
+      : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.videoFile) ? "video"
+      : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.detectionFile) ? "detection"
+      : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.behaviourFile) ? "behaviour"
       : "other")
     const videos = (filesByType.get("video") ?? []) as FileSystemFileHandle[]
     const detections = (filesByType.get("detection") ?? []) as FileSystemFileHandle[]
@@ -199,9 +200,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       }
       {!correctCounts
         ? <div className={css.warning}>
-          We need one video file (<code>*.behave.mp4</code>) and an accompanying
-          detection file (<code>*.behave.det.json</code>) to continue.
-          In addition a single behaviour file (<code>*.behave.csv</code>) may
+          We need one video file (<code>*{EXTENSIONS.videoFile}</code>) and an accompanying
+          detection file (<code>*{EXTENSIONS.detectionFile}</code>) to continue.
+          In addition a single behaviour file (<code>*{EXTENSIONS.behaviourFile}</code>) may
           be uploaded.
           Please upload more files below (or drag and drop them in),
           or remove any excess files below.

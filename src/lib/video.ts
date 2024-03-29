@@ -79,19 +79,16 @@ function removeEscapeSequences(inputNAL: Uint8Array): Uint8Array {
   return new Uint8Array(outputNAL.slice(0, outputIndex));
 }
 
-
-export function extractFrameInfo(
+export function* getNALs(
   packet: LibAVTypes.Packet,
   isAnnexB: boolean,
-): Omit<SingleFrameInfo, "detections" | "pts" | "dts"> {
+  ): Generator<Uint8Array, void, void> {
   if (!isAnnexB) {
     throw new Error("is todo")
   }
-  const frameInfo: Partial<ReturnType<typeof extractFrameInfo>>= {}
 
   let nrOfZeroes = 0
   let nalStartedAt = NaN
-  const nals: Array<Uint8Array> = []
 
   for (let i = 0; i < packet.data.byteLength ; i++) {
     const byte = packet.data.at(i)!
@@ -102,34 +99,41 @@ export function extractFrameInfo(
     if (byte === 1) {
       if (nrOfZeroes >= 2) {
         if (Number.isFinite(nalStartedAt)) {
-          nals.push(new Uint8Array(
+          yield new Uint8Array(
             packet.data.buffer,
             packet.data.byteOffset + nalStartedAt,
-            i - nrOfZeroes - nalStartedAt))
+            i - nrOfZeroes - nalStartedAt)
         }
         const nalType = packet.data.at(i + 1)! & 0x1f
         if (nalType === 0x01 || nalType === 0x05) {
           // last NAL, no need to continue
-          nals.push(new Uint8Array(
+          yield new Uint8Array(
             packet.data.buffer,
             packet.data.byteOffset + i + 1,
-            packet.data.byteLength - (i + 1)))
-          nalStartedAt = NaN
-          break
+            packet.data.byteLength - (i + 1))
+          return
         }
         nalStartedAt = i + 1
       }
     }
     nrOfZeroes = 0
   }
-  if (Number.isFinite(nalStartedAt)) {
-    nals.push(new Uint8Array(
-      packet.data.buffer,
-      packet.data.byteOffset + nalStartedAt,
-      packet.data.byteLength - nalStartedAt))
-  }
+  yield new Uint8Array(
+    packet.data.buffer,
+    packet.data.byteOffset + nalStartedAt,
+    packet.data.byteLength - nalStartedAt)
+}
 
-  for (const nal of nals) {
+export function extractFrameInfo(
+  packet: LibAVTypes.Packet,
+  isAnnexB: boolean,
+): Omit<SingleFrameInfo, "detections" | "pts" | "dts"> {
+  if (!isAnnexB) {
+    throw new Error("is todo")
+  }
+  const frameInfo: Partial<ReturnType<typeof extractFrameInfo>>= {}
+
+  for (const nal of getNALs(packet, isAnnexB)) {
     const firstbyte = nal.at(0)!
     const ref = (firstbyte & 0xe0) >> 5
     const nalType = firstbyte & 0x1f
@@ -408,6 +412,7 @@ export class Video {
   private packetStreamState: PacketStreamState = {state: "stopped"}
   private frameStreamState: FrameStreamState = null as unknown as FrameStreamState
   private frameInfo: null | Map<number, Omit<SingleFrameInfo, "detections">>
+  private cacheFillerRunning = false
 
   constructor(public readonly input: File) {
     this.frameInfo = null
@@ -453,7 +458,6 @@ export class Video {
     await this.setVideoInfo()
     const frameCache = new FrameCache(0, 50, 50)
     this.frameStreamState = {state: "streaming", frameCache}
-    void(this.frameCacheFiller())
   }
 
   public getInfoForFrame(frameNumber: number) {
@@ -847,6 +851,9 @@ export class Video {
             data: packet.data.buffer,
           })
           videoDecoder.decode(chunk)
+          while (videoDecoder.decodeQueueSize > 10) {
+            await getPromiseFromEvent(videoDecoder, "dequeue")
+          }
           while (frames.length) {
             yield frames.shift()!
           }
@@ -875,6 +882,10 @@ export class Video {
   }
 
   async getFrame(frameNumber: number): Promise<VideoFrame | null | "EOF"> {
+    if (!this.cacheFillerRunning) {
+      void(this.frameCacheFiller())
+      this.cacheFillerRunning = true
+    }
     if (this.frameStreamState.state !== "streaming") {
       throw new Error("already closed")
     }

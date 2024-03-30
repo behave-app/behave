@@ -4,9 +4,9 @@ import { formatTime } from "./util";
 import { CSSProperties } from "preact/compat";
 
 export type ConvertAction = (
-  input: File,
-  output: FileSystemWritableFileStream,
-  onProgress: (progress: FileTreeLeaf["progress"]) => void
+  input: {file: File},
+  output: {dir: FileSystemDirectoryHandle},
+  onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) => Promise<void>
 
 async function fromAsync<T>(source: Iterable<T> | AsyncIterable<T>): Promise<T[]> {
@@ -173,11 +173,9 @@ async function convertOne(
     //probably should catch if there is a file with this directoy name //TODO
     pointer = await pointer.getDirectoryHandle(p, {create: true})
   }
-  const outfile = await pointer.getFileHandle(outfilename, {create: true})
-  const outstream = await outfile.createWritable()
   const start = Date.now()
   try {
-    await conversionAction(leaf.file, outstream, (progress: FileTreeLeaf["progress"]) => {
+    await conversionAction({file: leaf.file}, {dir: pointer}, (progress: FileTreeLeaf["progress"]) => {
       const timeLapsed = (Date.now() - start) / 1000
       const newProgress: FileTreeLeaf["progress"] = (typeof progress === "object" &&"converting" in progress) ? {
         timing: {passed: timeLapsed, expected: timeLapsed / (progress.converting || 0.0001)},
@@ -186,7 +184,6 @@ async function convertOne(
       setFiles(files =>
         updateLeaf(files, path, leaf => ({file: leaf.file, progress: newProgress})))
     })
-    await outstream.close()
     setFiles(files =>
       updateLeaf(files, path, leaf => (
         {file: leaf.file, progress: "done"})))
@@ -194,8 +191,6 @@ async function convertOne(
     setFiles(files =>
       updateLeaf(files, path, leaf => (
         {file: leaf.file, progress: {error: `error while converting: ${e}`}})))
-    await outstream.close()
-    await pointer.removeEntry(outfilename)
     console.error(e)
   }
 }

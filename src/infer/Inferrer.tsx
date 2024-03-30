@@ -11,7 +11,7 @@ import { isCompatibleBrowser } from "../lib/util";
 import { Icon } from "../lib/Icon"
 
 function fileFilter(file: File, extension: string): boolean {
-  return !file.name.startsWith(".") && file.name.endsWith("." + extension)
+  return !file.name.startsWith(".") && file.name.toUpperCase().endsWith("." + extension.toUpperCase())
 }
 
 export function Inferrer(): JSX.Element {
@@ -42,8 +42,8 @@ export function Inferrer(): JSX.Element {
     await convertAll(
       files,
       concurrency,
-      (input, outputstream, onProgress) => convert(
-        model, yoloVersion, input, outputstream, onProgress),
+      (input, output, onProgress) => convert(
+        model, yoloVersion, input, output, onProgress),
       getOutputFilename,
       setFiles)
     setState("done")

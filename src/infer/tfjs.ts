@@ -4,11 +4,11 @@ setWasmPaths("app/bundled/tfjs-wasm/")
 import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import type {FileTreeLeaf} from "../lib/FileTree"
-import {getNumberOfFrames, Video} from "../lib/video"
+import {Video} from "../lib/video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfo, detectionInfoToString, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
-import { assert } from '../lib/util'
+import { ObjectEntries, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 
@@ -87,40 +87,68 @@ export async function getModel(
   return model
 }
 
-const NR_FRAMES_PROGRESS_PART = 0.001
 const PROGRESS_INTERVAL_MS = 300
 
 export async function convert(
   model: Model | null,
   yoloVersion: YoloVersion,
-  file: File,
-  outputstream: FileSystemWritableFileStream,
+  input: {file: File},
+  output: {dir: FileSystemDirectoryHandle},
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
   ctx?: CanvasRenderingContext2D,
 ) {
-  onProgress({"converting": 0})
-  const numberOfFrames = await getNumberOfFrames(file)
-  onProgress({"converting": NR_FRAMES_PROGRESS_PART})
-  const video = new Video(file)
-  await video.init({libavoptions: {noworker: true}, keepFrameInfo: true})
-  const detectionInfo: Omit<DetectionInfo, "totalNumberOfFrames" | "recordFps"> = {
-    version: 1,
-    sourceFileName: file.name,
-    sourceFileXxHash64: "See filename",
-    modelName: model ? model.name : null,
-    modelKlasses: model ? model.klasses : {},
-    playbackFps: video.videoInfo.fps,
-    framesInfo: []
+  const updateProgress = (step: "hash" | "infer", progress: number) => {
+    const DURATIONS: {[key in Parameters<typeof updateProgress>[0]]: number} = {
+      hash: .01,
+      infer: 1,
+    }
+    let sumProgress = 0
+    for (const [key, value] of ObjectEntries(DURATIONS)) {
+      if (key === step) {
+        sumProgress += value * progress
+        break
+      }
+      sumProgress += value
+    }
+    const sum = Object.values(DURATIONS).reduce((a, b) => a + b)
+    onProgress({"converting": sumProgress / sum})
   }
-  let lastProgress = Date.now()
-  let frameCount = 0
-  for await (const [framenr, videoFrame] of video.getFrames()) {
-    assert(frameCount > 0 || framenr == 0, "first frame should have nr 0")
-    frameCount++
-    const singleFrameInfo = {
-      ...video.getInfoForFrame(framenr),
-      detections: []
-    } as SingleFrameInfo
+  onProgress({"converting": 0})
+
+  let outputfilename: string | undefined = undefined
+  let outputstream: FileSystemWritableFileStream | undefined = undefined
+  let video: Video | undefined = undefined
+
+  try {
+    const parts = input.file.name.split(".")
+    const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
+    const hash = await xxh64sum(input.file, progress => updateProgress(
+      "hash", progress))
+    outputfilename = [...baseparts, hash, "behave", "mp4"].join(".")
+    const outfile = await output.dir.getFileHandle(outputfilename, {create: true})
+    outputstream = await outfile.createWritable()
+
+    video = new Video(input.file)
+    await video.init({libavoptions: {noworker: true}, keepFrameInfo: true})
+    const numberOfFrames = video.videoInfo.numberOfFramesInStream
+    const detectionInfo: Omit<DetectionInfo, "totalNumberOfFrames" | "recordFps"> = {
+      version: 1,
+      sourceFileName: input.file.name,
+      sourceFileXxHash64: hash,
+      modelName: model ? model.name : null,
+      modelKlasses: model ? model.klasses : {},
+      playbackFps: video.videoInfo.fps,
+      framesInfo: []
+    }
+    let lastProgress = Date.now()
+    let frameCount = 0
+    for await (const [framenr, videoFrame] of video.getFrames()) {
+      assert(frameCount > 0 || framenr == 0, "first frame should have nr 0")
+      frameCount++
+      const singleFrameInfo = {
+        ...video.getInfoForFrame(framenr),
+        detections: []
+      } as SingleFrameInfo
 
     const [boxes, scores, classes] = model
       ? await infer(model, yoloVersion, videoFrame) : [[], [], []]
@@ -153,32 +181,42 @@ export async function convert(
     detectionInfo.framesInfo.push(singleFrameInfo)
     videoFrame.close()
     const now = Date.now()
-    if (now - lastProgress > PROGRESS_INTERVAL_MS) {
-      const progress = Math.min(
-        NR_FRAMES_PROGRESS_PART +
-          + framenr / numberOfFrames * (1 - (NR_FRAMES_PROGRESS_PART)), 1)
-      onProgress({"converting": progress})
-      lastProgress = now
+      if (now - lastProgress > PROGRESS_INTERVAL_MS) {
+        updateProgress("infer", framenr / numberOfFrames)
+        lastProgress = now
+      }
+    }
+    const framesWithTimestamp = detectionInfo.framesInfo.map((fi, index) =>
+      [index, fi.timestamp === undefined ? null
+        : getPartsFromTimestamp(fi.timestamp).date.valueOf()] as const)
+    .filter(([_, ts]) => ts !== null)
+    const recordFps = framesWithTimestamp.length < 2 ? null :
+      (framesWithTimestamp.at(-1)![1]! - framesWithTimestamp.at(0)![1]!) / 1000 / (
+        framesWithTimestamp.at(-1)![0] - framesWithTimestamp.at(0)![0])
+    const completeDetectionInfo = {
+      ...detectionInfo,
+      recordFps,
+      totalNumberOfFrames: frameCount
+    }
+    const stringData = detectionInfoToString(completeDetectionInfo)
+    const textEncoder = new TextEncoder()
+    await outputstream.write(textEncoder.encode(stringData))
+    console.log("Done writing")
+    onProgress({"converting": 1})
+  } catch(e) {
+    if (outputstream && outputfilename !== undefined) {
+      await outputstream.close()
+      await output.dir.removeEntry(outputfilename)
+      throw e
+    }
+    outputfilename = undefined
+    outputstream = undefined
+  } finally {
+    video && await video.deinit()
+    if (outputstream) {
+      await outputstream.close()
     }
   }
-  const framesWithTimestamp = detectionInfo.framesInfo.map((fi, index) =>
-  [index, fi.timestamp === undefined ? null
-      : getPartsFromTimestamp(fi.timestamp).date.valueOf()] as const)
-  .filter(([_, ts]) => ts !== null)
-  const recordFps = framesWithTimestamp.length < 2 ? null :
-  (framesWithTimestamp.at(-1)![1]! - framesWithTimestamp.at(0)![1]!) / 1000 / (
-  framesWithTimestamp.at(-1)![0] - framesWithTimestamp.at(0)![0])
-  const completeDetectionInfo = {
-    ...detectionInfo,
-    recordFps,
-    totalNumberOfFrames: frameCount
-  }
-  await video.deinit()
-  const stringData = detectionInfoToString(completeDetectionInfo)
-  const textEncoder = new TextEncoder()
-  await outputstream.write(textEncoder.encode(stringData))
-  console.log("Done writing")
-  onProgress({"converting": 1})
 }
 
 export function preprocess(

@@ -13,7 +13,7 @@ const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x0c, 0x9a, 0x66, 0x4d, 0x44, 0x50, 0x4d
 ])
 
-function dumpPacket(packet: LibAVTypes.Packet) {
+export function dumpPacket(packet: LibAVTypes.Packet) {
   //assumes (for now) a avc (non annex B) packet and dumps it
   const view = new DataView(packet.data.buffer)
   let index = 0
@@ -157,7 +157,7 @@ export function extractFrameInfo(
         frameInfo.type = "IDR"
       } break
       case 0x06: {
-        const unescapedNal = removeEscapeSequences(nal)
+        const unescapedNal = isAnnexB ? removeEscapeSequences(nal) : nal
         let rest = new Uint8Array(unescapedNal.buffer, unescapedNal.byteOffset + 1)
         while (rest.byteLength) {
           const current = rest
@@ -222,8 +222,6 @@ export function extractFrameInfo(
   return frameInfo as ReturnType<typeof extractFrameInfo>
 }
 
-(window as unknown as {dumpPacket: (p: LibAVTypes.Packet) => void}).dumpPacket = dumpPacket
-
 type VideoInfo = {
   readonly startTick: number,
   readonly endTick: number,
@@ -240,6 +238,7 @@ type VideoInfo = {
   readonly frameDurationSeconds: number,
   readonly numberOfFramesInStream: number,
   readonly fps: number,
+  readonly isAnnexB: boolean,
 }
 
 export function splitLowHigh(combined: number): {lo: number, hi: number} {
@@ -579,6 +578,9 @@ export class Video {
     )
     const endTick = startTick + durationTicks
     // some magic to write to readonly property
+    const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
+      this.libav, this.videoStream) as VideoDecoderConfig;
+    const isAnnexB = !(decoderConfig.description ?? null)
     const _rwthis = this as {-readonly [K in keyof typeof this]: typeof this[K]}
     _rwthis.videoInfo = {
       startTick,
@@ -592,6 +594,7 @@ export class Video {
       frameDurationSeconds: frameDurationTicks * this.ticksToUsFactor / 1e6,
       numberOfFramesInStream: Math.round(durationTicks / frameDurationTicks),
       fps: 1e6 / (frameDurationTicks * this.ticksToUsFactor),
+      isAnnexB,
     }
   }
 
@@ -693,7 +696,7 @@ export class Video {
   async frameCacheFiller(): Promise<void> {
     const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
       this.libav, this.videoStream) as VideoDecoderConfig;
-    const isAnnexB = !(decoderConfig.description ?? null)
+    const isAnnexB = this.videoInfo.isAnnexB
     if (this.frameStreamState.state !== "streaming") {
       throw new Error("already closed")
     }
@@ -823,9 +826,7 @@ export class Video {
       const videoDecoder = await this.getInitialisedVideoDecoder(frame => 
         frames.push([timestampToFramenumber[frame.timestamp], frame] as const)
       )
-      const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
-        this.libav, this.videoStream) as VideoDecoderConfig;
-      const isAnnexB = !(decoderConfig.description ?? null)
+      const isAnnexB = this.videoInfo.isAnnexB
       const startTick = this.videoInfo.startTick
       const frameDurationTicks = this.videoInfo.frameDurationTicks
 
@@ -907,67 +908,36 @@ export class Video {
     }
   }
 
-}
-
-export async function getNumberOfFrames(input: File): Promise<number> {
-  const FFPROBEOUTPUT = "__ffprobe_output__";
-  const libav = await window.LibAV.LibAV({ noworker: false, nothreads: true });
-  try {
-    await libav.mkreadaheadfile(input.name, input);
-    await libav.mkwriterdev(FFPROBEOUTPUT);
-    let writtenData = new Uint8Array(0);
-    libav.onwrite = function (_name, pos, data) {
-      const newLen = Math.max(writtenData.length, pos + data.length);
-      if (newLen > writtenData.length) {
-        const newData = new Uint8Array(newLen);
-        newData.set(writtenData);
-        writtenData = newData;
+  async getAllFrameInfo(
+    progressCallback?: (progress: number) => void
+  ): Promise<ReadonlyMap<number, Omit<SingleFrameInfo, "detections">>> {
+    const result = new Map<number, Omit<SingleFrameInfo, "detections">>()
+    const isAnnexB = this.videoInfo.isAnnexB
+    const startTick = this.videoInfo.startTick
+    const frameDurationTicks = this.videoInfo.frameDurationTicks
+    const totalNumberOfFrames = this.videoInfo.numberOfFramesInStream
+    await this.packetStreamSeek(0)
+    for (let i=0; ; i++) {
+      const packet = await this.packetStreamNext()
+      if (!packet) break
+      const frameInfo = extractFrameInfo(packet, isAnnexB)
+      const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
+      const dts = this.libav.i64tof64(packet.dts!, packet.dtshi!)
+      const framenr = (pts - startTick) / frameDurationTicks
+      if (framenr % 1 !== 0) {
+        // half frame in interlaced or existing fraeme
+        continue
       }
-      writtenData.set(data, pos);
-    };
-    const exit_code = await libav.ffprobe(
-      "-show_streams",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-of",
-      "json",
-      "-o",
-      FFPROBEOUTPUT,
-      input.name
-    );
-    if (exit_code != 0) {
-      throw new Error(`ffprobe exit code: ${exit_code}`);
+      assert(!result.has(framenr))
+      const fullFrameInfo = {...frameInfo, pts, dts}
+      result.set(framenr, fullFrameInfo)
+      if (progressCallback && (i % 100) === 0) {
+        const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
+        const framenr = (pts - startTick) / frameDurationTicks
+        progressCallback(framenr / totalNumberOfFrames)
+      }
     }
-    await libav.unlink(input.name);
-    await libav.unlink(FFPROBEOUTPUT);
-    const outputjson = new TextDecoder("utf-8").decode(writtenData);
-    try {
-      const videostreams = JSON.parse(outputjson).streams.filter(
-        (s: { codec_type: string }) => s.codec_type === "video"
-      );
-      if (videostreams.length !== 1) {
-        throw new Error("Too many videostreams");
-      }
-      const duration = parseFloat(videostreams[0].duration);
-      const avg_frame_rate = videostreams[0].avg_frame_rate.split("/");
-      const nrframes = Math.round(
-        (duration / parseInt(avg_frame_rate[1] ?? "1")) *
-          parseInt(avg_frame_rate[0])
-      );
-      if (!Number.isInteger(nrframes)) {
-        throw new Error(`Unexpected number of frames: ${nrframes}`);
-      }
-      return nrframes;
-    } catch (e) {
-      throw new Error(
-        `Problem parsing number of packets: ${JSON.stringify(
-          outputjson
-        )}; ${e}}`
-      );
-    }
-  } finally {
-    libav.terminate();
+    return result
   }
 }
 

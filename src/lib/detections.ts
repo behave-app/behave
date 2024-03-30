@@ -9,7 +9,7 @@ export type DetectionsForFrame = Array<{
       confidence: number
   }>
 
-type ISODateTimeString = `isodate:${number}-${number}-${number}T${number}:${number}:${number}${"Z" | `${"+" | "-"}${number}${":" |""}${number}`}`
+export type ISODateTimeString = `isodate:${number}-${number}-${number}T${number}:${number}:${number}${"Z" | `${"+" | "-"}${number}${":" |""}${number}`}`
 const ISODATETIMESTRINGREGEX = /^isodate:(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})(?<tz>Z|(?<tzSign>[+-])(?<tzHours>\d{2}):?(?<tzMinutes>\d{2}))$/
 
 export type SingleFrameInfo = {
@@ -127,4 +127,8 @@ export function formatDateTimeParts(parts: DateTimeParts, format: string): strin
         throw new Error(`Unknown format: ${match}`)
     }
   })
+}
+
+export function partsToIsoDate(parts: DateTimeParts): ISODateTimeString {
+  return "isodate:" + formatDateTimeParts(parts, "%Y-%m-%dT%H:%M:%S") + parts.tz as ISODateTimeString
 }

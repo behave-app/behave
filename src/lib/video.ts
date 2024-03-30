@@ -2,11 +2,6 @@ import type * as LibAVTypes from "../../public/app/bundled/libavjs/dist/libav.ty
 import {assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep} from "./util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
 import { SingleFrameInfo } from "./detections"
-declare global {
-  interface Window {
-    LibAV: LibAVTypes.LibAVWrapper;
-  }
-}
 
 const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
@@ -979,5 +974,50 @@ export async function createFakeKeyFrameChunk(
     }
   } finally {
     videoEncoder.close();
+  }
+}
+
+export async function extractBehaveMetadata(file: File) {
+  let libav: LibAVTypes.LibAV | undefined = undefined
+  let writtenData = new Uint8Array(0);
+  try {
+    const FFMPEGOUTPUT = "__ffmpeg_output__";
+    libav = await window.LibAV.LibAV({ noworker: false, nothreads: true });
+    assert(libav !== undefined)
+    await libav.mkreadaheadfile(file.name, file);
+    await libav.mkwriterdev(FFMPEGOUTPUT);
+    libav.onwrite = function (_name, pos, data) {
+      const newLen = Math.max(writtenData.length, pos + data.length);
+      if (newLen > writtenData.length) {
+        const newData = new Uint8Array(newLen);
+        newData.set(writtenData);
+        writtenData = newData;
+      }
+      writtenData.set(data, pos);
+    };
+    const exit_code = await libav.ffmpeg(
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i", file.name,
+      "-f", "ffmetadata",
+      "-y", FFMPEGOUTPUT,
+    );
+    if (exit_code != 0) {
+      throw new Error(`ffmpeg exit code: ${exit_code}`);
+    }
+    await libav.unlink(file.name);
+    await libav.unlink(FFMPEGOUTPUT);
+  } finally {
+    if (libav !== undefined) {
+      libav.terminate()
+    }
+  }
+  const output = new TextDecoder("utf-8").decode(writtenData);
+  const behaveData: Record<string, string> = {}
+  for (const line of output.split("\n")) {
+    if (line.startsWith("BEHAVE:")) {
+      // TODO parse here!!!!
+    }
   }
 }

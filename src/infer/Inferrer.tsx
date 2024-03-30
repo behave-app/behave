@@ -4,14 +4,15 @@ import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} 
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
-import {setBackend, convert, getOutputFilename} from "./tfjs"
+import {setBackend, convert } from "./tfjs"
 import {YoloSettingsDialog, YoloSettings, YOLO_SETTINGS_STORAGE_KEY, YoloSettingsWithoutModel, loadModelFromOPFS} from "./YoloSettings"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
 import { Icon } from "../lib/Icon"
 
-function fileFilter(file: File, extension: string): boolean {
-  return !file.name.startsWith(".") && file.name.toUpperCase().endsWith("." + extension.toUpperCase())
+function fileFilter(file: File, extensions: string[]): boolean {
+  return !file.name.startsWith(".") && extensions.some(
+    extension => file.name.toUpperCase().endsWith("." + extension.toUpperCase()))
 }
 
 export function Inferrer(): JSX.Element {
@@ -22,7 +23,7 @@ export function Inferrer(): JSX.Element {
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
     const [newFiles, rejectedFiles] = await readFileSystemHandle(
-      fileSystemHandles, file => fileFilter(file, "MTS"))
+      fileSystemHandles, file => fileFilter(file, ["MP4", "MTS"]))
     if (rejectedFiles.length) {
       alert(`${rejectedFiles.length} files were rejected, because they are not the right type. Only MTS files are accepted for now.`)
     }

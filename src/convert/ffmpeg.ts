@@ -1,25 +1,12 @@
 import { xxh64sum } from '../lib/fileutil'
-import type * as LibAVTypes from '../../public/app/bundled/libavjs/dist/libav.types'
-import type {FileTreeLeaf} from "../lib/FileTree"
+import * as LibAVTypes from '../../public/app/bundled/libavjs/dist/libav.types'
+import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "../lib/video"
 import { ObjectEntries, ObjectFromEntries, assert } from '../lib/util'
 import { ISODateTimeString, SingleFrameInfo, getPartsFromTimestamp, partsToIsoDate } from '../lib/detections'
-
-declare global {
-  interface Window {
-    LibAV: LibAVTypes.LibAVWrapper
-  }
-}
+import { EXTENSIONS } from '../lib/constants'
 
 const PROGRESSFILENAME = "__progress__"
-
-export async function getOutputFilename(file: File): Promise<string> {
-  const parts = file.name.split(".")
-  const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
-  const hash = await xxh64sum(file)
-  const filename = [...baseparts, hash, "behave", "mp4"].join(".")
-  return filename
-}
 
 const getCompressedFrameInfo = (
   frameInfo: ReadonlyMap<number, Omit<SingleFrameInfo, "detections">>
@@ -137,7 +124,10 @@ export async function convert(
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
     const hash = await xxh64sum(input.file, progress => updateProgress(
       "hash", progress))
-    outputfilename = [...baseparts, hash, "behave", "mp4"].join(".")
+    outputfilename = [...baseparts, ".", hash, EXTENSIONS.videoFile].join("")
+    if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
+      throw new Error("File aready exists at the destination")
+    }
     const outfile = await output.dir.getFileHandle(outputfilename, {create: true})
     outputstream = await outfile.createWritable()
 
@@ -152,6 +142,7 @@ export async function convert(
     const durationSeconds = video.videoInfo.durationSeconds
 
     libav = await window.LibAV.LibAV({noworker: false, nothreads: true});
+    assert(libav !== undefined)
     await libav.mkreadaheadfile(input.file.name, input.file)
     await libav.mkwriterdev(outputfilename)
     await libav.mkstreamwriterdev(PROGRESSFILENAME)
@@ -217,16 +208,16 @@ export async function convert(
       progressController.close()
     }
     if (exit_code != 0) {
-      throw new Error(`ffprobe exit code: ${exit_code}`)
+      throw new Error(`ffmpeg exit code: ${exit_code}`)
     }
   } catch(e) {
     if (outputstream && outputfilename !== undefined) {
       await outputstream.close()
       await output.dir.removeEntry(outputfilename)
-      throw e
+      outputfilename = undefined
+      outputstream = undefined
     }
-    outputfilename = undefined
-    outputstream = undefined
+    throw e
   } finally {
     libav && libav.terminate()
     video && await video.deinit()

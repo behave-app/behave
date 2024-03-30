@@ -123,7 +123,7 @@ export function getAllLeafPaths(files: FileTreeBranch): string[][] {
         : [[name]])
 }
 
-async function nonEmptyFileExists(
+export async function nonEmptyFileExists(
   directory: FileSystemDirectoryHandle,
   path: string[]
 ): Promise<boolean> {
@@ -156,17 +156,9 @@ async function convertOne(
   path: string[],
   destination: FileSystemDirectoryHandle,
   conversionAction: ConvertAction,
-  getOutputFilename: (file: File) => Promise<string>,
   setFiles: (cb: (files: FileTreeBranch) => FileTreeBranch) => void
 ) {
   const leaf = findLeaf(files, path)
-  const outfilename = await getOutputFilename(leaf.file)
-  const outpath = [...path.slice(0, -1), outfilename]
-  if (await nonEmptyFileExists(destination, outpath)) {
-    setFiles(files => updateLeaf(files, path, leaf => (
-      {file: leaf.file, progress: {"error": "File aready exists at the destination"}})))
-    return
-  }
 
   let pointer = destination
   for (const p of path.slice(0, -1)) {
@@ -199,7 +191,6 @@ export async function convertAll(
   files: FileTreeBranch,
   concurrency: number,
   conversionAction: ConvertAction,
-  getOutputFilename: (file: File) => Promise<string>,
   setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void,
 ) {
   const destination = await window.showDirectoryPicker(
@@ -228,7 +219,6 @@ export async function convertAll(
       path,
       destination,
       conversionAction,
-      getOutputFilename,
       setFiles
     )
     promises.add(promise)

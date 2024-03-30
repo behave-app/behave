@@ -3,7 +3,7 @@ import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} 
 import * as css from "./convertor.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
-import {convert, getOutputFilename} from "./ffmpeg"
+import {convert } from "./ffmpeg"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
 
@@ -36,7 +36,6 @@ export function Convertor(): JSX.Element {
       files,
       NR_WORKERS,
       convert,
-      getOutputFilename,
       setFiles)
     setState("done")
   }

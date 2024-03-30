@@ -3,23 +3,16 @@ import {setWasmPaths} from "@tensorflow/tfjs-backend-wasm"
 setWasmPaths("app/bundled/tfjs-wasm/")
 import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
-import type {FileTreeLeaf} from "../lib/FileTree"
+import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "../lib/video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
-import { DetectionInfo, detectionInfoToString, getPartsFromTimestamp, SingleFrameInfo } from '../lib/detections'
+import { DetectionInfoV2, SingleFrameInfoV2, detectionInfoToString } from '../lib/detections'
 import { ObjectEntries, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 
 
-export async function getOutputFilename(file: File): Promise<string> {
-  const parts = file.name.split(".")
-  const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
-  const hash = await xxh64sum(file)
-  const filename = [...baseparts, ".", hash, EXTENSIONS.detectionFile].join("")
-  return filename
-}
 export type YoloBackend = "wasm" | "webgl" | "webgpu"
 export type YoloVersion = "v5" | "v8"
 
@@ -124,20 +117,22 @@ export async function convert(
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
     const hash = await xxh64sum(input.file, progress => updateProgress(
       "hash", progress))
-    outputfilename = [...baseparts, hash, "behave", "mp4"].join(".")
+    outputfilename = [...baseparts, hash, EXTENSIONS.detectionFile].join(".")
+    if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
+      throw new Error("File aready exists at the destination")
+    }
     const outfile = await output.dir.getFileHandle(outputfilename, {create: true})
     outputstream = await outfile.createWritable()
 
     video = new Video(input.file)
-    await video.init({libavoptions: {noworker: true}, keepFrameInfo: true})
+    await video.init({libavoptions: {noworker: true}, keepFrameInfo: false})
     const numberOfFrames = video.videoInfo.numberOfFramesInStream
-    const detectionInfo: Omit<DetectionInfo, "totalNumberOfFrames" | "recordFps"> = {
-      version: 1,
+    const detectionInfo: DetectionInfoV2 = {
+      version: 2,
       sourceFileName: input.file.name,
       sourceFileXxHash64: hash,
       modelName: model ? model.name : null,
       modelKlasses: model ? model.klasses : {},
-      playbackFps: video.videoInfo.fps,
       framesInfo: []
     }
     let lastProgress = Date.now()
@@ -146,9 +141,8 @@ export async function convert(
       assert(frameCount > 0 || framenr == 0, "first frame should have nr 0")
       frameCount++
       const singleFrameInfo = {
-        ...video.getInfoForFrame(framenr),
         detections: []
-      } as SingleFrameInfo
+      } as SingleFrameInfoV2
 
     const [boxes, scores, classes] = model
       ? await infer(model, yoloVersion, videoFrame) : [[], [], []]
@@ -186,17 +180,8 @@ export async function convert(
         lastProgress = now
       }
     }
-    const framesWithTimestamp = detectionInfo.framesInfo.map((fi, index) =>
-      [index, fi.timestamp === undefined ? null
-        : getPartsFromTimestamp(fi.timestamp).date.valueOf()] as const)
-    .filter(([_, ts]) => ts !== null)
-    const recordFps = framesWithTimestamp.length < 2 ? null :
-      (framesWithTimestamp.at(-1)![1]! - framesWithTimestamp.at(0)![1]!) / 1000 / (
-        framesWithTimestamp.at(-1)![0] - framesWithTimestamp.at(0)![0])
     const completeDetectionInfo = {
       ...detectionInfo,
-      recordFps,
-      totalNumberOfFrames: frameCount
     }
     const stringData = detectionInfoToString(completeDetectionInfo)
     const textEncoder = new TextEncoder()
@@ -207,10 +192,10 @@ export async function convert(
     if (outputstream && outputfilename !== undefined) {
       await outputstream.close()
       await output.dir.removeEntry(outputfilename)
-      throw e
+      outputfilename = undefined
+      outputstream = undefined
     }
-    outputfilename = undefined
-    outputstream = undefined
+    throw e
   } finally {
     video && await video.deinit()
     if (outputstream) {

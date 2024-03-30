@@ -1,10 +1,10 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import { DetectionInfo } from '../lib/detections'
+import { DetectionInfo, DetectionInfoV2 } from '../lib/detections'
 
 export type DetectionsData = {
   detectionFileName: string | null
-  detectionInfo: DetectionInfo | null
+  detectionInfo: DetectionInfo | DetectionInfoV2| null
 }
 
 const initialState: DetectionsData = {
@@ -18,7 +18,7 @@ export const detectionsDirectorySlice = createSlice({
   reducers: {
     detectionFileNameSet: (state, {payload}: PayloadAction<string | null>) => {
       state.detectionFileName = payload},
-    detectionsInfoSet: (state, action: PayloadAction<DetectionInfo>) => {
+    detectionsInfoSet: (state, action: PayloadAction<DetectionInfo | DetectionInfoV2>) => {
       state.detectionInfo = action.payload
     },
     detectionsInfoUnset: (state) => {

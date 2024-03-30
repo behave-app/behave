@@ -21,7 +21,12 @@ export type SingleFrameInfo = {
   startByte?: number
 }
 
+export type SingleFrameInfoV2 = {
+  detections: DetectionsForFrame
+}
+
 export type FramesInfo = Array<SingleFrameInfo>
+export type FramesInfoV2 = Array<SingleFrameInfoV2>
 
 type NumberString = `${number}`
 
@@ -37,14 +42,24 @@ export type DetectionInfo = {
   framesInfo: FramesInfo
 }
 
-export function detectionInfoToString(detectionInfo: DetectionInfo): string {
+export type DetectionInfoV2 = {
+  version: 2
+  sourceFileName: string
+  sourceFileXxHash64: string
+  modelName: string | null
+  modelKlasses: Record<NumberString, string>
+  framesInfo: FramesInfoV2
+}
+
+export function detectionInfoToString(
+  detectionInfo: DetectionInfo | DetectionInfoV2): string {
   return JSON.stringify(
     detectionInfo,
     (_key, x) => Number.isFinite(x) ? Math.fround(x * 10000) / 10000: x,
     4)
 }
 
-export function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo {
+export function validateDataIsDetectionInfo(data: unknown): data is DetectionInfo | DetectionInfoV2 {
   const framesInfoCheck: Checker<SingleFrameInfo> = new ObjectChecker({
     required: {
       pts: 0,
@@ -59,6 +74,11 @@ export function validateDataIsDetectionInfo(data: unknown): data is DetectionInf
     }
   })
 
+  const framesInfoV2Check: Checker<SingleFrameInfoV2> = getCheckerFromObject({
+      detections: new ArrayChecker({
+        klass: 0, cx: 0, cy: 0, width: 0, height: 0, confidence: 0}),
+  })
+
   const detectionDataFormat: Checker<DetectionInfo> = getCheckerFromObject({
     totalNumberOfFrames: 0,
     version: new LiteralChecker(1),
@@ -71,10 +91,23 @@ export function validateDataIsDetectionInfo(data: unknown): data is DetectionInf
     }),
     playbackFps: 0,
     recordFps: new UnionChecker([0, null]),
-    framesInfo: new ArrayChecker(framesInfoCheck),
+    framesInfo: new ArrayChecker(framesInfoCheck), 
   })
 
-  return (detectionDataFormat.isInstance(data))
+  const detectionDataV2Format: Checker<DetectionInfoV2> = getCheckerFromObject({
+    version: new LiteralChecker(2),
+    sourceFileName: "name",
+    sourceFileXxHash64: "hash",
+    modelName: new UnionChecker(["name", null]),
+    modelKlasses: new RecordChecker({
+      keyChecker: new StringChecker({regexp: /^([1-9][0-9]*)|0$/}),
+      valueChecker: new StringChecker(),
+    }),
+    framesInfo: new ArrayChecker(framesInfoV2Check), 
+  })
+
+  return (new UnionChecker([detectionDataFormat, detectionDataV2Format]).isInstance(
+    data))
 }
 
 export type DateTimeParts = {

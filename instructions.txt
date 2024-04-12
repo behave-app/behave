@@ -1,0 +1,36 @@
+
+        {moreInfo && <Dialog className={css.more_info} onRequestClose={() => setMoreInfo(false)}>
+          <div>
+            In order to use the Behave app, it's necessary to create a detection file from your video file.
+            This file will have the name <code>#video filename#.#hash#{EXTENSIONS.detectionFile}</code> (the hash is a short code that is generated from the content of the videofile, so that even if you have two videos with the same filename, it is clear which video file belongs to the detection file).
+            During this step, a couple of things happen and the result is stored in the detection file.
+          </div>
+          <ul>
+            <li>
+              The AI model is applied to each frame in the video.
+              If the model finds something interesting in the frame (for instance, a bird), this is saved in the detection file.
+              It depends on the chosen model what kinds of objects will be detected.
+            </li>
+            <li>
+              The video is inspected for other useful information, such as timestamps, how many frames per second it was recorded at (for timelapse videos) etc.
+              This information is also stored in the resulting detection file.
+            </li>
+          </ul>
+          <div>
+            All calculations are done on your computer, no data is sent over the internet, or back to the server.
+            This also means that how long this step takes, depends on how good your computer is (in addition to how long the video is, and how complex your model).
+            Generally, computers that were built with AI applications in mind, as well as computers with good graphics cards (gaming computers) will be fastest.
+            To give some idea, a 45000 frame video with a Yolo v8 nano model, takes about 15 minutes on a 2023 Macbook Pro (M2).
+            The same video and model on a 2017 business laptop takes multiple hours per video file.
+          </div>
+          <div>
+            In order to make this workable, this page allows you to add several video files (or even whole directories) to be "batch"-processed. You could for instance add these files at the end of the day and press "start", and find the files processed when you come back the next morning.
+          </div>
+          <div>
+            One thing to take into account when doing batch processing, is to avoid the computer sleeping (sleeping doesn't hurt the detection process, and detection will continue where it left off when the computer is woken up again, but (obviously) no detection will happen while the computer is asleep).
+            On this page is a "don't sleep" button, which will keep the screen on (and hence the computer awake) while it's processing.
+            Be aware though, that this also disables any automatic screensavers, or screen locks, so only do this when your computer is in a location where nobody else can get to it!
+            Alternatively you could try and see if your computer allows to be locked manually, while this setting is on, or manually dig through the computer settings to make sure the computer will not go to sleep.
+          </div>
+          <button onClick={() => setMoreInfo(false)}>Done</button>
+        </Dialog>}

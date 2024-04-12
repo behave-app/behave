@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useSelector } from "react-redux";
-import { selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
+import { VideoFile, createSliceDataFromFile, selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
 import { useAppDispatch } from "./store";
 import { assert, asyncSleep, binItems, isTruthy, valueOrError, valueOrErrorAsync } from "../lib/util";
 import * as css from "./uploader.module.css"
@@ -26,6 +26,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   const [error, setError] = useState<string|null>(null)
   const behaviourLayout = useSelector(selectBehaviourLayout)
   const videoFileAlreadyLoaded = useSelector(selectVideoFilePotentiallyNull) !== null
+  const [videoFileMap, setVideoFileMap] = useState(new Map<FileSystemHandle, "loading" | VideoFile>())
 
   useEffect(() => {
     const aimedAt = window.document.documentElement
@@ -106,42 +107,63 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     </div>
   }
 
-  if (fileSystemHandles.length) {
-    const keys = ["video", "detection",  "behaviour",  "other"] as const
-    type TypeKey = typeof keys[number]
-    const filesByType = binItems<FileSystemHandle, TypeKey>(fileSystemHandles,
-      fh => fh.kind === "directory" ? "other"
+  const keys = ["video", "detection",  "behaviour",  "other"] as const
+  type TypeKey = typeof keys[number]
+  const filesByType = binItems<FileSystemHandle, TypeKey>(fileSystemHandles,
+    fh => fh.kind === "directory" ? "other"
       : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.videoFile) ? "video"
-      : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.detectionFile) ? "detection"
-      : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.behaviourFile) ? "behaviour"
-      : "other")
-    const videos = (filesByType.get("video") ?? []) as FileSystemFileHandle[]
-    const detections = (filesByType.get("detection") ?? []) as FileSystemFileHandle[]
-    const behaviours = (filesByType.get("behaviour") ?? []) as FileSystemFileHandle[]
-    const correctCounts = videos.length === 1 && detections.length === 1
-      && behaviours.length < 2
-    const extractHashFromFilename = (filename: string): string | symbol  => {
-      const parts = filename.split(".")
-      const behave = parts.lastIndexOf("behave")
-      if (behave === -1 || behave === 0) {
-        return Symbol("no hash")
-      }
-      const hash = parts[behave - 1]
-      if (!/^[0-9a-fA-F]{8,16}$/.test(hash)) {
-        return Symbol("no hash")
-      }
-      return hash
-    }
-    const videoHash = videos.length === 1
-    ? extractHashFromFilename(videos[0].name) : null
-    const matchingHashes = videoHash !== null
-      && (detections.length === 1 && videoHash === extractHashFromFilename(detections[0].name))
-      && (behaviours.length === 0 || (
-      behaviours.length === 1 && videoHash === extractHashFromFilename(behaviours[0].name)))
+        : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.detectionFile) ? "detection"
+          : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.behaviourFile) ? "behaviour"
+            : "other")
+  const videos = (filesByType.get("video") ?? []) as FileSystemFileHandle[]
+  const detections = (filesByType.get("detection") ?? []) as FileSystemFileHandle[]
+  const behaviours = (filesByType.get("behaviour") ?? []) as FileSystemFileHandle[]
+  const correctCounts = videos.length === 1 && detections.length === 1
+    && behaviours.length < 2
 
+
+  const extractHashFromFilename = (filename: string): string | symbol  => {
+    const parts = filename.split(".")
+    const behave = parts.lastIndexOf("behave")
+    if (behave === -1 || behave === 0) {
+      return Symbol("no hash")
+    }
+    const hash = parts[behave - 1]
+    if (!/^[0-9a-fA-F]{8,16}$/.test(hash)) {
+      return Symbol("no hash")
+    }
+    return hash
+  }
+  const videoFileInfoRaw = videos.length === 1  ? videoFileMap.get(videos[0]) ?? null : null
+  const videoFileInfo = videoFileInfoRaw === "loading" ? null : videoFileInfoRaw
+  const matchingHashes = videoFileInfo !== null
+    && (detections.length === 1 && videoFileInfo.hash === extractHashFromFilename(detections[0].name))
+    && (behaviours.length === 0 || (
+      behaviours.length === 1 && videoFileInfo.hash === extractHashFromFilename(behaviours[0].name)))
+
+  useEffect(() => {
+    if (videos.length !== 1) {
+      return
+    }
+    const video = videos[0]
+    if (videoFileMap.has(video)) {
+      return
+    }
+    if (new Set(videoFileMap.values()).has("loading")) {
+      return
+    }
+    setVideoFileMap(videoFileMap =>
+      new Map([...videoFileMap.entries(), [video, "loading"]]))
+    void((async () => {
+      const videoFile = await createSliceDataFromFile(await video.getFile())
+      setVideoFileMap(videoFileMap =>
+        new Map([...videoFileMap.entries(), [video, videoFile]]))
+    })())
+  }, [videos, videoFileMap])
+
+  if (fileSystemHandles.length) {
     const selectTheseFiles = async () => {
-      assert(correctCounts && matchingHashes && typeof videoHash === "string")
-      const videoFile = await videos[0].getFile()
+      assert(correctCounts && matchingHashes)
       const detectionFile = await detections[0].getFile()
       const behaviourFile = await behaviours.at(0)?.getFile()
       const detectionText = await detectionFile.text()
@@ -156,9 +178,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         return
       }
       if (detectionInfo.sourceFileXxHash64 === "See filename") {
-        detectionInfo.sourceFileXxHash64 = videoHash
+        detectionInfo.sourceFileXxHash64 = videoFileInfo.hash
       }
-      assert(detectionInfo.sourceFileXxHash64 === videoHash)
+      assert(detectionInfo.sourceFileXxHash64 === videoFileInfo.hash)
       let behaviourLines: null | string[][] = null
       if (behaviourFile) {
         const behaviourCSV = await behaviourFile.text()
@@ -171,7 +193,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         behaviourLines = linesOrError.value
       }
 
-      dispatch(videoFileSet({file: videoFile, xxh64sum: videoHash}))
+      dispatch(videoFileSet(videoFileInfo))
       dispatch(detectionFileNameSet(detectionFile.name))
       dispatch(detectionsInfoSet(detectionInfo))
       if (behaviourLines) {
@@ -227,6 +249,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
               {(filesByType.get(key) ?? []).map(
                 fh => <li className={generalcss.show_on_hover_buttons}>
                   <span>{fh.name}</span>
+                  {key === "video" && (
+                    videoFileInfo ? <span>{videoFileInfo.hash}</span>
+                    : <span>spinner</span>)}
                   <button className={generalcss.show_on_hover}
                     onClick={() => setFileSystemHandles(fhs => fhs.filter(
                       filterFh => filterFh !== fh))}>

@@ -3,7 +3,7 @@ import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} 
 import * as css from "./convertor.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
-import {convert } from "./ffmpeg"
+import { API } from "../worker/Api"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
 
@@ -35,7 +35,7 @@ export function Convertor(): JSX.Element {
     await convertAll(
       files,
       NR_WORKERS,
-      convert,
+      API.convertToMp4,
       setFiles)
     setState("done")
   }

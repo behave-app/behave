@@ -220,7 +220,7 @@ export function mayBeUndefined<T>(item: T): T | undefined {
 export function valueOrError<T extends (...params: any[]) => any>(
   func: T
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): (...params: Parameters<T>) => {value: Awaited<ReturnType<T>>} | {error: any} {
+): (...params: Parameters<T>) => {value: ReturnType<T>} | {error: any} {
   return (...params) => {
     try {
       return {value: func(...params)}

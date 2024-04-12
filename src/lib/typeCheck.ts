@@ -263,7 +263,7 @@ Opt extends Record<ValidRecordKey, unknown>,
       throw new TypeCheckerError(path, `Value is missing keys ${[...keys]}`, value)
     }
     if (!Object.keys(value).every(
-      key => key in this.requiredItemChecker || this.optionalItemChecker)) {
+      key => key in this.requiredItemChecker || key in this.optionalItemChecker)) {
       const keys = new Set(Object.keys(value))
       Object.keys(this.requiredItemChecker).forEach(k => keys.delete(k))
       Object.keys(this.optionalItemChecker).forEach(k => keys.delete(k))
@@ -337,6 +337,22 @@ export class UnionChecker<T extends unknown[]> extends Checker<ItemWithoutChecke
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export class TypeChecker<T> extends Checker<T> {
+  constructor(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private type: new (...args: any[]) => T,
+    options?: {
+      valid?: (s: T) => boolean
+    }) {
+    super({valid: options?.valid})
+  }
+  _assertInstanceIgnoreValid(value: unknown, path: string): asserts value is T {
+    if (!(value instanceof this.type)) {
+      throw new TypeCheckerError(path, `${value} is not a ${this.type.name}`, value)
+    }
+  }
+}
 
 type ItemWithoutCheckerRecursive<T> = (
 T extends Checker<infer C>

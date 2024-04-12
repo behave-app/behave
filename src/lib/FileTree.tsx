@@ -49,7 +49,7 @@ export async function readFileSystemHandle(
 
 export type FileTreeLeaf = {
   file: File
-  progress?: "queue" | {"converting": number, timing?: {passed: number, expected: number}} | "done" | {error: string}
+  progress?: "target_exists" | "queue" | {"converting": number, timing?: {passed: number, expected: number}} | "done" | {error: string}
 }
 export type FileTreeBranch = Map<string, FileTreeLeaf | FileTreeBranch>
 
@@ -176,9 +176,6 @@ async function convertOne(
       setFiles(files =>
         updateLeaf(files, path, leaf => ({file: leaf.file, progress: newProgress})))
     })
-    setFiles(files =>
-      updateLeaf(files, path, leaf => (
-        {file: leaf.file, progress: "done"})))
   } catch (e) {
     setFiles(files =>
       updateLeaf(files, path, leaf => (
@@ -210,7 +207,7 @@ export async function convertAll(
   let finished: Promise<unknown>[] = []
   for (const path of queuedPaths) {
     while (promises.size >= concurrency) {
-      await Promise.any(promises)
+      await Promise.any(promises).catch(() => {})
       finished.forEach(p => promises.delete(p))
       finished = []
     }
@@ -222,7 +219,7 @@ export async function convertAll(
       setFiles
     )
     promises.add(promise)
-    void(promise.then(() => finished.push(promise)))
+    void(promise.finally(() => finished.push(promise)))
   }
   await Promise.all(promises)
 }
@@ -237,6 +234,8 @@ function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, styl
     classes.push(css.inqueue)
   } else if (fileTreeLeaf.progress === "done") {
     classes.push(css.done)
+  } else if (fileTreeLeaf.progress === "target_exists") {
+    classes.push(css.target_exists)
   } else if ("converting" in fileTreeLeaf.progress) {
     classes.push(css.converting)
     style["--convert-progress"] = fileTreeLeaf.progress.converting

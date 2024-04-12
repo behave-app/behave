@@ -4,17 +4,13 @@ setWasmPaths("app/bundled/tfjs-wasm/")
 import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
-import {Video} from "../lib/video"
+import {Video} from "./video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfoV2, SingleFrameInfoV2, detectionInfoToString } from '../lib/detections'
 import { ObjectEntries, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
-export const YOLO_MODEL_NAME_FILE = "modelname.txt"
-
-
-export type YoloBackend = "wasm" | "webgl" | "webgpu"
-export type YoloVersion = "v5" | "v8"
+import { YOLO_MODEL_NAME_FILE, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
 
 export async function setBackend(backend: YoloBackend) {
   await tf.setBackend(backend)
@@ -71,7 +67,6 @@ export async function getModel(
     Number.isInteger(parseInt(key)) && typeof value === "string")) {
     model.klasses = Object.fromEntries(Object.entries(metadata.names as Record<string, string>).map(
       ([key, value]) => [parseInt(key), value]))
-    console.log({model})
   }
   if (typeof metadata.ModelName === "string") {
     model.name = metadata.ModelName
@@ -82,13 +77,27 @@ export async function getModel(
 
 const PROGRESS_INTERVAL_MS = 300
 
-export async function convert(
+export async function getModelAndInfer(
+  yoloSettings: YoloSettings | null,
+  input: {file: File},
+  output: {dir: FileSystemDirectoryHandle},
+  onProgress: (progress: FileTreeLeaf["progress"]) => void,
+) {
+  if (yoloSettings) {
+    await setBackend(yoloSettings.backend)
+    const model = await getModel(yoloSettings.modelDirectory)
+    await infer(model, yoloSettings.yoloVersion, input, output, onProgress)
+  } else {
+    await infer(null, "v8", input, output, onProgress)
+  }
+}
+
+export async function infer(
   model: Model | null,
   yoloVersion: YoloVersion,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
-  ctx?: CanvasRenderingContext2D,
 ) {
   const updateProgress = (step: "hash" | "infer", progress: number) => {
     const DURATIONS: {[key in Parameters<typeof updateProgress>[0]]: number} = {
@@ -119,13 +128,14 @@ export async function convert(
       "hash", progress))
     outputfilename = [...baseparts, hash, EXTENSIONS.detectionFile].join(".")
     if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
-      throw new Error("File aready exists at the destination")
+      onProgress("target_exists")
+      return
     }
     const outfile = await output.dir.getFileHandle(outputfilename, {create: true})
     outputstream = await outfile.createWritable()
 
     video = new Video(input.file)
-    await video.init({libavoptions: {noworker: true}, keepFrameInfo: false})
+    await video.init({keepFrameInfo: false})
     const numberOfFrames = video.videoInfo.numberOfFramesInStream
     const detectionInfo: DetectionInfoV2 = {
       version: 2,
@@ -145,12 +155,7 @@ export async function convert(
       } as SingleFrameInfoV2
 
     const [boxes, scores, classes] = model
-      ? await infer(model, yoloVersion, videoFrame) : [[], [], []]
-    if (ctx) {
-      ctx.drawImage(videoFrame, 0, 0)
-      ctx.strokeStyle = "red"
-      ctx.lineWidth = 5;
-    }
+      ? await inferSingleFrame(model, yoloVersion, videoFrame) : [[], [], []]
     for (let i = 0; i < scores.length; i++) {
       const [x1, y1, x2, y2] = boxes.slice(i * 4, (i + 1) * 4)
       const box = [(x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1]
@@ -163,14 +168,6 @@ export async function convert(
 
       singleFrameInfo.detections.push(
         {klass, cx, cy, width, height, confidence: score})
-
-      if (ctx) {
-        const scale = Math.max(videoFrame.displayWidth, videoFrame.displayHeight)
-        ctx.strokeRect(
-          (cx - width / 2) * scale, (cy - height / 2) * scale,
-          width * scale, height * scale,
-        )
-      }
     }
     detectionInfo.framesInfo.push(singleFrameInfo)
     videoFrame.close()
@@ -188,6 +185,8 @@ export async function convert(
     await outputstream.write(textEncoder.encode(stringData))
     console.log("Done writing")
     onProgress({"converting": 1})
+    await outputstream.close()
+    onProgress("done")
   } catch(e) {
     if (outputstream && outputfilename !== undefined) {
       await outputstream.close()
@@ -198,9 +197,6 @@ export async function convert(
     throw e
   } finally {
     video && await video.deinit()
-    if (outputstream) {
-      await outputstream.close()
-    }
   }
 }
 
@@ -265,7 +261,7 @@ function getBoxesAndScoresAndClassesFromResult(
   return [boxes, rawScores.max(1), rawScores.argMax(1)];
 }
 
-export async function infer(
+export async function inferSingleFrame(
   model: Model,
   yoloVersion: YoloVersion,
   videoFrame: VideoFrame,

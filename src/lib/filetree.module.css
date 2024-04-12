@@ -21,6 +21,15 @@
 .filename.done::before {
   content: " \2705";
 }
+.filename.target_exists {
+  color: orange;
+}
+.filename.target_exists::before {
+  content: " \26A0";
+}
+.filename.target_exists::after {
+  content: " \2013  Target file already exists, not overwriting";
+}
 .filename.converting {
   --convert-time-text: "";
   width: 100%;

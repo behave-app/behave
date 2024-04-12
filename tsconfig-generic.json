@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "target": "esnext",
+    "plugins": [{ "name": "typescript-plugin-css-modules" }],
+    "strict": true,
+    "baseUrl": "./",
+    "skipLibCheck": true,
+    "rootDir": "./src/",
+    "paths": {
+    }
+  },
+  "include": [
+    "./src"
+  ]
+}

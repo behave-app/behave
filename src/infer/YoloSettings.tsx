@@ -1,32 +1,44 @@
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
-import {YoloBackend, YoloVersion, Model, getModel, setBackend as setTFJSBackend, YOLO_MODEL_NAME_FILE} from "./tfjs"
+import {YoloBackend, YoloSettings, YOLO_MODEL_NAME_FILE} from "../lib/tfjs-shared"
 import * as infercss from "./inferrer.module.css"
 import {getEntry, cp_r} from "../lib/fileutil"
+import { Checker, LiteralChecker, TypeChecker, getCheckerFromObject } from "../lib/typeCheck"
+import { API } from "../worker/Api"
 
 export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
 const YOLO_MODEL_DIRECTORY = "YoloModelDir"
 
-export type YoloSettings = {
-  version: 1,
-  yoloVersion: YoloVersion,
-  model: Model,
-  backend: YoloBackend,
-  concurrency: number,
+const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
+  version: new LiteralChecker(1),
+  yoloVersion: new LiteralChecker(["v5", "v8"]),
+  backend: new LiteralChecker(["wasm", "webgl", "webgpu"]),
+  modelDirectory: new TypeChecker(FileSystemDirectoryHandle),
+})
+
+export async function loadCachedSettings(): Promise<YoloSettings | null> {
+  try {
+    const opfsRoot = await navigator.storage.getDirectory()
+    const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
+
+    const settings = {
+      ...JSON.parse(localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)!),
+      modelDirectory: opfsModelDir
+    }
+    YoloSettingsChecker.assertInstance(settings)
+    await API.checkValidModel(settings.backend, opfsModelDir)
+    return settings
+  } catch (e) {
+    console.error("Problem retrieving settings:")
+    console.error(e)
+    return null
+  }
 }
-export type YoloSettingsWithoutModel = Omit<YoloSettings, "model">
 
 type Props = {
   setYoloSettings: (yoloSettings: YoloSettings | null) => void
   yoloSettings: YoloSettings | null
   closeSettingsDialog: (() => void)
-}
-
-export async function loadModelFromOPFS(backend: YoloBackend): Promise<Model> {
-  const opfsRoot = await navigator.storage.getDirectory()
-  const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
-  await setTFJSBackend(backend)
-  return await getModel(opfsModelDir)
 }
 
 export function YoloSettingsDialog({
@@ -35,14 +47,12 @@ export function YoloSettingsDialog({
   closeSettingsDialog,
 }: Props): JSX.Element {
   const [yoloVersion, setYoloVersion] = useState<YoloSettings["yoloVersion"]>("v8")
-  const [concurrency, setConcurrency] = useState<YoloSettings["concurrency"]>(4)
   const [backend, setBackend] = useState<YoloSettings["backend"]>("webgl")
   const [modelDir, setModelDir] = useState<FileSystemDirectoryHandle>()
 
   useEffect(() => {
     if (yoloSettings === null) {
       setYoloVersion("v8")
-      setConcurrency(2)
       setBackend("webgl")
       setModelDir(undefined)
     } else {
@@ -54,7 +64,6 @@ export function YoloSettingsDialog({
         .then(opfsRoot => opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY))
         .then(opfsModelDir => {
           setYoloVersion(yoloSettings.yoloVersion)
-          setConcurrency(yoloSettings.concurrency)
           setBackend(yoloSettings.backend)
           setModelDir(opfsModelDir)
         }))
@@ -63,11 +72,10 @@ export function YoloSettingsDialog({
 
   async function save() {
     localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
-    const newYoloSettingsWithoutModel: YoloSettingsWithoutModel = {
+    const newYoloSettingsWithoutModel: Omit<YoloSettings, "modelDirectory"> = {
       version: 1,
       yoloVersion,
       backend,
-      concurrency,
     }
     const opfsRoot = await navigator.storage.getDirectory()
     const modelDirIsOnUsersFilesystem /*as opposed to in OPFS*/ =
@@ -80,6 +88,7 @@ export function YoloSettingsDialog({
       setYoloSettings(null)
     } else {
       if (modelDirIsOnUsersFilesystem) {
+        await API.checkValidModel(backend, modelDir)
         if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
           await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
         } 
@@ -94,12 +103,13 @@ export function YoloSettingsDialog({
           await os.close()
         }
       }
-      await setTFJSBackend(newYoloSettingsWithoutModel.backend)
-      const model = await loadModelFromOPFS(newYoloSettingsWithoutModel.backend)
       localStorage.setItem(
         YOLO_SETTINGS_STORAGE_KEY, JSON.stringify(newYoloSettingsWithoutModel))
+      const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
+      await API.checkValidModel(backend, opfsModelDir)
+
       const newYoloSettings = {
-        ...newYoloSettingsWithoutModel, model}
+        ...newYoloSettingsWithoutModel, modelDirectory: opfsModelDir}
       setYoloSettings(newYoloSettings)
     }
     closeSettingsDialog()
@@ -113,8 +123,7 @@ export function YoloSettingsDialog({
     const modelDirectory = await window.showDirectoryPicker({id: "modelpicker"})
 
     try {
-      await setTFJSBackend(backend)
-      await getModel(modelDirectory)
+      await API.checkValidModel(backend, modelDirectory)
     } catch (e) {
       console.log("opening of model failed", e)
       window.alert("Opening of model failed; either the directory pointed to does not contain a valid model, or backend is not supported")
@@ -133,11 +142,6 @@ export function YoloSettingsDialog({
       Please upload the model, and the settings.
     </div>
     <dl>
-      <dt>Concurrency</dt>
-      <dd>
-        <input type="range" value={concurrency} min={1} max={10} step={1}
-          onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency})
-      </dd>
       <dt>Backend</dt>
       <dd>
         <select value={backend}

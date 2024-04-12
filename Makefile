@@ -2,15 +2,14 @@ DOCKER ?= nerdctl.lima
 
 DOCKER_TMPDIR ?= /tmp/lima/
 ENVIRONMENT ?= development
-LIBAVJS_VERSION := 4.8.6.0.1
+LIBAVJS_VERSION := 5.1.6.1.1
 LIBAVJS_COMMIT := $(shell cat libav.js/commit.txt | tr -d '\n')
 LIBAVJS_BASE_FILES := \
-	behave.dbg.js \
-	behave.dbg.simd.js \
-	behave.dbg.thrsimd.js \
+	behave.dbg.mjs \
+	behave.dbg.wasm.mjs \
 	behave.dbg.thr.js \
-  behave.dbg.simd.wasm
-LIBAVJS_MAKE_FILES := $(addprefix dist/libav-$(LIBAVJS_VERSION)-, $(LIBAVJS_BASE_FILES)) dist/libav.types.d.ts
+	behave.dbg.thr.mjs
+LIBAVJS_MAKE_FILES := $(addprefix dist/libav-$(LIBAVJS_VERSION)-, $(LIBAVJS_BASE_FILES)) dist/libav.types.d.ts dist/libav-behave.dbg.js dist/libav-behave.dbg.mjs 
 LIBAVJS_TARGET_FILES := $(addprefix public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/, $(LIBAVJS_MAKE_FILES))
 HTML_FILES := $(wildcard *.html)
 HTML_TARGET_FILES := $(addprefix public/, $(HTML_FILES))
@@ -18,6 +17,7 @@ ENTRYPOINTS := \
     ./src/convert/App.tsx \
     ./src/infer/App.tsx \
     ./src/debug/App.tsx \
+    ./src/worker/Worker.ts \
     ./src/viewer/index.tsx
 OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
@@ -54,8 +54,8 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@./node_modules/eslint/bin/eslint.js src
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
-	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
-	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"))) > $@.part
+	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
+	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& if [ -f "$(outfilebase).$(ext)" ]; then MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"; fi))) > $@.part
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part
 	@echo "s&___BEHAVE_VERSION___&$$(node determine_version_number.mjs | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g')&g" >> $@.part
 	@ mv $@.part $@

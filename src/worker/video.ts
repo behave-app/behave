@@ -1,7 +1,11 @@
-import type * as LibAVTypes from "../../public/app/bundled/libavjs/dist/libav.types";
-import {assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep} from "./util"
+import { xxh64sum } from '../lib/fileutil'
+import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
+import { ISODateTimeString, SingleFrameInfo, getPartsFromTimestamp, partsToIsoDate } from '../lib/detections'
+import { EXTENSIONS } from '../lib/constants'
+import { getLibAV, type LibAVTypes } from "../lib/libavjs"
+
+import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
-import { SingleFrameInfo } from "./detections"
 
 const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
@@ -393,7 +397,7 @@ export class Video {
   static AV_PKT_FLAG_DISCARD = 4 as const // since it's not exposed in libavjs
   static DEFAULT_LIBAV_OPTIONS: LibAVTypes.LibAVOpts = {
     noworker: false,
-    nothreads: true,
+    nothreads: false,
   } as const;
   static FRAME_CACHE_MAX_SIZE = 5 as const;
   static VIDEO_DEQUEUE_QUEUE_MAX_SIZE = 24 as const;
@@ -413,7 +417,6 @@ export class Video {
   }
 
   async init(options?: {
-    libavoptions?: LibAVTypes.LibAVOpts,
     keepFrameInfo?: boolean
   }) {
     if (options?.keepFrameInfo ?? false) {
@@ -425,13 +428,9 @@ export class Video {
     if (_rwthis.libav !== null) {
       throw new Error("already inited");
     }
-    const libavoptions =
-      (options ?? {}).libavoptions ?? Video.DEFAULT_LIBAV_OPTIONS;
 
-    // need to cast until PR #43 is merged into libavjs
-    _rwthis.libav = await window.LibAV.LibAV(
-      libavoptions as LibAVTypes.LibAVOpts & { noworker: false }
-    );
+    const LibAV = await getLibAV()
+    _rwthis.libav = await LibAV.LibAV(Video.DEFAULT_LIBAV_OPTIONS);
     await this.libav.av_log_set_level(this.libav.AV_LOG_ERROR);
     await this.libav.mkreadaheadfile(this.input.name, this.input);
     const [fmt_ctx, streams] = await this.libav.ff_init_demuxer_file(
@@ -594,18 +593,19 @@ export class Video {
   }
 
   async deinit() {
-    await this.libav.unlink(this.input.name);
-    this.libav.terminate();
+    if (this.libav !== null) {
+      await this.libav.unlink(this.input.name);
+      this.libav.terminate();
+    }
     this.frameStreamState = {state: "closed"}
   }
 
   async doReadMulti(
   ): Promise<{endOfFile: boolean, videoPackets: LibAVTypes.Packet[]}> {
     const pkt = await this.libav.av_packet_alloc()
-    const [result, packets] = await this.libav.ff_read_multi(
+    const [result, packets] = await this.libav.ff_read_frame_multi(
       this.formatContext,
       pkt,
-      undefined,
       { limit: .25 * 1024 * 1024 }
     );
     await this.libav.av_packet_free_js(pkt)
@@ -739,8 +739,6 @@ export class Video {
       return null
     }
 
-    ;(window as unknown as {frameCache: FrameCache}).frameCache = frameCache
-    ;(window as unknown as {video: Video}).video = this
     let lastFrameNumberToAddToDecoder = undefined as number | undefined | "good enough"
     while (this.frameStreamState.state === "streaming") {
       if (videoDecoder.decodeQueueSize > MAX_ITEMS_IN_DECODER_QUEUE) {
@@ -977,12 +975,13 @@ export async function createFakeKeyFrameChunk(
   }
 }
 
-export async function extractBehaveMetadata(file: File) {
+export async function extractBehaveMetadata(file: File): Promise<Record<string, string>> {
   let libav: LibAVTypes.LibAV | undefined = undefined
   let writtenData = new Uint8Array(0);
   try {
     const FFMPEGOUTPUT = "__ffmpeg_output__";
-    libav = await window.LibAV.LibAV({ noworker: false, nothreads: true });
+    const LibAV = await getLibAV()
+    libav = await LibAV.LibAV({ noworker: false, nothreads: true });
     assert(libav !== undefined)
     await libav.mkreadaheadfile(file.name, file);
     await libav.mkwriterdev(FFMPEGOUTPUT);
@@ -995,10 +994,12 @@ export async function extractBehaveMetadata(file: File) {
       }
       writtenData.set(data, pos);
     };
+    await libav.ffmpeg(
+      "-formats",
+    );
     const exit_code = await libav.ffmpeg(
       "-hide_banner",
-      "-loglevel",
-      "error",
+      "-loglevel", "error",
       "-i", file.name,
       "-f", "ffmetadata",
       "-y", FFMPEGOUTPUT,
@@ -1017,7 +1018,240 @@ export async function extractBehaveMetadata(file: File) {
   const behaveData: Record<string, string> = {}
   for (const line of output.split("\n")) {
     if (line.startsWith("BEHAVE:")) {
-      // TODO parse here!!!!
+      const eqPos = line.indexOf("=")
+      const key = line.slice("BEHAVE:".length, eqPos)
+      const value = line.slice(eqPos + 1)
+      behaveData[key] = value
     }
+  }
+  return behaveData
+}
+
+
+const PROGRESSFILENAME = "__progress__"
+
+const getCompressedFrameInfo = (
+  frameInfo: ReadonlyMap<number, Omit<SingleFrameInfo, "detections">>
+): {
+  recordFps: number,
+  startTimestamps: Record<number, ISODateTimeString>
+  iFrameInterval: number,
+  iFrameStarts: number[],
+  idrFrameInterval: number,
+  idrFrameStarts: number[],
+} => {
+  const timestamps = new Map(
+    [...frameInfo.entries()].filter(
+      ([_, frameInfo]) => frameInfo.timestamp !== undefined).map(
+        ([framenr, frameInfo]) => [framenr, frameInfo.timestamp!] as const))
+  if (timestamps.size < 2) {
+    throw new Error("Not enough timestamps can be found, "
+    + "maybe file is not supported")
+  }
+  const timestampEntries = [...timestamps.entries()]
+  const frameNrAndTimestampParts = timestampEntries.map(
+    ([framenr, isots]) => [framenr, getPartsFromTimestamp(isots)] as const)
+  const tzs = new Set(frameNrAndTimestampParts.map(([_, parts]) => parts.tz))
+  if (tzs.size != 1) {
+    throw new Error("The timezone changes halfway the video, this is TODO: "
+      + JSON.stringify([...tzs]))
+  }
+  const [firstFrameNumber, firstParts] = frameNrAndTimestampParts.at(0)!
+  const [lastFrameNumber, lastParts] = frameNrAndTimestampParts.at(-1)!
+  const recordTimeFramesPerSecond = (lastParts.date.valueOf() - firstParts.date.valueOf()) / 1000 / (lastFrameNumber - firstFrameNumber)
+
+  const wholeRecordTimeFramesPerSecond = Math.round(recordTimeFramesPerSecond)
+  if (Math.abs(recordTimeFramesPerSecond - wholeRecordTimeFramesPerSecond) > .05) {
+    throw new Error("non-int record frames per second is not yet supported, TODO: "
+    + recordTimeFramesPerSecond)
+  }
+  const newTSs = [[firstFrameNumber, firstParts] as const]
+  for (const [framenr, parts] of frameNrAndTimestampParts) {
+    const [lastTSFramenr, lastTSParts] = newTSs.at(-1)!
+    const expectedTimestamp = lastTSParts.date.valueOf() + 1000 / wholeRecordTimeFramesPerSecond * (framenr - lastTSFramenr)
+    if (expectedTimestamp !== parts.date.valueOf()) {
+      newTSs.push([framenr, parts])
+    }
+  }
+
+  const iFrames = [...frameInfo.entries()].filter(
+    ([_, frameInfo]) => frameInfo.type === "I" || frameInfo.type === "IDR").map(
+    ([framenr]) => framenr)
+  const idrFrames = [...frameInfo.entries()].filter(
+    ([_, frameInfo]) => frameInfo.type === "IDR").map(([framenr]) => framenr)
+
+  const getIntervalAndStarts = (list: number[]): [number, number[]] => {
+    if (list.length === 0) {
+      return [NaN, []]
+    }
+    if (list.length === 1) {
+      return [NaN, [...list]]
+    }
+    const intervals: number[] = []
+    for (let i = 1; i < list.length; i++) {
+      intervals.push(list[i] - list[i - 1])
+    }
+    const maxInterval = Math.max(...intervals)
+    const startIndices = [0, ...intervals.map((interval, idx) => [interval, idx])
+      .filter(([interval]) => interval !== maxInterval).map(([_, idx]) => idx)]
+    return [maxInterval, startIndices.map(i => list[i])]
+  }
+
+  const [iFrameInterval, iFrameStarts] = getIntervalAndStarts(iFrames)
+  const [idrFrameInterval, idrFrameStarts] = getIntervalAndStarts(idrFrames)
+  
+  return {
+    recordFps: wholeRecordTimeFramesPerSecond,
+    startTimestamps: ObjectFromEntries(newTSs.map(
+      ([framenr, parts]) => [framenr.toString(), partsToIsoDate(parts)])),
+    iFrameInterval,
+    iFrameStarts,
+    idrFrameInterval,
+    idrFrameStarts,
+  }
+}
+
+export async function convert(
+  input: {file: File},
+  output: {dir: FileSystemDirectoryHandle},
+  onProgress: (progress: FileTreeLeaf["progress"]) => void
+) {
+
+  const updateProgress = (step: "hash" | "timestamps" | "convert", progress: number) => {
+    const DURATIONS: {[key in Parameters<typeof updateProgress>[0]]: number} = {
+      hash: .1,
+      timestamps: 1,
+      convert: 1,
+    }
+    let sumProgress = 0
+    for (const [key, value] of ObjectEntries(DURATIONS)) {
+      if (key === step) {
+        sumProgress += value * progress
+        break
+      }
+      sumProgress += value
+    }
+    const sum = Object.values(DURATIONS).reduce((a, b) => a + b)
+    onProgress({"converting": sumProgress / sum})
+  }
+  onProgress({"converting": 0})
+
+  let outputfilename: string | undefined = undefined
+  let outputstream: FileSystemWritableFileStream | undefined = undefined
+  let video: Video | undefined = undefined
+  let libav: LibAVTypes.LibAV | undefined = undefined
+
+  try {
+    const parts = input.file.name.split(".")
+    const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
+    const hash = await xxh64sum(input.file, progress => updateProgress(
+      "hash", progress))
+    outputfilename = [...baseparts, ".", hash, EXTENSIONS.videoFile].join("")
+    if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
+      onProgress("target_exists")
+      return
+    }
+    const outfile = await output.dir.getFileHandle(outputfilename, {create: true})
+    outputstream = await outfile.createWritable()
+
+    video = new Video(input.file)
+    await video.init({keepFrameInfo: true})
+    const frameInfo = await video.getAllFrameInfo(progress => {
+      updateProgress("timestamps", progress)
+    })
+    const compressedFrameInfo = getCompressedFrameInfo(frameInfo)
+
+    const durationSeconds = video.videoInfo.durationSeconds
+
+    const LibAV = await getLibAV()
+    libav = await LibAV.LibAV({noworker: false, nothreads: true});
+    assert(libav !== undefined)
+    await libav.mkreadaheadfile(input.file.name, input.file)
+    await libav.mkwriterdev(outputfilename)
+    await libav.mkstreamwriterdev(PROGRESSFILENAME)
+    const writePromises: Set<Promise<unknown>> = new Set()
+    let progressController = null as ReadableStreamDefaultController<ArrayBuffer> | null
+    const progressStream = new ReadableStream({
+      start(controller) {
+        progressController = controller
+      }
+    }).pipeThrough(new TextDecoderStream())
+    libav.onwrite = function(name, pos, data) {
+      assert(progressController)
+      if (name === PROGRESSFILENAME) {
+        progressController.enqueue(data)
+        return
+      }
+      const promise = outputstream!.write(
+        {type: "write", data: data.slice(0), position: pos})
+      writePromises.add(promise)
+      void(promise.then(() => {writePromises.delete(promise)}))
+    }
+    let progressStreamLeftOver = ""
+    void(progressStream.pipeTo(new WritableStream({
+      write(chunk: string) {
+        const parts = (progressStreamLeftOver + chunk).split("\n")
+        progressStreamLeftOver = parts.slice(-1)[0]
+        const lines = parts.slice(0, -1)
+        for (const line of lines) {
+          const [key, value] = line.split("=")
+          if (key  === "out_time_us") {
+            const outTimeSeconds = parseInt(value) / 1_000_000
+            if (!Number.isNaN(outTimeSeconds)) {
+              updateProgress("convert", 
+                Math.max(0, Math.min(outTimeSeconds / durationSeconds, 1)))
+            }
+          }
+        }
+      }
+    })))
+
+    const metadata = {
+      ...compressedFrameInfo,
+      playbackFps: video.videoInfo.fps,
+      startTick: video.videoInfo.startTick,
+      numberOfFrames: video.videoInfo.numberOfFramesInStream,
+      hash,
+    }
+
+
+    assert(/^[0-9a-fA-F]{16}$/.test(hash))
+    const exit_code = await libav.ffmpeg(
+      "-i", input.file.name,
+      "-nostdin",
+      "-c:v", "copy",
+      "-an",
+      "-hide_banner",
+      "-loglevel", "error",
+      "-movflags", "use_metadata_tags",
+      ...ObjectEntries(metadata).flatMap(([key, value]) => [
+        "-metadata", `BEHAVE:${key}=${JSON.stringify(value)}`]),
+      "-progress", PROGRESSFILENAME,
+      "-y", outputfilename
+    )
+    await Promise.all(writePromises)
+    await libav.unlink(input.file.name)
+    await libav.unlink(outputfilename)
+    await libav.unlink(PROGRESSFILENAME)
+    if (progressController) {
+      progressController.close()
+    }
+    if (exit_code != 0) {
+      throw new Error(`ffmpeg exit code: ${exit_code}`)
+    }
+    onProgress({converting: 1})
+    await outputstream.close()
+    onProgress("done")
+  } catch(e) {
+    if (outputstream && outputfilename !== undefined) {
+      await outputstream.close()
+      await output.dir.removeEntry(outputfilename)
+      outputfilename = undefined
+      outputstream = undefined
+    }
+    throw e
+  } finally {
+    libav && libav.terminate()
+    video && await video.deinit()
   }
 }

@@ -4,11 +4,12 @@ import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} 
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
-import {setBackend, convert } from "./tfjs"
-import {YoloSettingsDialog, YoloSettings, YOLO_SETTINGS_STORAGE_KEY, YoloSettingsWithoutModel, loadModelFromOPFS} from "./YoloSettings"
+import {YoloSettingsDialog, loadCachedSettings} from "./YoloSettings"
 import { useEffect } from "react"
 import { isCompatibleBrowser } from "../lib/util";
 import { Icon } from "../lib/Icon"
+import { API } from "../worker/Api"
+import { YoloSettings } from "../lib/tfjs-shared"
 
 function fileFilter(file: File, extensions: string[]): boolean {
   return !file.name.startsWith(".") && extensions.some(
@@ -17,6 +18,8 @@ function fileFilter(file: File, extensions: string[]): boolean {
 
 export function Inferrer(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
+  const [concurrency, setConcurrency] = useState(2)
+  const [modelName, setModelName] = useState<string | null>(null)
   const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)
 
@@ -34,18 +37,12 @@ export function Inferrer(): JSX.Element {
   }
 
   async function doConvertAll() {
-    if (yoloSettings) {
-      await setBackend(yoloSettings.backend)
-    }
     setState("converting");
-    const {concurrency, model, yoloVersion} = yoloSettings ?? {
-      concurrency: 1, model: null, yoloVersion: "v8"}
     await convertAll(
       files,
       concurrency,
-      (input, output, onProgress) => convert(
-        model, yoloVersion, input, output, onProgress),
-      getOutputFilename,
+      async (input, output, onProgress) => API.inferVideo(
+        yoloSettings, input, output, onProgress),
       setFiles)
     setState("done")
   }
@@ -60,23 +57,16 @@ export function Inferrer(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    void((async () => {
-      const json = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
-      if (json === null) {
-        setYoloSettings(null)
-        return
-      }
-      try {
-        const ys = JSON.parse(json) as YoloSettingsWithoutModel
-        const model = await loadModelFromOPFS(ys.backend)
-        setYoloSettings({...ys, model})
-      } catch (e) {
-        console.error("Something went wrong with retrieving yolo settings")
-        console.error(e)
-        setYoloSettings(null)
-      }
-    })())
+    void(loadCachedSettings().then(settings => setYoloSettings(settings)))
   }, [])
+
+  useEffect(() => {
+    if (!yoloSettings) {
+      setModelName(null)
+      return;
+    }
+    void(API.checkValidModel(yoloSettings.backend, yoloSettings.modelDirectory).then(response => setModelName(response.name)))
+  }, [yoloSettings])
 
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null)
   const [preventSleep, setPreventSleep] = useState(false)
@@ -130,7 +120,7 @@ export function Inferrer(): JSX.Element {
           This page allows detection of items on videos, and saving the result as csv (inference).
         </div>
         {yoloSettings ? <div className={css.explanation}>
-          Loaded model: {yoloSettings.model.name} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
+          Loaded model: {modelName !== null ? modelName : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
           onClick={() => setState("selectmodel")}
         >change</button>
         </div> : <div className={css.explanation}>
@@ -141,6 +131,11 @@ export function Inferrer(): JSX.Element {
               onClick={() => setState("selectmodel")}
             >add a model</button>
           </div>}
+        <div>
+      Concurrency ({concurrency} file{concurrency !==1 && "s"} at the same time):
+        <input type="range" value={concurrency} min={1} max={10} step={1}
+          onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency})
+        </div>
         <div>
           <button className={css.checkbox}
             onClick={() => setPreventSleep(x => !x)}>

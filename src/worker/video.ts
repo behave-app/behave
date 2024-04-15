@@ -1,16 +1,25 @@
 import { xxh64sum } from '../lib/fileutil'
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
-import { ISODateTimeString, SingleFrameInfo, getPartsFromTimestamp, partsToIsoDate } from '../lib/detections'
+import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString } from "../lib/datetime"
 import { EXTENSIONS } from '../lib/constants'
 import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
-import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep} from "../lib/util"
+import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep, ObjectKeys} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
+import { VideoMetadata, videoMetadataChecker, } from '../lib/video-shared'
 
 const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
   0x0c, 0x9a, 0x66, 0x4d, 0x44, 0x50, 0x4d
 ])
+
+type FrameInfo = {
+  timestamp?: ISODateTimeString
+  startByte: number,
+  pts: number,
+  dts: number,
+  type: "I" | "IDR" | "P" | "B"
+}
 
 export function dumpPacket(packet: LibAVTypes.Packet) {
   //assumes (for now) a avc (non annex B) packet and dumps it
@@ -126,7 +135,7 @@ export function* getNALs(
 export function extractFrameInfo(
   packet: LibAVTypes.Packet,
   isAnnexB: boolean,
-): Omit<SingleFrameInfo, "detections" | "pts" | "dts"> {
+): Omit<FrameInfo, "pts" | "dts"> {
   if (!isAnnexB) {
     throw new Error("is todo")
   }
@@ -409,7 +418,7 @@ export class Video {
   public readonly ticksToUsFactor: number = null as unknown as number;
   private packetStreamState: PacketStreamState = {state: "stopped"}
   private frameStreamState: FrameStreamState = null as unknown as FrameStreamState
-  private frameInfo: null | Map<number, Omit<SingleFrameInfo, "detections">>
+  private frameInfo: null | Map<number, FrameInfo>
   private cacheFillerRunning = false
 
   constructor(public readonly input: File) {
@@ -903,8 +912,8 @@ export class Video {
 
   async getAllFrameInfo(
     progressCallback?: (progress: number) => void
-  ): Promise<ReadonlyMap<number, Omit<SingleFrameInfo, "detections">>> {
-    const result = new Map<number, Omit<SingleFrameInfo, "detections">>()
+  ): Promise<ReadonlyMap<number, FrameInfo>> {
+    const result = new Map<number, FrameInfo>()
     const isAnnexB = this.videoInfo.isAnnexB
     const startTick = this.videoInfo.startTick
     const frameDurationTicks = this.videoInfo.frameDurationTicks
@@ -975,6 +984,47 @@ export async function createFakeKeyFrameChunk(
   }
 }
 
+export async function extractMetadata(file: File): Promise<VideoMetadata> {
+  if (file.name.endsWith(EXTENSIONS.videoFile)) {
+    const behaveData = await extractBehaveMetadata(file)
+    if (ObjectKeys(behaveData).length) {
+      const parsedBehaveData: {frameTypeInfo: Record<string, unknown>} & Record<string, unknown> = {
+        frameTypeInfo: {},
+      }
+      for (const [key, value] of ObjectEntries(behaveData)) {
+        const parsedValue = JSON.parse(value)
+        switch (key) {
+          case "iFrameInterval":
+          case "iFrameStarts":
+          case "idrFrameInterval":
+          case "idrFrameStarts":
+            parsedBehaveData.frameTypeInfo[key] = parsedValue
+            break
+          case "hash":
+          case "startTimestamps":
+          case "recordFps":
+          case "numberOfFrames":
+            parsedBehaveData[key] = parsedValue
+            break
+          default:
+            if (key in videoMetadataChecker.requiredItemChecker
+              || key in videoMetadataChecker.optionalItemChecker) {
+              parsedBehaveData[key] = parsedValue
+            } else {
+              // ignore extra metadata
+            }
+        }
+      }
+      if (videoMetadataChecker.isInstance(parsedBehaveData)) {
+        return parsedBehaveData
+      }
+    }
+    console.warn({behaveData})
+    throw new Error("No metadata found, using an old video file?")
+  }
+  throw new Error("TODO")
+}
+
 export async function extractBehaveMetadata(file: File): Promise<Record<string, string>> {
   let libav: LibAVTypes.LibAV | undefined = undefined
   let writtenData = new Uint8Array(0);
@@ -994,9 +1044,6 @@ export async function extractBehaveMetadata(file: File): Promise<Record<string, 
       }
       writtenData.set(data, pos);
     };
-    await libav.ffmpeg(
-      "-formats",
-    );
     const exit_code = await libav.ffmpeg(
       "-hide_banner",
       "-loglevel", "error",
@@ -1031,7 +1078,7 @@ export async function extractBehaveMetadata(file: File): Promise<Record<string, 
 const PROGRESSFILENAME = "__progress__"
 
 const getCompressedFrameInfo = (
-  frameInfo: ReadonlyMap<number, Omit<SingleFrameInfo, "detections">>
+  frameInfo: ReadonlyMap<number, FrameInfo>
 ): {
   recordFps: number,
   startTimestamps: Record<number, ISODateTimeString>

@@ -1,42 +1,12 @@
-import type * as LibAVTypes from "../../public/app/bundled/libavjs/dist/libav.types";
-import { createAsyncThunk, createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { ATConfig, RootState } from './store'
-import { ISODateTimeString, ISODATETIMESTRINGREGEX } from '../lib/detections'
-import { EXTENSIONS } from "../lib/constants";
-import { ArrayChecker, Checker, getCheckerFromObject, RecordChecker, StringChecker, UnionChecker } from "../lib/typeCheck";
-import { ObjectEntries, ObjectKeys } from "../lib/util";
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import type { RootState } from './store'
+import { VideoMetadata } from '../lib/video-shared';
+import { API } from '../worker/Api';
 
 export type VideoFile = {
   file: File
-  hash: string
-  startTimestamps: Record<`${number}`, ISODateTimeString>
-  recordFps: number | null
-  frameTypeInfo: {
-    iFrameInterval: number,
-    iFrameStarts: number[],
-    idrFrameInterval: number,
-    idrFrameStarts: number[],
-  } | null
-  numberOfFrames: number
+  metadata: VideoMetadata
 }
-
-const videoFileExcludingFileChecker: Checker<Omit<VideoFile, "file">> = getCheckerFromObject({
-  hash: new StringChecker({regexp: /^[0-9a-f]{16}$/}),
-  startTimestamps: new RecordChecker({
-    keyChecker: new StringChecker({regexp: /^[1-9][0-9*]|0$/}),
-    valueChecker: new StringChecker(
-      {regexp: ISODATETIMESTRINGREGEX}) as Checker<ISODateTimeString>,
-  }, {valid: value => ObjectKeys(value).map(key => parseInt(key))
-      .every((key, index, keys) => index === 0 || key > keys[index - 1])}),
-  recordFps: new UnionChecker([1, null]),
-  frameTypeInfo: new UnionChecker([{
-    iFrameInterval: 1,
-    iFrameStarts: new ArrayChecker(1),
-    idrFrameInterval: 1,
-    idrFrameStarts: new ArrayChecker(1),
-  }, null]),
-  numberOfFrames: 1,
-})
 
 export const videoFileSlice = createSlice({
   name: "videoFile",
@@ -69,29 +39,30 @@ export const selectVideoUrl = createSelector(
 )
 
 export async function createSliceDataFromFile(file: File): Promise<VideoFile> {
-  if (file.name.endsWith(EXTENSIONS.videoFile)) {
-    const behaveData = await extractBehaveMetadata(file)
-    if (ObjectKeys(behaveData).length) {
-      const parsedBehaveData: {frameTypeInfo: Record<string, unknown>} & Record<string, unknown> = {
-        frameTypeInfo: {},
-      }
-      for (const [key, value] of ObjectEntries(behaveData)) {
-        const parsedValue = JSON.parse(value)
-        switch (key) {
-          case "iFrameInterval":
-          case "iFrameStarts":
-          case "idrFrameInterval":
-          case "idrFrameStarts":
-            parsedBehaveData.frameTypeInfo[key] = parsedValue
-            break
-          default:
-            parsedBehaveData[key] = parsedValue
-        }
-      }
-      if (videoFileExcludingFileChecker.isInstance(parsedBehaveData)) {
-        return {file, ...parsedBehaveData}
-      }
-    }
-  }
-  throw new Error("Not done")
+  const metadata = await API.extractMetadata(file)
+  return {file, metadata}
 }
+
+export const selectMetadata = (state: RootState): VideoMetadata | null => {
+  return state.videoFile?.metadata ?? null
+}
+
+export const selectFps = (state: RootState) => {
+  const metadata = selectMetadata(state)
+  return metadata?.playbackFps ?? null
+}
+
+
+/**
+ * Offest is the difference between the first frame shown in the <video> player
+ * (postion=0) and the first frame in the detectionInfo
+ *
+ * It seems that for MTS files, the offset is the index of the first I frame or IDR frame
+ */
+export const selectDefaultOffset = createSelector(
+  [selectMetadata], (metadata) => {
+    if (!metadata) {
+      return NaN
+    }
+    return metadata.frameTypeInfo?.iFrameStarts[0] ?? 0
+  })

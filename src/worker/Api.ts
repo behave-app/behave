@@ -1,8 +1,10 @@
-import { exhausted, promiseWithResolve} from "../lib/util"
+import { assert, exhausted, promiseWithResolve} from "../lib/util"
 import {FileTreeLeaf} from "../lib/FileTree"
 import { YoloBackend, YoloSettings } from "../lib/tfjs-shared"
+import { VideoMetadata } from "../lib/video-shared"
 
-export type WorkerMethod = WorkerConvertMethod | WorkerInferMethod | WorkerCheckValidModel
+export type WorkerMethod = WorkerConvertMethod | WorkerInferMethod | WorkerCheckValidModel | WorkerExtractMetadata
+
 export type WorkerConvertMethod = {
   call: {
     method: "convert",
@@ -36,16 +38,28 @@ export type WorkerCheckValidModel = {
   | {type: "error", error: Error}
 }
 
-type ConvertWorker = Omit<Worker, "postMessage"> & {
-  postMessage: (call: WorkerConvertMethod["call"]) => void
+export type WorkerExtractMetadata = {
+  call: {
+    method: "extract_metadata",
+    file: File,
+  }
+  message: {type: "done", result: VideoMetadata}
+  | {type: "error", error: Error}
 }
 
-type InferWorker = Omit<Worker, "postMessage"> & {
-  postMessage: (call: WorkerInferMethod["call"]) => void
+type LimitedWorker<T extends WorkerMethod> = Omit<Worker, "postMessage"> & {
+  postMessage: (call: T["call"]) => void
 }
 
-type ValidModelWorker = Omit<Worker, "postMessage"> & {
-  postMessage: (call: WorkerCheckValidModel["call"]) => void
+type ConvertWorker = LimitedWorker<WorkerConvertMethod>
+type InferWorker = LimitedWorker<WorkerInferMethod>
+type ValidModelWorker = LimitedWorker<WorkerCheckValidModel>
+type ExtractMetadataWorker = LimitedWorker<WorkerExtractMetadata>
+
+function getWorkerUrl(): string {
+  const workerUrl = document.body.dataset.workerUrl
+  assert(workerUrl !== undefined)
+  return workerUrl
 }
 
 export class API {
@@ -55,8 +69,7 @@ export class API {
     onProgress: (progress: FileTreeLeaf["progress"]) => void
   ): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolve<void>()
-    const workerUrl = document.body.dataset.workerUrl as string
-    const worker = new Worker(workerUrl, {name: "convertor"}) as ConvertWorker
+    const worker = new Worker(getWorkerUrl(), {name: "convertor"}) as ConvertWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerConvertMethod["message"]
       switch (data.type) {
@@ -84,8 +97,7 @@ export class API {
     onProgress: (progress: FileTreeLeaf["progress"]) => void,
   ): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolve<void>()
-    const workerUrl = document.body.dataset.workerUrl as string
-    const worker = new Worker(workerUrl, {name: "inferrer"}) as InferWorker
+    const worker = new Worker(getWorkerUrl(), {name: "inferrer"}) as InferWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerConvertMethod["message"]
       switch (data.type) {
@@ -111,8 +123,7 @@ export class API {
     directory: FileSystemDirectoryHandle,
   ): Promise<{name: string}> {
     const {promise, resolve, reject} = promiseWithResolve<{name: string}>()
-    const workerUrl = document.body.dataset.workerUrl as string
-    const worker = new Worker(workerUrl, {name: "checkValidModel"}) as ValidModelWorker
+    const worker = new Worker(getWorkerUrl(), {name: "checkValidModel"}) as ValidModelWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerCheckValidModel["message"]
       switch (data.type) {
@@ -127,6 +138,28 @@ export class API {
       }
     })
     worker.postMessage({method: "check_valid_model", backend: yoloBackend, directory})
+    return promise
+  }
+
+  static extractMetadata(
+    file: File,
+  ): Promise<VideoMetadata> {
+    const {promise, resolve, reject} = promiseWithResolve<VideoMetadata>()
+    const worker = new Worker(getWorkerUrl(), {name: "checkValidModel"}) as ExtractMetadataWorker
+    worker.addEventListener("message", e => {
+      const data = e.data as WorkerExtractMetadata["message"]
+      switch (data.type) {
+        case "done":
+          resolve(data.result);
+          break
+        case "error":
+          reject(data.error)
+          break
+        default:
+          exhausted(data)
+      }
+    })
+    worker.postMessage({method: "extract_metadata", file})
     return promise
   }
 }

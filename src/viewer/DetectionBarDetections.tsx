@@ -8,6 +8,7 @@ import * as css from "./detectionbardetections.module.css"
 import { useAppDispatch } from './store';
 import { selectColoursForClasses, selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors';
 import { hslToString } from '../lib/colour';
+import { selectMetadata } from './videoFileSlice';
 
 type UseClientRect<T extends (HTMLElement | SVGElement)> =
   () => [[DOMRect | null, T | null], (node: T | null) => void]
@@ -81,9 +82,11 @@ export const DetectionBarDetections: FunctionComponent = () => {
   const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const confidenceCutoffByClass = useSelector(selectConfidenceCutoffByClass)
   const coloursForClass = useSelector(selectColoursForClasses)
+  const metadata = useSelector(selectMetadata)
   const dispatch = useAppDispatch()
   const [hoverInfo, setHoverInfo] = useState<{
     x: number, y: number, frameNumber: number} | null>(null)
+  assert(metadata !== null)
   assert(detectionInfo !== null)
   assert(confidenceCutoffByClass !== null)
 
@@ -95,7 +98,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
       return NaN;
     }
     return ev.offsetY > svgRect.height / 2
-      ? Math.floor(ev.offsetX / svgRect.width * detectionInfo.totalNumberOfFrames)
+      ? Math.floor(ev.offsetX / svgRect.width * metadata.numberOfFrames)
       : currentFrameNumber + Math.floor(
         (ev.offsetX - svgRect.width / 2) / TOP_SCALING_FACTOR)
   }
@@ -123,13 +126,16 @@ export const DetectionBarDetections: FunctionComponent = () => {
       ...allKlasses.reverse().map(key => [key, [{cnt:0, width: 0}]]),
     ] as Array<[`${number}` | typeof allIncludingInvisibleLine, HeightLine]>)
 
-    for (const {detections} of detectionInfo.framesInfo) {
-      const indicesByKlass = binIndices(detections
+    for (const frameInfo of detectionInfo.framesInfo) {
+      if (frameInfo === null) {
+        continue
+      }
+      const indicesByKlass = binIndices(frameInfo.detections
         .filter(d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!).map(d => d.klass.toString()))
       for (const klass of heightLines.keys()) {
         const newCount = (
           klass === allIncludingInvisibleLine
-            ? detections.length
+            ? frameInfo.detections.length
             : (indicesByKlass.get(klass) ?? []).length)
         const lastEntry = heightLines.get(klass)!.at(-1)!
         if (lastEntry.cnt === newCount) {
@@ -155,7 +161,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
   ) {
     return <div className={css.detectionBanner}><svg ref={svgRef}></svg></div>
   } else {
-    const totalFrames = detectionInfo.totalNumberOfFrames
+    const totalFrames = metadata.numberOfFrames
     return <div className={css.detectionBanner}>
       <div className={joinedStringFromDict({
         [css.hoverInfo]: true,
@@ -168,7 +174,7 @@ export const DetectionBarDetections: FunctionComponent = () => {
       >
         {hoverInfo && detectionInfo.framesInfo.at(hoverInfo.frameNumber) && <>
           Frame {hoverInfo.frameNumber}: <ul>{(() => {
-            const detections = detectionInfo.framesInfo[hoverInfo.frameNumber].detections
+            const detections = detectionInfo.framesInfo[hoverInfo.frameNumber]?.detections
             if (detections === undefined) {
               return ""
             }

@@ -137,9 +137,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   const videoFileInfoRaw = videos.length === 1  ? videoFileMap.get(videos[0]) ?? null : null
   const videoFileInfo = videoFileInfoRaw === "loading" ? null : videoFileInfoRaw
   const matchingHashes = videoFileInfo !== null
-    && (detections.length === 1 && videoFileInfo.hash === extractHashFromFilename(detections[0].name))
+    && (detections.length === 1 && videoFileInfo.metadata.hash === extractHashFromFilename(detections[0].name))
     && (behaviours.length === 0 || (
-      behaviours.length === 1 && videoFileInfo.hash === extractHashFromFilename(behaviours[0].name)))
+      behaviours.length === 1 && videoFileInfo.metadata.hash === extractHashFromFilename(behaviours[0].name)))
 
   useEffect(() => {
     if (videos.length !== 1) {
@@ -178,9 +178,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         return
       }
       if (detectionInfo.sourceFileXxHash64 === "See filename") {
-        detectionInfo.sourceFileXxHash64 = videoFileInfo.hash
+        detectionInfo.sourceFileXxHash64 = videoFileInfo.metadata.hash
       }
-      assert(detectionInfo.sourceFileXxHash64 === videoFileInfo.hash)
+      assert(detectionInfo.sourceFileXxHash64 === videoFileInfo.metadata.hash)
       let behaviourLines: null | string[][] = null
       if (behaviourFile) {
         const behaviourCSV = await behaviourFile.text()
@@ -249,9 +249,11 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
               {(filesByType.get(key) ?? []).map(
                 fh => <li className={generalcss.show_on_hover_buttons}>
                   <span>{fh.name}</span>
-                  {key === "video" && (
-                    videoFileInfo ? <span>{videoFileInfo.hash}</span>
-                    : <span>spinner</span>)}
+                  {(info => 
+                  info === undefined ? null
+                    : info === "loading"
+                      ? <span><span className={generalcss.spinner}></span></span>
+                      : <span>{info.metadata.hash}</span>)(videoFileMap.get(fh))}
                   <button className={generalcss.show_on_hover}
                     onClick={() => setFileSystemHandles(fhs => fhs.filter(
                       filterFh => filterFh !== fh))}>

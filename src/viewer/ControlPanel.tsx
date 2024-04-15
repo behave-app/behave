@@ -6,7 +6,7 @@ import { selectPlaybackRate, selectPlayerState } from "./videoPlayerSlice";
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber} from "./selectors";
 import { CONTROLS } from "./controls";
 import { Button } from "./Button";
-import { formatDateTimeParts } from "../lib/detections";
+import { formatDateTimeParts } from "../lib/datetime";
 import { selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut, selectZoomLevel } from "./appSlice";
 import { selectActiveBehaviourShortcutPreset, selectActiveSubjectShortcutPreset, } from "./shortcutsSlice";
 import { ObjectEntries } from "../lib/util";

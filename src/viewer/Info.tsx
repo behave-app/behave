@@ -1,11 +1,11 @@
 import { FunctionComponent } from "preact"
 import { useSelector } from "react-redux"
-import { selectVideoFilePotentiallyNull } from "./videoFileSlice"
+import { selectMetadata, selectVideoFilePotentiallyNull } from "./videoFileSlice"
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber, selectDateTimes, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
 import { selectDetectionFilename, selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
 import { selectCurrentTime, selectDuration } from "./videoPlayerSlice"
 import { ObjectEntries, ObjectKeys, assert, formatTime } from "../lib/util"
-import { DateTimeParts, formatDateTimeParts } from "../lib/detections"
+import { DateTimeParts, formatDateTimeParts } from "../lib/datetime"
 import { hslToString } from "../lib/colour"
 import * as css from "./info.module.css"
 import { selectBehaviourInfo } from "./behaviourSlice"
@@ -33,6 +33,7 @@ export const Info: FunctionComponent = () => {
   const settingsByDetectionClass = useSelector(selectSettingsByDetectionClassForCurrectDetections)
   const behaviourInfo = useSelector(selectBehaviourInfo)
   const currentDateTime = useSelector(selectCurrentFrameDateTime)
+  const metadata = useSelector(selectMetadata)
 
   const shownTotalByClass = (() => {
     if (!detectionInfo || !settingsByDetectionClass) {
@@ -43,7 +44,7 @@ export const Info: FunctionComponent = () => {
           key => [key, {shown: 0, total: 0}])) 
 
     detectionInfo.framesInfo.forEach(fi => {
-      fi.detections.forEach(d => {
+      fi?.detections.forEach(d => {
         const key = `${d.klass}` as const
         const item = shownTotalByClass.get(key)
         const settings = settingsByDetectionClass.get(key)
@@ -68,7 +69,7 @@ export const Info: FunctionComponent = () => {
       <dd>{currentTime !== null && formatTime(currentTime)} / {
         totalTime !== null && formatTime(totalTime)}</dd>
       <dt>Current / total frame number</dt>
-      <dd>{currentFrameNumber} / {detectionInfo && detectionInfo.totalNumberOfFrames}</dd>
+      <dd>{currentFrameNumber} / {metadata && metadata.numberOfFrames}</dd>
       <dt>Real-world start - end time (current time)</dt>
       <dd>{dateTimes && dateTimes.length
         && formatInterval(dateTimes.at(0)!, dateTimes.at(-1)!)}

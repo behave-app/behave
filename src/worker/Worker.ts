@@ -1,6 +1,6 @@
-import { convert } from "./video"
+import { convert, extractMetadata } from "./video"
 import { exhausted } from "../lib/util"
-import { WorkerMethod, WorkerConvertMethod, WorkerInferMethod, WorkerCheckValidModel } from "./Api"
+import { WorkerMethod, WorkerConvertMethod, WorkerInferMethod, WorkerCheckValidModel, WorkerExtractMetadata } from "./Api"
 import { getModel, getModelAndInfer, setBackend, } from "./tfjs"
 
 
@@ -53,6 +53,20 @@ self.addEventListener("message", e => {
       ).then((model) => {
           reply({type: "done", result: {name: model.name}})
         }).catch(error => {
+          console.warn(error)
+          reply({type: "error", error})
+        }).finally(() => {
+          self.close()
+        })
+    }
+      break
+    case "extract_metadata": {
+      const reply = (message: WorkerExtractMetadata["message"]) => {
+        self.postMessage(message)
+      }
+      extractMetadata(data.file).then(
+        result => reply({type: "done", result})
+      ).catch(error => {
           console.warn(error)
           reply({type: "error", error})
         }).finally(() => {

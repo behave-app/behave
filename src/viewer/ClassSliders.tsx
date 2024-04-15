@@ -14,7 +14,7 @@ import { selectHideDetectionBoxes } from "./appSlice"
 import { useEffect } from "preact/hooks"
 import * as css from "./classsliders.module.css"
 import { selectCurrentFrameDateTime, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
-import { formatDateTimeParts } from "../lib/detections"
+import { formatDateTimeParts } from "../lib/datetime"
 
 type Props = {
   onRequestClose: () => void
@@ -31,7 +31,7 @@ export const ClassSliders: FunctionComponent<Props> = ({onRequestClose}) => {
   const dispatch = useAppDispatch()
 
   useEffect(() => {
-    if (!detectionInfo || !settingsByDetectionClass) {
+    if (detectionInfo === null || !settingsByDetectionClass) {
       return
     }
     const key = getKeyFromModelKlasses(detectionInfo.modelKlasses)
@@ -55,7 +55,7 @@ export const ClassSliders: FunctionComponent<Props> = ({onRequestClose}) => {
           key => [key, {shown: 0, total: 0}])) 
 
   detectionInfo.framesInfo.forEach(fi => {
-    fi.detections.forEach(d => {
+    fi?.detections.forEach(d => {
     const key = `${d.klass}` as const
       const item = shownTotalByClass.get(key)
       const settings = settingsByDetectionClass.get(key)

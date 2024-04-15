@@ -224,7 +224,7 @@ export const selectBehaviourBarShown = (state: RootState) => state.settings.gene
 
 export const selectTimeOffsetSeconds = (state: RootState) => state.settings.general.timeOffsetSeconds
 
-export type BehaviourColoumnType = "frameNumber" | "pts" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
+export type BehaviourColoumnType = "frameNumber" | `dateTime:${string}` | "subject" | "behaviour" | `comments:${string}`
 export type BehaveLayout = Array<{width: number | "*", type: BehaviourColoumnType}>
 
 export const selectBehaviourLayout = createSelector([(_state) => 1], (_one) => [

@@ -231,8 +231,8 @@ export class ObjectChecker<
 Req extends Record<ValidRecordKey, unknown>,
 Opt extends Record<ValidRecordKey, unknown>,
 > extends Checker<CombineReqAndOptRemoveCheckers<Req, Opt>> {
-  private requiredItemChecker: {[key in keyof Req]: Checker<ItemWithoutCheckerRecursive<Req[key]>>}
-  private optionalItemChecker: {[key in keyof Opt]: Checker<ItemWithoutCheckerRecursive<Opt[key]>>}
+  readonly requiredItemChecker: {[key in keyof Req]: Checker<ItemWithoutCheckerRecursive<Req[key]>>}
+  readonly optionalItemChecker: {[key in keyof Opt]: Checker<ItemWithoutCheckerRecursive<Opt[key]>>}
   constructor(
     data: {
       required: Req,

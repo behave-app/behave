@@ -1,9 +1,10 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { RootState, } from './store'
-import { selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from './detectionsSlice'
+import { selectDetectionInfoPotentiallyNull, } from './detectionsSlice'
 import { selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors'
 import { assert } from '../lib/util'
 import { PLAYBACK_RATES, selectPlaybackRate } from './videoPlayerSlice'
+import { selectDefaultOffset, selectFps, selectMetadata } from './videoFileSlice'
 
 // Warning: DO NOT EXPORT -- because people might be temped to keep a reference to the element itself
 const selectVideoPlayerElementId = (state: RootState) => state.videoPlayer.videoPlayerElementId
@@ -44,8 +45,8 @@ export const videoSeekToFrameNumberAndPause = createAsyncThunk("videoPlayer/vide
   ): Promise<void> => {
     const state = getState() as RootState
     const video = selectVideoPlayerElement(state)
-    const fps = selectFps(state)
-    const offset = selectOffset(state)
+    const fps = selectFps(state) ?? NaN
+    const offset = selectDefaultOffset(state)
     video.pause()
     video.currentTime = (frameNumber - offset) / fps
   })
@@ -87,9 +88,10 @@ export const videoSeekToNextDetectionAndPause = createAsyncThunk("videoPlayer/vi
   ): Promise<void> => {
     const state = getState() as RootState
     const detectionInfo = selectDetectionInfoPotentiallyNull(state)
+    const metadata = selectMetadata(state)
     const confidenceCutoffByClass = selectConfidenceCutoffByClass(state)
     const currentFrameNumber = selectCurrentFrameNumber(getState() as RootState)
-    if (!detectionInfo || currentFrameNumber === null || confidenceCutoffByClass === null) {
+    if (!detectionInfo || currentFrameNumber === null || confidenceCutoffByClass === null || !metadata) {
       return
     }
     const [searchIn, offset] = direction === "backwards"
@@ -98,11 +100,11 @@ export const videoSeekToNextDetectionAndPause = createAsyncThunk("videoPlayer/vi
         currentFrameNumber + 1]
     const functionName = direction === "backwards" ? "findLastIndex" : "findIndex"
     let newFrameNumber = searchIn[functionName](
-      frameInfo => frameInfo.detections.some(
+      frameInfo =>  frameInfo && frameInfo.detections.some(
         d => d.confidence >= confidenceCutoffByClass.get(`${d.klass}`)!),
     )
     if (newFrameNumber === -1) {
-      newFrameNumber = direction === "backwards" ? 0 : detectionInfo.totalNumberOfFrames
+      newFrameNumber = direction === "backwards" ? 0 : metadata.numberOfFrames
     } else {
       newFrameNumber = newFrameNumber + offset
     }

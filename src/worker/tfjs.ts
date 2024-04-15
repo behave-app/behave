@@ -7,7 +7,7 @@ import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
-import { DetectionInfoV2, SingleFrameInfoV2, detectionInfoToString } from '../lib/detections'
+import { DetectionInfo, SingleFrameInfo, detectionInfoToString } from '../lib/detections'
 import { ObjectEntries, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 import { YOLO_MODEL_NAME_FILE, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
@@ -137,8 +137,8 @@ export async function infer(
     video = new Video(input.file)
     await video.init({keepFrameInfo: false})
     const numberOfFrames = video.videoInfo.numberOfFramesInStream
-    const detectionInfo: DetectionInfoV2 = {
-      version: 2,
+    const detectionInfo: DetectionInfo = {
+      version: 1,
       sourceFileName: input.file.name,
       sourceFileXxHash64: hash,
       modelName: model ? model.name : null,
@@ -152,7 +152,7 @@ export async function infer(
       frameCount++
       const singleFrameInfo = {
         detections: []
-      } as SingleFrameInfoV2
+      } as SingleFrameInfo
 
     const [boxes, scores, classes] = model
       ? await inferSingleFrame(model, yoloVersion, videoFrame) : [[], [], []]

@@ -1,12 +1,13 @@
 import { createSelector } from "@reduxjs/toolkit";
 import { selectBehaviourInfo, selectCurrentlySelectedSubject } from "./behaviourSlice";
-import { selectDetectionInfoPotentiallyNull, selectFps, selectOffset } from "./detectionsSlice";
+import { selectDetectionInfoPotentiallyNull } from "./detectionsSlice";
 import { SettingsForDetectionClass, getKeyFromModelKlasses, selectFramenumberIndexInLayout, selectSettingsByDetectionClassByKey, selectTimeOffsetSeconds } from './generalSettingsSlice';
 import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 import { HSL } from "../lib/colour";
-import { ObjectEntries } from "../lib/util";
-import { getPartsFromTimestamp } from "../lib/detections";
+import { ObjectEntries, ObjectKeys, range } from "../lib/util";
+import { DateTimeParts, getLocalPartsFromDateObject, getPartsFromTimestamp } from "../lib/datetime";
+import { selectDefaultOffset, selectFps, selectMetadata } from "./videoFileSlice";
 
 
 const DEFAULT_COLOURS_FOR_CLASSES = new Map([
@@ -67,9 +68,10 @@ export const selectColoursForClasses: (
     })
 
 export const selectCurrentFrameNumber = createSelector(
-  [selectCurrentTime, selectFps, selectOffset],
+  [selectCurrentTime, selectFps, selectDefaultOffset],
   (currentTime, fps, offset) => {
     if (currentTime === null
+      || fps === null
       || !Number.isFinite(currentTime)
       || !Number.isFinite(fps)
       || !Number.isFinite(offset)) {
@@ -79,58 +81,39 @@ export const selectCurrentFrameNumber = createSelector(
   }
 )
 export const selectDateTimes = createSelector(
-  [selectDetectionInfoPotentiallyNull, selectTimeOffsetSeconds],
-  (detectionInfo, offsetSeconds): null | ReturnType<typeof getPartsFromTimestamp>[] => {
-    if (!detectionInfo) {
+  [selectMetadata, selectTimeOffsetSeconds],
+  (metadata, offsetSeconds): null | ReadonlyArray<DateTimeParts> => {
+    if (metadata === null
+    || ObjectKeys(metadata.startTimestamps).length === 0
+    || metadata.recordFps === null) {
       return null
     }
-    const frameInfosWithTs = detectionInfo.framesInfo
-    .filter(frameInfo => "timestamp" in frameInfo)
-    .map(frameInfo => ({
-      ...frameInfo,
-      timestampParts: getPartsFromTimestamp(frameInfo.timestamp!)
-    }))
-    if (frameInfosWithTs.length < 2) {
-      console.warn("too few timestamps")
-      return null
-    }
-    if (new Set(frameInfosWithTs
-      .map(fi => fi.timestampParts.tz)).size !== 1) {
-      console.warn("Not all items have same TZ")
-      return null
-    }
-    let index = 0
-    const p2 = (n: number) => n.toString().padStart(2, "0")
-    const p4 = (n: number) => n.toString().padStart(4, "0")
-    const calculateTimestamp = (pts: number): ReturnType<typeof getPartsFromTimestamp> => {
-      const [start, end] = frameInfosWithTs.slice(index, index + 2)
-      const pos = (pts - start.pts) / (end.pts - start.pts)
-      if (pos > 1 && frameInfosWithTs.length > index + 2) {
-        index++
-        return calculateTimestamp(pts)
+    const recordFps = metadata.recordFps
+    const [firstFrameNumberString, firstTS] = ObjectEntries(metadata.startTimestamps)[0]
+    return range(metadata.numberOfFrames).reduce((parts_s, framenr) => {
+      if (parts_s.length === 0) {
+        const firstParts = getPartsFromTimestamp(firstTS)
+        const firstDate = new Date(
+        firstParts.date.valueOf() -
+        parseInt(firstFrameNumberString) / recordFps * 1000 + offsetSeconds * 1000)
+        return [getLocalPartsFromDateObject(
+          firstDate, firstParts.tz, firstParts.tzOffsetHours)]
       }
-      const ts = Math.round(
-        (start.timestampParts.date.valueOf() + pos * (
-          end.timestampParts.date.valueOf() - start.timestampParts.date.valueOf()
-        )) / 1000) * 1000 + start.timestampParts.tzOffsetHours * 60 * 60 * 1000
-        + offsetSeconds * 1000
-      const date = new Date(ts)
-      return {
-        date,
-        year: p4(date.getUTCFullYear()),
-        month: p2(date.getUTCMonth() + 1),
-        day: p2(date.getUTCDate()),
-        hour: p2(date.getUTCHours()),
-        minute: p2(date.getUTCMinutes()),
-        second: p2(date.getUTCSeconds()),
-        tz: start.timestampParts.tz,
-        tzOffsetHours: start.timestampParts.tzOffsetHours,
+      const explicitCurrentFrameTimestamp = metadata.startTimestamps[`${framenr}`]
+      if (explicitCurrentFrameTimestamp !== undefined) {
+        const parts = getPartsFromTimestamp(explicitCurrentFrameTimestamp)
+        parts_s.push(getLocalPartsFromDateObject(
+          new Date(parts.date.valueOf() + offsetSeconds * 1000),
+          parts.tz, parts.tzOffsetHours))
+        return parts_s
       }
-    }
-    return detectionInfo.framesInfo.map(
-      frameInfo => calculateTimestamp(frameInfo.pts))
-  }
-)
+      const lastParts = parts_s.at(-1)!
+      parts_s.push(getLocalPartsFromDateObject(new Date(
+        lastParts.date.valueOf() + 1000 / recordFps),
+          lastParts.tz, lastParts.tzOffsetHours))
+      return parts_s
+    }, [] as Array<DateTimeParts>)
+  })
 
 
 export const selectCurrentFrameDateTime = (state: RootState) => {
@@ -198,11 +181,11 @@ export const selectSelectedBehaviourLine: ((state: RootState) => null | {index: 
 export const selectBehaviourLineWithoutBehaviour = createSelector(
   [
     selectCurrentlySelectedSubject, selectBehaviourInfo, selectCurrentFrameNumber,
-    selectCurrentFrameInfoPotentiallyNull, selectCurrentFrameDateTime
+    selectCurrentFrameDateTime
   ],
   (
     selectedSubject, behaviourInfo, currentFrameNumber,
-    currentFrameInfo, currentFrameDateTimeParts
+    currentFrameDateTimeParts
   ) => {
     if (selectedSubject === null) {
       return null
@@ -213,9 +196,6 @@ export const selectBehaviourLineWithoutBehaviour = createSelector(
     const parts: string[] = behaviourInfo.layout.map(({type}) => {
       if (type === "frameNumber") {
         return `${currentFrameNumber}`
-      }
-      if (type === "pts") {
-        return currentFrameInfo ? `${currentFrameInfo.pts}` : "N/A"
       }
       if (type === "subject") {
         return selectedSubject

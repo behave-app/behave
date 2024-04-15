@@ -27,3 +27,23 @@
   column-gap: 0.7em;
   justify-content: center;
 }
+
+.spinner {
+  display: inline-block;
+  border: 5px solid rgba(255, 255, 255, 0.3); /* Light grey border */
+  border-top: 5px solid #3498db; /* Blue color for the top border */
+  border-radius: 50%; /* Makes the div circular */
+  box-sizing: border-box;
+  width: .8em; /* Size of the spinner */
+  height: .8em; /* Size of the spinner */
+  animation: spin 1s linear infinite; /* Animation applied here */
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg); /* Start rotation from 0 degrees */
+  }
+  100% {
+    transform: rotate(360deg); /* End rotation at 360 degrees */
+  }
+}

@@ -4,12 +4,11 @@ import { selectMetadata, selectVideoFilePotentiallyNull } from "./videoFileSlice
 import { selectCurrentFrameDateTime, selectCurrentFrameNumber, selectDateTimes, selectSettingsByDetectionClassForCurrectDetections } from "./selectors"
 import { selectDetectionFilename, selectDetectionInfoPotentiallyNull } from "./detectionsSlice"
 import { selectCurrentTime, selectDuration } from "./videoPlayerSlice"
-import { ObjectEntries, ObjectKeys, assert, formatTime } from "../lib/util"
+import { ObjectEntries, ObjectKeys, assert, formatTime, getBehaveVersion } from "../lib/util"
 import { DateTimeParts, formatDateTimeParts } from "../lib/datetime"
 import { hslToString } from "../lib/colour"
 import * as css from "./info.module.css"
 import { selectBehaviourInfo } from "./behaviourSlice"
-
 
 function formatInterval(parts1: DateTimeParts, parts2: DateTimeParts): string {
   const formatDate = "%Y-%m-%d"
@@ -62,7 +61,7 @@ export const Info: FunctionComponent = () => {
     <h2>Behave</h2>
     <dl className={css.info_list}>
       <dt>Behave version</dt>
-      <dd>{document.body.dataset.behaveVersion}</dd>
+      <dd>{getBehaveVersion()}</dd>
       <dt>Video file</dt>
       <dd>{video?.file.name ?? "No video file loaded"}</dd>
       <dt>Current / total playback time</dt>

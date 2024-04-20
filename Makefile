@@ -36,7 +36,7 @@ public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt: $(LIBAVJS_TARGET_FILES
 $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 	@mkdir -p "$(DOCKER_TMPDIR)"
 	$(eval OUTDIR := $(shell mktemp -d --tmpdir=$(DOCKER_TMPDIR)))
-	@$(DOCKER) build libav.js \
+	@$(DOCKER) build --no-cache libav.js \
 		--build-arg="LIBAVJS_COMMIT=$(LIBAVJS_COMMIT)" \
 		--build-arg="FILES_TO_BUILD=$(LIBAVJS_MAKE_FILES)" \
 		--target=artifact --output type=local,dest=$(OUTDIR)
@@ -54,10 +54,9 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@./node_modules/eslint/bin/eslint.js src
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
-	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
+	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION="$$(node determine_version_number.mjs)" --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& if [ -f "$(outfilebase).$(ext)" ]; then MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"; fi))) > $@.part
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part
-	@echo "s&___BEHAVE_VERSION___&$$(node determine_version_number.mjs | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g')&g" >> $@.part
 	@ mv $@.part $@
 
 $(HTML_TARGET_FILES): public/%.html: %.html public/app/tsc

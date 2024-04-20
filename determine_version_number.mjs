@@ -23,11 +23,11 @@ exec("git log  --date='format-local:%Y-%m-%dT%H:%M UTC' '--pretty=format:%H %ad 
       }
       const local_changes = stdout.split("\n").filter(l => l.length).length
 
-      console.log([
+      console.log(JSON.stringify({version: [
         `${tag}`,
         count ? `-dev+${count} (${sha.slice(0, 7)}) `: " ",
         local_changes ? `changes: ${local_changes} `: "",
         `(${dt.replace("T", " ")})`
-      ].join(""))
+      ].join("")}))
     })
   })

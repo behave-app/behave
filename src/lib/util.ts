@@ -154,6 +154,14 @@ export function isCompatibleBrowser(): boolean {
   return false;
 }
 
+declare let BEHAVE_VERSION: {version: string}
+if (!(BEHAVE_VERSION as {version: string} | undefined)) {
+  BEHAVE_VERSION = {version: "__UNKNOWN__"}
+}
+export function getBehaveVersion(): string {
+  return BEHAVE_VERSION.version
+}
+
 
 export function TSAssertType<T>(_: unknown): asserts _ is T {}
 

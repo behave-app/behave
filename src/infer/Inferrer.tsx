@@ -6,7 +6,7 @@ import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {YoloSettingsDialog, loadCachedSettings} from "./YoloSettings"
 import { useEffect } from "react"
-import { isCompatibleBrowser } from "../lib/util";
+import { getBehaveVersion, isCompatibleBrowser } from "../lib/util";
 import { Icon } from "../lib/Icon"
 import { API } from "../worker/Api"
 import { YoloSettings } from "../lib/tfjs-shared"
@@ -116,6 +116,7 @@ export function Inferrer(): JSX.Element {
         closeSettingsDialog={() => setState("uploading")}
         {...{yoloSettings, setYoloSettings}} />
       : (<>
+        <div className={css.version}>{getBehaveVersion()}</div>
         <div className={css.explanation}>
           This page allows detection of items on videos, and saving the result as csv (inference).
         </div>

@@ -10,3 +10,13 @@ h1 {
 .files {
   border: .2em solid hsl(240, 100%, 50%);
 }
+
+.version {
+  width: 100%;
+  text-align: right;
+  font-size: .8em;
+  font-style: italic;
+  &::before {
+    content: "version: ";
+  }
+}

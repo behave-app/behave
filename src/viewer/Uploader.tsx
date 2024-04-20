@@ -26,7 +26,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   const [error, setError] = useState<string|null>(null)
   const behaviourLayout = useSelector(selectBehaviourLayout)
   const videoFileAlreadyLoaded = useSelector(selectVideoFilePotentiallyNull) !== null
-  const [videoFileMap, setVideoFileMap] = useState(new Map<FileSystemHandle, "loading" | VideoFile>())
+  const [videoFileMap, setVideoFileMap] = useState(new Map<FileSystemHandle, "loading" | VideoFile | Error>())
 
   useEffect(() => {
     const aimedAt = window.document.documentElement
@@ -135,7 +135,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     return hash
   }
   const videoFileInfoRaw = videos.length === 1  ? videoFileMap.get(videos[0]) ?? null : null
-  const videoFileInfo = videoFileInfoRaw === "loading" ? null : videoFileInfoRaw
+  const videoFileInfo = (videoFileInfoRaw === "loading" || videoFileInfoRaw instanceof Error) ? null : videoFileInfoRaw
   const matchingHashes = videoFileInfo !== null
     && (detections.length === 1 && videoFileInfo.metadata.hash === extractHashFromFilename(detections[0].name))
     && (behaviours.length === 0 || (
@@ -155,9 +155,17 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     setVideoFileMap(videoFileMap =>
       new Map([...videoFileMap.entries(), [video, "loading"]]))
     void((async () => {
-      const videoFile = await createSliceDataFromFile(await video.getFile())
+      const result = await valueOrErrorAsync(
+        createSliceDataFromFile)(await video.getFile())
+      if ("error" in result) {
+        const error: Error = result.error instanceof Error
+          ? result.error : new Error(`${result.error}`)
+        setVideoFileMap(videoFileMap =>
+          new Map([...videoFileMap.entries(), [video, error]]))
+        return
+      }
       setVideoFileMap(videoFileMap =>
-        new Map([...videoFileMap.entries(), [video, videoFile]]))
+        new Map([...videoFileMap.entries(), [video, result.value]]))
     })())
   }, [videos, videoFileMap])
 
@@ -253,7 +261,9 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
                   info === undefined ? null
                     : info === "loading"
                       ? <span><span className={generalcss.spinner}></span></span>
-                      : <span>{info.metadata.hash}</span>)(videoFileMap.get(fh))}
+                    : info instanceof Error
+                      ? <span className={css.video_error} title={info.message}>video file not valid</span>
+                      : <span>hash: {info.metadata.hash}</span>)(videoFileMap.get(fh))}
                   <button className={generalcss.show_on_hover}
                     onClick={() => setFileSystemHandles(fhs => fhs.filter(
                       filterFh => filterFh !== fh))}>

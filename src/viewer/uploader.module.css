@@ -24,4 +24,7 @@
       }
     }
   }
+  .video_error {
+    color: red;
+  }
 }

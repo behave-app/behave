@@ -1,4 +1,8 @@
-FROM emscripten/emsdk:3.1.47-arm64 as ready-to-build
+FROM emscripten/emsdk:3.1.47-arm64 as ready-to-build-arm64
+FROM emscripten/emsdk:3.1.47 as ready-to-build-amd64
+ARG TARGETARCH
+
+FROM ready-to-build-${TARGETARCH} as ready-to-build
 ARG LIBAVJS_COMMIT
 
 RUN apt-get update && apt-get install -y cmake pkg-config && rm -rf /var/lib/apt/lists/*

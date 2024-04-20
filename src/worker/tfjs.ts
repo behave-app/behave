@@ -126,7 +126,7 @@ export async function infer(
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
     const hash = await xxh64sum(input.file, progress => updateProgress(
       "hash", progress))
-    outputfilename = [...baseparts, hash, EXTENSIONS.detectionFile].join(".")
+    outputfilename = [...baseparts, ".",  hash, EXTENSIONS.detectionFile].join("")
     if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")
       return

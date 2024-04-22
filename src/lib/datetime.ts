@@ -20,17 +20,32 @@ export function getLocalPartsFromDateObject(
 ): DateTimeParts {
   const p2 = (n: number) => n.toString().padStart(2, "0")
   const p4 = (n: number) => n.toString().padStart(4, "0")
+  const localDate = new Date(date.valueOf() + tzOffsetHours * 3600 * 1000)
   return {
     date,
-    year: p4(date.getUTCFullYear()),
-    month: p2(date.getUTCMonth() + 1),
-    day: p2(date.getUTCDate()),
-    hour: p2(date.getUTCHours()),
-    minute: p2(date.getUTCMinutes()),
-    second: p2(date.getUTCSeconds()),
+    year: p4(localDate.getUTCFullYear()),
+    month: p2(localDate.getUTCMonth() + 1),
+    day: p2(localDate.getUTCDate()),
+    hour: p2(localDate.getUTCHours()),
+    minute: p2(localDate.getUTCMinutes()),
+    second: p2(localDate.getUTCSeconds()),
     tz,
     tzOffsetHours,
   }
+}
+
+export function offsetParts(
+  parts: DateTimeParts,
+  offset: {
+    seconds?: number,
+    hours?: number,
+  }
+): DateTimeParts {
+  return getLocalPartsFromDateObject(
+    new Date(parts.date.valueOf()
+    + (offset.seconds ?? 0) * 1000
+    + (offset.hours ?? 0) * 3600 * 1000),
+    parts.tz, parts.tzOffsetHours)
 }
 
 export function getPartsFromTimestamp(

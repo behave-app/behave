@@ -6,7 +6,7 @@ import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 import { HSL } from "../lib/colour";
 import { ObjectEntries, ObjectKeys, range } from "../lib/util";
-import { DateTimeParts, getLocalPartsFromDateObject, getPartsFromTimestamp } from "../lib/datetime";
+import { DateTimeParts, ISODateTimeString, getLocalPartsFromDateObject, getPartsFromTimestamp, offsetParts } from "../lib/datetime";
 import { selectDefaultOffset, selectFps, selectMetadata } from "./videoFileSlice";
 
 
@@ -89,28 +89,16 @@ export const selectDateTimes = createSelector(
       return null
     }
     const recordFps = metadata.recordFps
-    const [firstFrameNumberString, firstTS] = ObjectEntries(metadata.startTimestamps)[0]
+    const entries = ObjectEntries(metadata.startTimestamps)
+    let lastExplicitParts = [parseInt(entries[0][0]), getPartsFromTimestamp(entries[0][1])] as const
     return range(metadata.numberOfFrames).reduce((parts_s, framenr) => {
-      if (parts_s.length === 0) {
-        const firstParts = getPartsFromTimestamp(firstTS)
-        const firstDate = new Date(
-        firstParts.date.valueOf() -
-        parseInt(firstFrameNumberString) / recordFps * 1000 + offsetSeconds * 1000)
-        return [getLocalPartsFromDateObject(
-          firstDate, firstParts.tz, firstParts.tzOffsetHours)]
-      }
       const explicitCurrentFrameTimestamp = metadata.startTimestamps[`${framenr}`]
       if (explicitCurrentFrameTimestamp !== undefined) {
         const parts = getPartsFromTimestamp(explicitCurrentFrameTimestamp)
-        parts_s.push(getLocalPartsFromDateObject(
-          new Date(parts.date.valueOf() + offsetSeconds * 1000),
-          parts.tz, parts.tzOffsetHours))
-        return parts_s
+        lastExplicitParts = [framenr, parts]
       }
-      const lastParts = parts_s.at(-1)!
-      parts_s.push(getLocalPartsFromDateObject(new Date(
-        lastParts.date.valueOf() + 1000 / recordFps),
-          lastParts.tz, lastParts.tzOffsetHours))
+      const seconds = (framenr - lastExplicitParts[0]) / recordFps + offsetSeconds
+      parts_s.push(offsetParts(lastExplicitParts[1], {seconds}))
       return parts_s
     }, [] as Array<DateTimeParts>)
   })

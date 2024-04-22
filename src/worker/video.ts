@@ -1000,12 +1000,6 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
           case "idrFrameStarts":
             parsedBehaveData.frameTypeInfo[key] = parsedValue
             break
-          case "hash":
-          case "startTimestamps":
-          case "recordFps":
-          case "numberOfFrames":
-            parsedBehaveData[key] = parsedValue
-            break
           default:
             if (key in videoMetadataChecker.requiredItemChecker
               || key in videoMetadataChecker.optionalItemChecker) {

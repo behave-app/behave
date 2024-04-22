@@ -178,12 +178,12 @@ export const selectBehaviourInfo = (state: RootState) => state.behaviour.behavio
 export const selectCurrentlySelectedSubject = (state: RootState) => state.behaviour.behaviourInfo?.currentlySelectedSubject ?? null
 
 export const selectBehaviourLinesAsCSV = createSelector([
-  (state: RootState) => state.behaviour.behaviourInfo?.lines], lines => lines?.map(
+  (state: RootState) => state.behaviour.behaviourInfo?.lines], lines => lines ? lines.map(
     line => line.map(
       word => [",", '"', "\n"].some(char => word.includes(char))
         ? `"${word.replaceAll('"', '""')}"` : word
     ).join(",")
-  ).join("\n") ?? null
+  ).join("\n") + "\n" : null
 )
 
 export const selectBehaviourFileHandlerAndCsv = createSelector([

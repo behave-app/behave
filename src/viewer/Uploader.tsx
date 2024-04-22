@@ -175,6 +175,11 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       const detectionFile = await detections[0].getFile()
       const behaviourFile = await behaviours.at(0)?.getFile()
       const detectionText = await detectionFile.text()
+      if (detectionFile.size === 0) {
+        setError("The detection is empty. Possibly the detection / inference "
+        + "terminated / crashed before it was complete")
+        return
+      }
       const detectionInfoOrError = valueOrError(JSON.parse)(detectionText)
       if ("error" in detectionInfoOrError) {
         setError("The detection file is corrupted, and cannot be opened")
@@ -238,6 +243,8 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
           or remove any excess files below.
           You can always reload this page to start again.
         </div>
+        : videoFileInfo === null ?
+          <div>Please wait while the video file is inspected (should take a couple of seconds)</div>
         : !matchingHashes
           ?<div className={css.warning}>
             The selected files seem to be not for the same video file.

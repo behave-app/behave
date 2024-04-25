@@ -235,6 +235,14 @@ export const csvToLines = (csv: string): string[][] => {
   const partLines: string[][] = []
   for (let i=0; i < lines.length; i++) {
     let line: string | null = lines[i]
+    if (line.length === 0) {
+      console.debug("Skipping empty line")
+      continue
+    }
+    if (lines[0] === "#") {
+      console.debug("Skipping commment line")
+      continue
+    }
     const parts: string[] = []
     while (line !== null) {
       if (line[0] === '"') {

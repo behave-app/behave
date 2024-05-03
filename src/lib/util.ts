@@ -187,6 +187,10 @@ export function joinedStringFromDict(dict: Record<string, boolean>, sep?: string
     .filter(([_k, v]) => v).map(([k]) => k).join(sep ?? " ")
 }
 
+export function ObjectIsEmpty(obj: Record<string | number | symbol, unknown>): obj is Record<never, never> {
+  return ObjectKeys(obj).length === 0
+}
+
 export function ObjectKeys<K extends string, V>(
   obj: Record<K, V>): ReadonlyArray<K> {
   return Object.keys(obj) as unknown as ReadonlyArray<K>
@@ -235,6 +239,68 @@ export function valueOrError<T extends (...params: any[]) => any>(
     } catch (e) {
       return {error: e}
     }
+  }
+}
+
+export type Serializable = null | boolean | number | string | {[key: string]: Serializable} | Array<Serializable>
+
+export function* toJSONStringIterator(
+  item: Serializable,
+  // NOTE: demand that replacer returns Serializable or undefined,
+  // disallow aray replacer
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  replacer?: ((this: any, key: string, value: any) => Serializable) | undefined,
+  space?: string | number | undefined,
+  __position?: string[],
+  __parentObj?: Serializable,
+): Generator<string, void, void> {
+  const replacedItem = replacer ? replacer.bind(__parentObj ?? item)(
+    __position ? __position.at(-1)! : "", item) : item
+  if (replacedItem === null
+    || typeof replacedItem === "number"
+    || typeof replacedItem === "boolean"
+    || typeof replacedItem === "string"
+  ) {
+    yield JSON.stringify(replacedItem)
+    return
+  }
+  const indent = (__position ?? []).length
+  const spaceStringItem = space === undefined ? ""
+    : typeof space === "number" ? "\n" + new Array(space * (indent + 1)).join(" ")
+      : "\n" + new Array(indent + 1).join(space)
+  const spaceStringEnd = space === undefined ? ""
+    : typeof space === "number" ? "\n" + new Array(space * indent).join(" ")
+      : "\n" + new Array(indent).join(space)
+
+  if (Symbol.iterator in replacedItem) {
+    yield "["
+    let first = true
+    for (const [index, el] of Object.entries(replacedItem)) {
+      const itemIterator = toJSONStringIterator(el, replacer, space, [...__position ?? [], index], replacedItem)
+      const firstItem = itemIterator.next()
+      assert(!firstItem.done)
+      yield (first ? "" : ",") + spaceStringItem + firstItem.value!
+      if (first) {
+        first = false
+      }
+      yield* itemIterator
+    }
+    yield spaceStringEnd + "]"
+  } else {
+    yield "{"
+    let first = true
+    for (const [key, value] of Object.entries(replacedItem)) {
+      assert(typeof key === "string")
+      const itemIterator = toJSONStringIterator(value, replacer, space, [...__position ?? [], key], replacedItem)
+      const firstItem = itemIterator.next()
+      assert(!firstItem.done)
+      yield (first ? "" : ",") + spaceStringItem + JSON.stringify(key) + ":" + firstItem.value
+      if (first) {
+        first = false
+      }
+      yield* itemIterator
+    }
+    yield spaceStringEnd + "}"
   }
 }
 

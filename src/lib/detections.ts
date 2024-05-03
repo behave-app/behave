@@ -1,5 +1,6 @@
 import { ArrayChecker, Checker, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, UnionChecker, } from "./typeCheck"
 import { ISODATETIMESTRINGREGEX, ISODateTimeString } from "./datetime"
+import { ObjectKeys, toJSONStringIterator } from "./util"
 
 export type DetectionsForFrame = Array<{
       klass: number
@@ -27,9 +28,17 @@ export type DetectionInfo = {
   framesInfo: FramesInfo
 }
 
-export function detectionInfoToString(
-  detectionInfo: DetectionInfo): string {
-  return JSON.stringify(
+export function* detectionInfoToString(
+  detectionInfo: DetectionInfo): Generator<string, void, void> {
+  if (!validateDataIsDetectionInfo(detectionInfo)) {
+    throw new Error("Data is not valid")
+  }
+  yield JSON.stringify(
+    detectionInfo,
+    (_key, x) => Number.isFinite(x) ? Math.fround(x * 10000) / 10000: x,
+    4)
+  return;
+  yield* toJSONStringIterator(
     detectionInfo,
     (_key, x) => Number.isFinite(x) ? Math.fround(x * 10000) / 10000: x,
     4)
@@ -66,7 +75,20 @@ export function validateDataIsDetectionInfo(data: unknown): data is DetectionInf
       totalNumberOfFrames: 0,
       playbackFps: 0,
       recordFps: new UnionChecker([0, null]),
-    }})
+    }},
+    {valid: (data: DetectionInfo) => {
+      const detectedKlasses = new Set<`${number}`>(data.framesInfo.flatMap(
+        fi => fi ? fi.detections.map(d => `${d.klass}` as `${number}`) : []))
+      const definedKlasses = new Set(ObjectKeys(data.modelKlasses))
+      const missingKlasses = [...detectedKlasses].filter(
+        klass => !definedKlasses.has(klass))
+      if (missingKlasses.length === 0) {
+        return true
+      }
+      console.warn(`Classes missing: ${missingKlasses}`)
+      return false
+    }}
+  )
 
 
   return detectionDataFormat.isInstance(data)

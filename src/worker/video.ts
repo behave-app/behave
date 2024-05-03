@@ -1,12 +1,13 @@
 import { xxh64sum } from '../lib/fileutil'
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
-import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString } from "../lib/datetime"
+import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString, ISODATETIMESTRINGREGEX } from "../lib/datetime"
 import { EXTENSIONS } from '../lib/constants'
 import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
 import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep, ObjectKeys} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
 import { VideoMetadata, videoMetadataChecker, } from '../lib/video-shared'
+import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from 'src/lib/typeCheck'
 
 const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
@@ -425,19 +426,13 @@ export class Video {
     this.frameInfo = null
   }
 
-  async init(options?: {
-    keepFrameInfo?: boolean
-  }) {
-    if (options?.keepFrameInfo ?? false) {
-      this.frameInfo = new Map()
-    }
+  private async openVideoFile() {
     const _rwthis = this as {
       -readonly [K in keyof typeof this]: typeof this[K]
     }
     if (_rwthis.libav !== null) {
       throw new Error("already inited");
     }
-
     const LibAV = await getLibAV()
     _rwthis.libav = await LibAV.LibAV(Video.DEFAULT_LIBAV_OPTIONS);
     await this.libav.av_log_set_level(this.libav.AV_LOG_ERROR);
@@ -457,7 +452,24 @@ export class Video {
     _rwthis.videoStream = video_streams[0];
     _rwthis.ticksToUsFactor = 
       1e6 * this.videoStream.time_base_num / this.videoStream.time_base_den
+
+  }
+
+  async init(options?: {
+    keepFrameInfo?: boolean
+  }) {
+    if (options?.keepFrameInfo ?? false) {
+      this.frameInfo = new Map()
+    }
+    await this.openVideoFile()
     await this.setVideoInfo()
+
+    // reinitialize the stream to make sure we seek to 0
+    await this.libav.unlink(this.input.name);
+    this.libav.terminate();
+    this.libav = null;
+    await this.openVideoFile()
+
     const frameCache = new FrameCache(0, 50, 50)
     this.frameStreamState = {state: "streaming", frameCache}
   }
@@ -797,7 +809,7 @@ export class Video {
           }
           const chunk = new EncodedVideoChunk({
             type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
-            timestamp: combineLowHigh(packet.pts!, packet.ptshi!) * this.ticksToUsFactor,
+            timestamp: Math.round(combineLowHigh(packet.pts!, packet.ptshi!) * this.ticksToUsFactor),
             duration: 100,
             data: packet.data.buffer,
           })
@@ -845,7 +857,7 @@ export class Video {
             }
             this.frameInfo.set(framenr, frameInfo)
           }
-          const timestamp = pts * this.ticksToUsFactor
+          const timestamp = Math.round(pts * this.ticksToUsFactor)
           timestampToFramenumber[timestamp] = framenr
           const chunk = new EncodedVideoChunk({
             type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
@@ -953,8 +965,8 @@ export async function createFakeKeyFrameChunk(
   const encoderConfig = { ...decoderConfig } as VideoEncoderConfig;
   // encoderConfig needs a width and height set; it seems to not matter for
   // annexB, but it does matter for avcc
-  encoderConfig.width = 1920;
-  encoderConfig.height = 1080;
+  encoderConfig.width = 1280;
+  encoderConfig.height = 720;
   encoderConfig.avc = { format: decoderConfig.description ? "avc" : "annexb" };
   const videoEncoder = new VideoEncoder({
     output: (chunk, _metadata) => resolve(chunk),
@@ -985,7 +997,7 @@ export async function createFakeKeyFrameChunk(
 }
 
 export async function extractMetadata(file: File): Promise<VideoMetadata> {
-  if (file.name.endsWith(EXTENSIONS.videoFile)) {
+  if (file.name.toLowerCase().endsWith(EXTENSIONS.videoFile.toLowerCase())) {
     const behaveData = await extractBehaveMetadata(file)
     if (ObjectKeys(behaveData).length) {
       const parsedBehaveData: {frameTypeInfo: Record<string, unknown>} & Record<string, unknown> = {
@@ -1015,8 +1027,100 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     }
     console.warn({behaveData})
     throw new Error("No metadata found, using an old video file?")
+  } else if (file.name.toLowerCase().endsWith(EXTENSIONS.videoFileMp4.toLowerCase())) {
+    const tags = await extractTags(file)
+    const hash = await xxh64sum(file)
+    const video = new Video(file)
+    await video.init({keepFrameInfo: false})
+    const numberOfFrames = video.videoInfo.numberOfFramesInStream
+    const playbackFps = video.videoInfo.fps
+    const creationTime  = [
+      tags.format.tags.creation_time,
+      ...tags.streams.map(s => s.tags.creation_time)
+    ].filter(ct => ct)
+    .map(ct => "isodate:" + ct)
+    .filter(ct => ISODATETIMESTRINGREGEX.test(ct))
+    .at(0) as ISODateTimeString | undefined
+    const result: VideoMetadata = {
+      hash,
+      startTimestamps: creationTime !== undefined ? {"0": creationTime}: {},
+      recordFps: playbackFps,
+      frameTypeInfo: null,
+      numberOfFrames,
+      playbackFps,
+    }
+    console.log(JSON.stringify(result))
+    return result
   }
-  throw new Error("TODO")
+  throw new Error("TODO: " + file.name)
+}
+
+export type Tags = {
+  programs: Array<unknown>,
+  streams: Array<{
+    index: number
+    codec_type: "video" | "audio" | "data"
+    tags: Record<string, string>
+  }>
+  format: {
+    tags: Record<string, string>
+  }
+}
+const validateTags: Checker<Tags> = getCheckerFromObject({
+  programs: new ArrayChecker(new UnknownChecker()),
+  streams: new ArrayChecker({
+    index: 1,
+    codec_type: new LiteralChecker(["video", "audio", "data"]),
+    tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
+  }),
+  format: {
+    tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
+  }
+})
+
+export async function extractTags(file: File): Promise<Tags> {
+  let libav: LibAVTypes.LibAV | undefined = undefined
+  let writtenData = new Uint8Array(0);
+  try {
+    const FFMPEGOUTPUT = "__ffmpeg_output__";
+    const LibAV = await getLibAV()
+    libav = await LibAV.LibAV({ noworker: false, nothreads: true });
+    assert(libav !== undefined)
+    await libav.mkreadaheadfile(file.name, file);
+    await libav.mkwriterdev(FFMPEGOUTPUT);
+    libav.onwrite = function (_name, pos, data) {
+      const newLen = Math.max(writtenData.length, pos + data.length);
+      if (newLen > writtenData.length) {
+        const newData = new Uint8Array(newLen);
+        newData.set(writtenData);
+        writtenData = newData;
+      }
+      writtenData.set(data, pos);
+    };
+    const exit_code = await libav.ffprobe(
+      "-hide_banner",
+      "-loglevel", "error",
+      "-i", file.name,
+      "-print_format", "json",
+      "-show_entries", "stream=index,codec_type:stream_tags:format_tags",
+      "-o", FFMPEGOUTPUT,
+    );
+    if (exit_code != 0) {
+      throw new Error(`ffprobe exit code: ${exit_code}`);
+    }
+    await libav.unlink(file.name);
+    await libav.unlink(FFMPEGOUTPUT);
+  } finally {
+    if (libav !== undefined) {
+      libav.terminate()
+    }
+  }
+  const output = new TextDecoder("utf-8").decode(writtenData);
+  const tags = JSON.parse(output)
+  if (!validateTags.isInstance(tags)) {
+  throw new Error("Error getting tags")
+  }
+  return tags
 }
 
 export async function extractBehaveMetadata(file: File): Promise<Record<string, string>> {

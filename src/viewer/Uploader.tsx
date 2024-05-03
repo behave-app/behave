@@ -18,6 +18,7 @@ type Props = {
 }
 
 export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
+  const VIDEO_FILE_EXTENSIONS = [EXTENSIONS.videoFile, EXTENSIONS.videoFileMp4]
   type DragState = "nodrag" | "dragging"
   const dragCounter = useRef(0)
   const [fileSystemHandles, setFileSystemHandles] = useState<ReadonlyArray<FileSystemHandle >>([])
@@ -82,7 +83,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       types: [
         {description: "behave files", accept: {
           "application/json": [EXTENSIONS.detectionFile],
-          "video/mp4": [EXTENSIONS.videoFile],
+          "video/mp4": VIDEO_FILE_EXTENSIONS,
           "text/csv": [EXTENSIONS.behaviourFile]
         }}]
     })
@@ -111,7 +112,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   type TypeKey = typeof keys[number]
   const filesByType = binItems<FileSystemHandle, TypeKey>(fileSystemHandles,
     fh => fh.kind === "directory" ? "other"
-      : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.videoFile) ? "video"
+      : VIDEO_FILE_EXTENSIONS.some(ext => fh.name.toLocaleLowerCase().endsWith(ext)) ? "video"
         : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.detectionFile) ? "detection"
           : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.behaviourFile) ? "behaviour"
             : "other")
@@ -235,7 +236,8 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       }
       {!correctCounts
         ? <div className={css.warning}>
-          We need one video file (<code>*{EXTENSIONS.videoFile}</code>) and an accompanying
+          We need one video file ({VIDEO_FILE_EXTENSIONS.map((ext, index) => <>
+          {index > 0 && ", "}<code>*{ext}</code></>)}) and an accompanying
           detection file (<code>*{EXTENSIONS.detectionFile}</code>) to continue.
           In addition a single behaviour file (<code>*{EXTENSIONS.behaviourFile}</code>) may
           be uploaded.

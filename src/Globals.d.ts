@@ -6,3 +6,7 @@ declare interface Object {
     getKey: (item: T) => K
   ): Record<K, T[]>;
 }
+
+declare interface Iterator<T> {
+  forEach(callback: (item: T, index: number) => void): void;
+}

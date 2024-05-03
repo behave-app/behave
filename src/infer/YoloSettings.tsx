@@ -89,7 +89,9 @@ export function YoloSettingsDialog({
     } else {
       if (modelDirIsOnUsersFilesystem) {
         await API.checkValidModel(backend, modelDir)
+        console.log("valid")
         if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
+          console.log("remove")
           await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
         } 
         const opfsModelDir = await opfsRoot.getDirectoryHandle(

@@ -1059,7 +1059,7 @@ export type Tags = {
   programs: Array<unknown>,
   streams: Array<{
     index: number
-    codec_type: "video" | "audio" | "data"
+    codec_type: "video" | "audio" | "data" | "subtitle"
     tags: Record<string, string>
   }>
   format: {
@@ -1070,7 +1070,7 @@ const validateTags: Checker<Tags> = getCheckerFromObject({
   programs: new ArrayChecker(new UnknownChecker()),
   streams: new ArrayChecker({
     index: 1,
-    codec_type: new LiteralChecker(["video", "audio", "data"]),
+    codec_type: new LiteralChecker(["video", "audio", "data", "subtitle"]),
     tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
   }),
   format: {

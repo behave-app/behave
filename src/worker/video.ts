@@ -1099,21 +1099,62 @@ const getCompressedFrameInfo = (
   }
   const [firstFrameNumber, firstParts] = frameNrAndTimestampParts.at(0)!
   const [lastFrameNumber, lastParts] = frameNrAndTimestampParts.at(-1)!
-  const recordTimeFramesPerSecond = (lastParts.date.valueOf() - firstParts.date.valueOf()) / 1000 / (lastFrameNumber - firstFrameNumber)
+  const recordTimeFramesPerSecond = (lastFrameNumber - firstFrameNumber) / ((lastParts.date.valueOf() - firstParts.date.valueOf()) / 1000)
+  console.log(`Real recordFPS = ${recordTimeFramesPerSecond}`)
 
+  /*
+   * Getting the timestamps right is a bit tricky.
+   * The timestamps (from MTS) are datetimes rounded to whole seconds
+   * If the record FPS = 25, we naively assume that the first 25 frames
+   * have the starting timestamp.
+   * However some smarts are present that if frame 12 has a next second timestamp,
+   * we retroactively connect the first timestamp to frame -13, so that frame 12 still has the right timestamp.
+   * 
+   * An alternative would be to choose a framenr for the start timestamp such that you have the smallest error over all timestamps in the recording.
+   * However this may not work, since there may be record framerates of 30000/1001 or something, so there is a small shift in timestamps over time. We record the record FPS as a whole number.
+   *
+   */
   const wholeRecordTimeFramesPerSecond = Math.round(recordTimeFramesPerSecond)
   if (Math.abs(recordTimeFramesPerSecond - wholeRecordTimeFramesPerSecond) > .05) {
     throw new Error("non-int record frames per second is not yet supported, TODO: "
     + recordTimeFramesPerSecond)
   }
+  if (wholeRecordTimeFramesPerSecond === 0) {
+    throw new Error("Record FPS is under 0.5; at the moment we don't support this yet. TODO: " + recordTimeFramesPerSecond)
+  }
   const newTSs = [[firstFrameNumber, firstParts] as const]
+  let possibleOffset = wholeRecordTimeFramesPerSecond - 1
   for (const [framenr, parts] of frameNrAndTimestampParts) {
     const [lastTSFramenr, lastTSParts] = newTSs.at(-1)!
-    const expectedTimestamp = lastTSParts.date.valueOf() + 1000 / wholeRecordTimeFramesPerSecond * (framenr - lastTSFramenr)
-    if (expectedTimestamp !== parts.date.valueOf()) {
-      newTSs.push([framenr, parts])
+    offsetloop: for (let offset = 0; offset <= possibleOffset; offset++) {
+    const expectedTimestamp = lastTSParts.date.valueOf() + 1000 * Math.floor((framenr - lastTSFramenr + offset) / wholeRecordTimeFramesPerSecond )
+      if (expectedTimestamp === parts.date.valueOf()) {
+        if (offset !== 0) {
+          const oldTS = newTSs.pop()!
+          const newTS = [oldTS[0] - offset, oldTS[1]] as const
+          while (newTSs.length && newTS[0] <= newTSs.at(-1)![0]) {
+            if(newTSs.at(-1)![1].valueOf() !== newTS[1].date.valueOf()) {
+              console.warn(`Weird date stuff: ${framenr} has ${parts.date.toISOString()}; last ${newTSs.at(-1)![0]}: ${newTSs.at(-1)![1].date.toISOString()}`)
+              continue offsetloop
+            }
+            const [oldframe, oldpart] = newTSs.pop()!
+            console.log(`${framenr}, ${parts.date.toISOString()}, ${offset} replacing previous ${oldframe}, ${oldpart.date.toISOString()}`)
+          }
+          newTSs.push(newTS)
+          possibleOffset -= offset
+          console.log(`${framenr}: moving framenr by ${offset} (${possibleOffset})`)
+        }
+        break
+      }
+      if (offset === possibleOffset) {
+        console.log(`${framenr}: newts ${parts.date.toISOString()}`)
+        newTSs.push([framenr, parts])
+        possibleOffset = wholeRecordTimeFramesPerSecond - 1
+        break
+      }
     }
   }
+  newTSs.forEach(([nr, parts]) => console.log(nr, parts.date.toISOString()))
 
   const iFrames = [...frameInfo.entries()].filter(
     ([_, frameInfo]) => frameInfo.type === "I" || frameInfo.type === "IDR").map(

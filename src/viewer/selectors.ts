@@ -89,7 +89,9 @@ export const selectDateTimes = createSelector(
       return null
     }
     const recordFps = metadata.recordFps
-    const entries = ObjectEntries(metadata.startTimestamps)
+    // sort because ObjectEntries(and JSON.stringify) doesn't sort negative numbers nicely
+    const entries = ObjectEntries(metadata.startTimestamps).toSorted((
+    [frameNrStringA], [frameNrStringB]) => parseInt(frameNrStringA) - parseInt(frameNrStringB))
     let lastExplicitParts = [parseInt(entries[0][0]), getPartsFromTimestamp(entries[0][1])] as const
     return range(metadata.numberOfFrames).reduce((parts_s, framenr) => {
       const explicitCurrentFrameTimestamp = metadata.startTimestamps[`${framenr}`]

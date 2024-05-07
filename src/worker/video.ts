@@ -219,6 +219,7 @@ export class Video {
     }
     _rwthis.formatContext = fmt_ctx;
     _rwthis.videoStream = video_streams[0];
+    this.videoStream.codecpar
     _rwthis.ticksToUsFactor = 
       1e6 * this.videoStream.time_base_num / this.videoStream.time_base_den
 
@@ -270,7 +271,10 @@ export class Video {
     // TODO: first try hardware, if fails try software
     decoderConfig.hardwareAcceleration = "prefer-software";
     videoDecoder.configure(decoderConfig);
-    videoDecoder.decode(await createFakeKeyFrameChunk(decoderConfig));
+    videoDecoder.decode(await createFakeKeyFrameChunk(
+      await this.libav.AVCodecParameters_width(this.videoStream.codecpar),
+      await this.libav.AVCodecParameters_height(this.videoStream.codecpar),
+      decoderConfig));
     return videoDecoder
   }
 
@@ -728,14 +732,13 @@ export class Video {
  * See https://github.com/Yahweasel/libavjs-webcodecs-bridge/issues/3#issuecomment-1837189047 for more info
  */
 export async function createFakeKeyFrameChunk(
+  width: number, height: number,
   decoderConfig: VideoDecoderConfig
 ): Promise<EncodedVideoChunk> {
   const { promise, resolve, reject } = promiseWithResolve<EncodedVideoChunk>();
   const encoderConfig = { ...decoderConfig } as VideoEncoderConfig;
-  // encoderConfig needs a width and height set; it seems to not matter for
-  // annexB, but it does matter for avcc
-  encoderConfig.width = 1280;
-  encoderConfig.height = 720;
+  encoderConfig.width = width
+  encoderConfig.height = height
   encoderConfig.avc = { format: decoderConfig.description ? "avc" : "annexb" };
   const videoEncoder = new VideoEncoder({
     output: (chunk, _metadata) => resolve(chunk),

@@ -4,11 +4,11 @@ setWasmPaths("app/bundled/tfjs-wasm/")
 import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
-import {Video} from "./video"
+import {getVideoInfo, getImageDatas} from "./video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfo, SingleFrameInfo, detectionInfoToString } from '../lib/detections'
-import { ObjectEntries, ObjectFromEntries, ObjectIsEmpty, ObjectKeys, assert } from '../lib/util'
+import { ObjectEntries, ObjectFromEntries, ObjectIsEmpty, ObjectKeys, assert, debugImage, enumerateAsyncGenerator } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 import { YOLO_MODEL_NAME_FILE, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
 
@@ -119,7 +119,6 @@ export async function infer(
 
   let outputfilename: string | undefined = undefined
   let outputstream: FileSystemWritableFileStream | undefined = undefined
-  let video: Video | undefined = undefined
 
   try {
     const parts = input.file.name.split(".")
@@ -134,9 +133,8 @@ export async function infer(
     const outfile = await output.dir.getFileHandle(outputfilename, {create: true})
     outputstream = await outfile.createWritable()
 
-    video = new Video(input.file)
-    await video.init({keepFrameInfo: false})
-    const numberOfFrames = video.videoInfo.numberOfFramesInStream
+    const videoInfo = await getVideoInfo(input.file)
+    const numberOfFrames = videoInfo.numberOfFramesInStream
     const detectionInfo: DetectionInfo = {
       version: 1,
       sourceFileName: input.file.name,
@@ -149,15 +147,17 @@ export async function infer(
     let frameCount = 0
     const modelKlasses = new Set<`${number}`>(
       ObjectKeys(detectionInfo.modelKlasses))
-    for await (const [framenr, videoFrame] of video.getFrames()) {
-      assert(frameCount > 0 || framenr == 0, "first frame should have nr 0", framenr)
+    for await (const [framenr, imageData]
+    of enumerateAsyncGenerator(getImageDatas(input.file))) {
+      assert(frameCount > 0 || framenr == 0,
+        "first frame should have nr 0", framenr)
       frameCount++
       const singleFrameInfo = {
         detections: []
       } as SingleFrameInfo
 
       const [boxes, scores, classes] = model
-        ? await inferSingleFrame(model, yoloVersion, videoFrame) : [[], [], []]
+        ? await inferSingleFrame(model, yoloVersion, imageData) : [[], [], []]
       for (let i = 0; i < scores.length; i++) {
         const [x1, y1, x2, y2] = boxes.slice(i * 4, (i + 1) * 4)
         const box = [(x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1]
@@ -178,7 +178,6 @@ export async function infer(
           {klass, cx, cy, width, height, confidence: score})
       }
       detectionInfo.framesInfo.push(singleFrameInfo)
-      videoFrame.close()
       const now = Date.now()
       if (now - lastProgress > PROGRESS_INTERVAL_MS) {
         updateProgress("infer", framenr / numberOfFrames)
@@ -210,21 +209,15 @@ export async function infer(
       outputstream = undefined
     }
     throw e
-  } finally {
-    video && await video.deinit()
   }
 }
 
 export function preprocess(
-  videoFrame: VideoFrame,
+  videoFrame: ImageData,
   modelWidth: number,
   modelHeight: number
 ): [tf.Tensor<tf.Rank>, number, number] {
-  const offScreenCanvas = new OffscreenCanvas(videoFrame.displayWidth, videoFrame.displayHeight)
-  const ctx = offScreenCanvas.getContext("2d")!
-  ctx.drawImage(videoFrame, 0, 0)
-
-  const img = tf.browser.fromPixels(offScreenCanvas.transferToImageBitmap())
+  const img = tf.browser.fromPixels(videoFrame)
 
   const [h, w] = img.shape.slice(0, 2); // get source width and height
   const maxSize = Math.max(w, h); // get max size
@@ -279,7 +272,7 @@ function getBoxesAndScoresAndClassesFromResult(
 export async function inferSingleFrame(
   model: Model,
   yoloVersion: YoloVersion,
-  videoFrame: VideoFrame,
+  videoFrame: ImageData,
 ): Promise<[Float32Array, Float32Array, Float32Array]> {
   const [img_tensor, xRatio, yRatio] = tf.tidy(() => preprocess(videoFrame, 640, 640))
   if (yoloVersion === "v5") {

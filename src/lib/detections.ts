@@ -1,6 +1,6 @@
 import { ArrayChecker, Checker, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, UnionChecker, } from "./typeCheck"
 import { ISODATETIMESTRINGREGEX, ISODateTimeString } from "./datetime"
-import { ObjectKeys, toJSONStringIterator } from "./util"
+import { ObjectKeys } from "./util"
 
 export type DetectionsForFrame = Array<{
       klass: number
@@ -28,17 +28,16 @@ export type DetectionInfo = {
   framesInfo: FramesInfo
 }
 
-export function* detectionInfoToString(
+/**
+ * Generator so that it might be possible in the future to make incremental if
+ * needed
+ */
+export function* detectionInfoToStrings(
   detectionInfo: DetectionInfo): Generator<string, void, void> {
   if (!validateDataIsDetectionInfo(detectionInfo)) {
     throw new Error("Data is not valid")
   }
   yield JSON.stringify(
-    detectionInfo,
-    (_key, x) => Number.isFinite(x) ? Math.fround(x * 10000) / 10000: x,
-    4)
-  return;
-  yield* toJSONStringIterator(
     detectionInfo,
     (_key, x) => Number.isFinite(x) ? Math.fround(x * 10000) / 10000: x,
     4)

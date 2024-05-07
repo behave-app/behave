@@ -3,5 +3,7 @@ export const EXTENSIONS = {
   videoFile: ".behave.mp4",
   videoFileMp4: ".mp4",
   behaviourFile: ".behave.csv",
-
+  videoSourceMp4: ".mp4",
+  videoSourceMts: ".mts",
+  notVideoSource: ".behave.mp4"
 } as const

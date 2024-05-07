@@ -7,7 +7,7 @@ import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
-import { DetectionInfo, SingleFrameInfo, detectionInfoToString } from '../lib/detections'
+import { DetectionInfo, SingleFrameInfo, detectionInfoToStrings } from '../lib/detections'
 import { ObjectEntries, ObjectFromEntries, ObjectIsEmpty, ObjectKeys, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 import { YOLO_MODEL_NAME_FILE, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
@@ -193,7 +193,7 @@ export async function infer(
       ...detectionInfo,
     }
     completeDetectionInfo
-    const stringDataIterator = detectionInfoToString(completeDetectionInfo)
+    const stringDataIterator = detectionInfoToStrings(completeDetectionInfo)
     const textEncoder = new TextEncoder()
     for (const s of stringDataIterator) {
       await outputstream.write(textEncoder.encode(s))

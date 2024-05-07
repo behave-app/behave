@@ -237,7 +237,10 @@ export class Video {
     // reinitialize the stream to make sure we seek to 0
     await this.libav.unlink(this.input.name);
     this.libav.terminate();
-    this.libav = null;
+
+    const _rwthis = this as {libav: LibAVTypes.LibAV | null}
+
+    _rwthis.libav = null;
     await this.openVideoFile()
 
     const frameCache = new FrameCache(0, 50, 50)

@@ -206,6 +206,30 @@ export function ObjectFromEntries<K extends string, V>(
   return Object.fromEntries(obj) as unknown as {[key in K]: V}
 }
 
+export function enumerate<T>(arr: T[]): Array<[number, T]> {
+  return arr.map((item, index) => [index, item] as const)
+}
+
+export function* enumerateGenerator<T>(
+  gen: Generator<T, void, void>
+): Generator<[number, T], void, void> {
+  let index = 0
+  for (const item of gen) {
+    yield [index, item] as const
+    index++
+  }
+}
+
+export async function* enumerateAsyncGenerator<T>(
+  gen: AsyncGenerator<T, void, void>
+): AsyncGenerator<[number, T], void, void> {
+  let index = 0
+  for await (const item of gen) {
+    yield [index, item] as const
+    index++
+  }
+}
+
 export type ValidRecordKey = string | number | symbol
 
 export function ObjectGet<T extends object, K>(obj: T, key: K): K extends keyof T ? T[K] : K extends ValidRecordKey ? (T[keyof T] | undefined) : undefined;
@@ -321,3 +345,24 @@ export function valueOrErrorAsync<T extends (...params: any[]) => Promise<any>>(
 export function isTruthy<T>(param: T): param is Exclude<T, null> {
   return Boolean(param)
 }
+
+export async function debugImage(imageData: ImageData) {
+  try {
+    const c = new OffscreenCanvas(imageData.width, imageData.height);
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      ctx.putImageData(imageData, 0, 0);
+      const blob = await c.convertToBlob()
+      const reader = new FileReader()
+      const promise = getPromiseFromEvent(reader, "load")
+      reader.readAsDataURL(blob)
+      await promise
+      const dataUri = reader.result
+      const style = `font-size: 300px; background-image: url("${dataUri}"); background-size: contain; background-repeat: no-repeat;`;
+      console.log("%c     ", style);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+

@@ -288,12 +288,17 @@ export async function inferSingleFrame(
     const boxes_scaled = tf.tidy(() => boxes
       .mul([xRatio, yRatio, xRatio, yRatio]))
     const selector = classes.greaterEqual(0)
-    const boxes_data_promise = tf.booleanMaskAsync(boxes_scaled, selector).then(t => t.data())
-    const scores_data_promise = tf.booleanMaskAsync(scores, selector).then(t => t.data())
-    const classes_data_promise = tf.booleanMaskAsync(classes, selector).then(t => t.data())
-    const [boxes_data, scores_data, classes_data] = await Promise.all(
-      [boxes_data_promise, scores_data_promise, classes_data_promise]) as [Float32Array, Float32Array, Float32Array]
-    tf.dispose([img_tensor, res, boxes, boxes_scaled, scores, classes]);
+    const boxes_data_promise = tf.booleanMaskAsync(boxes_scaled, selector).then(t => t.data().then(d => [t, d] as const))
+    const scores_data_promise = tf.booleanMaskAsync(scores, selector).then(t => t.data().then(d => [t, d] as const))
+    const classes_data_promise = tf.booleanMaskAsync(classes, selector).then(t => t.data().then(d => [t, d] as const))
+    const [[boxes_data_tensor, boxes_data],
+      [scores_data_tensor, scores_data],
+      [classes_data_tensor, classes_data]] = await Promise.all(
+        [boxes_data_promise, scores_data_promise, classes_data_promise]) as [
+      [tf.Tensor<tf.Rank>, Float32Array],
+      [tf.Tensor<tf.Rank>, Float32Array],
+      [tf.Tensor<tf.Rank>, Float32Array]]
+    tf.dispose([img_tensor, res, boxes, boxes_scaled, scores, classes, selector, boxes_data_tensor, scores_data_tensor, classes_data_tensor]);
     return [boxes_data, scores_data, classes_data]
   } else if (yoloVersion === "v8") {
     const res = tf.tidy(() => model.model.execute(img_tensor))

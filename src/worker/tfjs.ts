@@ -257,7 +257,7 @@ function getBoxesAndScoresAndClassesFromResult(
     2
   )
   .squeeze();
-  const rawScores = transRes.slice([0, 0, 4], [-1, -1, 5]).squeeze([0]); // #6 only squeeze axis 0 to handle only 1 class models
+  const rawScores = transRes.slice([0, 0, 4], [-1, -1, -1]).squeeze([0]); // #6 only squeeze axis 0 to handle only 1 class models
   return [boxes, rawScores.max(1), rawScores.argMax(1)];
 }
 

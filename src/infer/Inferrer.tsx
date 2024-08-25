@@ -110,7 +110,7 @@ export function Inferrer(): JSX.Element {
   }, [preventSleep, state])
 
   return <>
-    <h1>Detect items on videos</h1>
+    <h1>Infer videos (detect items)</h1>
     {(state === "selectmodel")
       ?  <YoloSettingsDialog
         closeSettingsDialog={() => setState("uploading")}
@@ -118,7 +118,7 @@ export function Inferrer(): JSX.Element {
       : (<>
         <div className={css.version}>{getBehaveVersion()}</div>
         <div className={css.explanation}>
-          This page allows detection of items on videos, and saving the result as csv (inference).
+          This page allows detection of items on videos, and saving the result as a json file.
         </div>
         {yoloSettings ? <div className={css.explanation}>
           Loaded model: {modelName !== null ? modelName : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}

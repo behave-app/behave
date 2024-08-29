@@ -45,7 +45,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 	@rm -r "$(OUTDIR)"
 
 node_modules/tag: package.json
-	@npm install --no-save .
+	@npm install  --production --no-save .
 	@cd node_modules/libavjs-webcodecs-bridge && make all
 	@touch $@
 

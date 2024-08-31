@@ -16,7 +16,7 @@ export function Upload({addFiles}: Props): JSX.Element {
   const dragCounter = useRef(0)
 
   useEffect(() => {
-    const aimedAt = window.document.documentElement
+    const aimedAt = window.document.querySelector("html")!
     const dragEnter = (_event: DragEvent) => {
       dragCounter.current += 1
       setDragState("dragging")
@@ -25,6 +25,7 @@ export function Upload({addFiles}: Props): JSX.Element {
       dragCounter.current -= 1
       event.preventDefault()
       if (event.dataTransfer !== null) {
+        console.log(event.dataTransfer.items[0], await event.dataTransfer.items[0].getAsFile())
         const fileSystemHandles = filterNull(await Promise.all(
           [...event.dataTransfer.items].map(dti => dti.getAsFileSystemHandle())))
         void(addFiles(fileSystemHandles))

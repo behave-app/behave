@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig-generic.json",
+  "compilerOptions": {
+    "lib": ["esnext", "DOM", "DOM.Iterable"],
+    "types": ["cypress", "node", "@types/wicg-file-system-access"],
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+  },
+  "include": ["**/*.ts"]
+}

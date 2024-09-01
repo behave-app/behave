@@ -40,11 +40,26 @@ jobs:
         with:
           name: built-app
           path: public
+  test:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - uses: actions/download-artifact@master
+        name: Download artifact
+        with:
+          name: built-app
+          path: public
+      - name: install dev dependencies
+        run: npm install --include=dev .
+      - name: Run cypress
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
   deploy-beta:
-      runs-on: ubuntu-22.04
-      if: github.event_name == 'push'
-      needs: build
-      steps:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push'
+    needs: test
+    steps:
       - uses: actions/download-artifact@master
         name: Download artifact
         with:
@@ -57,13 +72,13 @@ jobs:
           role-to-assume: arn:aws:iam::442430797903:role/behave-claude-apps-com-UploadRole-bcTUZbepmRpa
       - name: Deploy to beta
         env:
-         BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: aws s3 sync --delete --content-encoding utf8 public "s3://behave.claude-apps.com/website/beta/${BRANCH_NAME}"
   deploy-release:
-      runs-on: ubuntu-22.04
-      if: github.event_name == 'release' && github.event.action == 'created'
-      needs: build
-      steps:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'release' && github.event.action == 'created'
+    needs: test
+    steps:
       - uses: actions/download-artifact@master
         name: Download artifact
         with:

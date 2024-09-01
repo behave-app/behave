@@ -12,7 +12,11 @@ LIBAVJS_BASE_FILES := \
 LIBAVJS_MAKE_FILES := $(addprefix dist/libav-$(LIBAVJS_VERSION)-, $(LIBAVJS_BASE_FILES)) dist/libav.types.d.ts dist/libav-behave.dbg.js dist/libav-behave.dbg.mjs 
 LIBAVJS_TARGET_FILES := $(addprefix public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/, $(LIBAVJS_MAKE_FILES))
 HTML_FILES := $(wildcard *.html)
-HTML_TARGET_FILES := $(addprefix public/, $(HTML_FILES))
+HTML_TARGET_FILES := $(addprefix public/app/, $(HTML_FILES))
+STATIC_MARKDOWN_FILES := $(shell find static -type f -name '*.md')
+STATIC_TARGET_MARKDOWN_FILES := $(STATIC_MARKDOWN_FILES:static/%.md=public/%.html)
+STATIC_ASSET_FILES := $(shell find static/assets -type f)
+STATIC_TARGET_ASSET_FILES := $(STATIC_ASSET_FILES:static/%=public/%)
 ENTRYPOINTS := \
     ./src/convert/App.tsx \
     ./src/infer/App.tsx \
@@ -21,9 +25,9 @@ ENTRYPOINTS := \
     ./src/viewer/index.tsx
 OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
-.PHONY=all public/app/bundled/libavjs lint public/app/tsc
+.PHONY=all public/app/bundled/libavjs lint public/app/tsc libavjs
 
-all: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(HTML_TARGET_FILES) public/app/bundled/tfjs-wasm
+all: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(HTML_TARGET_FILES) $(STATIC_TARGET_MARKDOWN_FILES) $(STATIC_TARGET_ASSET_FILES) public/app/bundled/tfjs-wasm
 
 public/app/bundled/libavjs: public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt
 
@@ -41,6 +45,10 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 		--build-arg="FILES_TO_BUILD=$(LIBAVJS_MAKE_FILES)" \
 		--target=artifact --output type=local,dest=$(OUTDIR)
 	@mkdir -p public/app/bundled/libavjs
+	# TODO FIX ME -- we here copy both to public/app/bundled/libavjs-$(LIBAVJS_COMMIT) and public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/dist
+	# It seems that the dependency is on public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/dist, however serving is from public/app/bundled/libavjs-$(LIBAVJS_COMMIT)
+	# FIXME
+	n@cp -R $(OUTDIR)/dist public/app/bundled/libavjs-$(LIBAVJS_COMMIT)
 	@cp -R $(OUTDIR)/dist public/app/bundled/libavjs-$(LIBAVJS_COMMIT)
 	@rm -r "$(OUTDIR)"
 
@@ -59,8 +67,16 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 	@echo "s|app/bundled/libavjs/|app/bundled/libavjs-$(LIBAVJS_COMMIT)/|g" >> $@.part
 	@ mv $@.part $@
 
-$(HTML_TARGET_FILES): public/%.html: %.html public/app/tsc
+$(HTML_TARGET_FILES): public/app/%.html: %.html public/app/tsc
 	@sed -f public/app/tsc < $< > $@
+
+$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html
+	@mkdir -p "$$(dirname "$@")"
+	@(cat static/header._html && npx showdown makehtml --input "$<" --config tables && cat static/footer._html) | sed 's|$$(ASSETDIR)|'"$$(echo "$<" | sed 's|/[^/]*|/..|g;s|^static/../||')/assets|g" > "$@"
+
+$(STATIC_TARGET_ASSET_FILES): public/%: static/%
+	@mkdir -p "$$(dirname "$@")"
+	@cp "$<" "$@"
 
 clean:
 	@if [ -e public ]; then rm -r public; fi

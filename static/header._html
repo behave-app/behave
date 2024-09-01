@@ -1,0 +1,7 @@
+<html>
+  <head>
+    <title>Behave</title>
+    <link rel="stylesheet" href="$(ASSETDIR)/main.css">
+  </head>
+  <body>
+    <h1>BEHAVE</h1>

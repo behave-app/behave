@@ -1,13 +1,13 @@
 describe('App overview', () => {
   it('Has a convert link', () => {
-    cy.visit('/')
+    cy.visit('/app/index.html')
     .get('a[href="convert.html"]')
     .click()
     cy.document()
     .contains("h1", "Video file convertor")
   })
   it('Changes visuals on file drag', () => {
-    cy.visit("/convert.html")
+    cy.visit("/app/convert.html")
     .get("body")
     .should("not.contain", "Drop files here")
     .trigger("dragenter")
@@ -23,7 +23,7 @@ describe('App overview', () => {
     .should("not.contain", "Drop files here")
   })
   it("Accepts an MTS file", () => {
-    cy.visitWithStubbedFileSystem("/convert.html")
+    cy.visitWithStubbedFileSystem("/app/convert.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/file.mp4", localPath: "cypress/assets/other.txt"},

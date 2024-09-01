@@ -1,9 +1,8 @@
-
 #!/usr/bin/env bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-aws --region us-east-1 cloudformation create-stack \
+aws --region us-east-1 cloudformation update-stack \
   --stack-name behave-claude-apps-com \
   --template-body "file://${SCRIPT_DIR}/stack.yaml" \
   --capabilities CAPABILITY_IAM \
@@ -12,5 +11,5 @@ aws --region us-east-1 cloudformation create-stack \
     ParameterKey=HostedZoneId,ParameterValue=Z0033081161IG00XGJDLG \
     ParameterKey=Hostname,ParameterValue=behave \
     ParameterKey=PriceClass,ParameterValue=PriceClass_All \
-    ParameterKey=GitHubOrg,ParameterValue=reinhrst \
+    ParameterKey=GitHubOrg,ParameterValue=behave-app \
     ParameterKey=RepositoryName,ParameterValue=behave

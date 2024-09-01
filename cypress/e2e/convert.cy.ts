@@ -41,6 +41,6 @@ describe('App overview', () => {
     .click()
     cy.contains(".filetree_filename.filetree_converting", /^file\.MTS$/)
     cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
-    cy.assertFileExistsInPickedDirectory("file.ef90346cb9478c56.behave.mp4")
+    cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.mp4")
   })
 })

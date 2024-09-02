@@ -14,7 +14,6 @@ LIBAVJS_TARGET_FILES := $(addprefix public/app/bundled/libavjs-$(LIBAVJS_COMMIT)
 STATIC_MARKDOWN_FILES := $(shell find static -type f -name '*.md')
 STATIC_TARGET_MARKDOWN_FILES := $(STATIC_MARKDOWN_FILES:static/%.md=public/%.html)
 STATIC_ASSET_FILES := $(shell find static/assets -type f)
-STATIC_TARGET_ASSET_FILES := $(STATIC_ASSET_FILES:static/%=public/%)
 ENTRYPOINTS := \
     ./src/convert/App.tsx \
     ./src/infer/App.tsx \
@@ -59,12 +58,13 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@tsc --noEmit
 	@npx eslint --max-warnings 0 src
 
-public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
+public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES)
 	@./node_modules/esbuild/bin/esbuild ./src/worker/Worker.ts --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION="$$(node determine_version_number.mjs)" --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" && rm public/app/worker/Worker.css*
 	@WORKER_VERSION=$$(md5sum public/app/worker/Worker.js | cut -c-10); \
 	mv public/app/worker/Worker.js public/app/worker/Worker.$${WORKER_VERSION}.js; \
 	./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION="$$(node determine_version_number.mjs)" --define:WORKER_URL=\"worker/Worker.$${WORKER_VERSION}.js\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& if [ -f "$(outfilebase).$(ext)" ]; then MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"; fi))) > $@.part
+	@find static/assets -type f -exec python3 copy_and_version.py {} static public \; >> $@.part
 	@ mv $@.part $@
 
 $(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html

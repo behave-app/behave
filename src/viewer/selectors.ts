@@ -6,7 +6,7 @@ import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 import { HSL } from "../lib/colour";
 import { ObjectEntries, ObjectKeys, range } from "../lib/util";
-import { DateTimeParts, ISODateTimeString, getLocalPartsFromDateObject, getPartsFromTimestamp, offsetParts } from "../lib/datetime";
+import { DateTimeParts, getPartsFromTimestamp, offsetParts } from "../lib/datetime";
 import { selectDefaultOffset, selectFps, selectMetadata } from "./videoFileSlice";
 
 

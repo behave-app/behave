@@ -8,5 +8,4 @@ render(
   <Provider store={myStore}>
     <App />
   </Provider>,
-  document.body);
-
+  document.querySelector("App")!)

@@ -6,4 +6,4 @@ export function App() {
   return <div><Inferrer /></div>
 }
 
-render(<App />, document.body)
+render(<App />, document.querySelector("App")!)

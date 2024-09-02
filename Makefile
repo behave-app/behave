@@ -11,8 +11,6 @@ LIBAVJS_BASE_FILES := \
 	behave.dbg.thr.mjs
 LIBAVJS_MAKE_FILES := $(addprefix dist/libav-$(LIBAVJS_VERSION)-, $(LIBAVJS_BASE_FILES)) dist/libav.types.d.ts dist/libav-behave.dbg.js dist/libav-behave.dbg.mjs 
 LIBAVJS_TARGET_FILES := $(addprefix public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/, $(LIBAVJS_MAKE_FILES))
-HTML_FILES := $(wildcard *.html)
-HTML_TARGET_FILES := $(addprefix public/app/, $(HTML_FILES))
 STATIC_MARKDOWN_FILES := $(shell find static -type f -name '*.md')
 STATIC_TARGET_MARKDOWN_FILES := $(STATIC_MARKDOWN_FILES:static/%.md=public/%.html)
 STATIC_ASSET_FILES := $(shell find static/assets -type f)
@@ -20,16 +18,16 @@ STATIC_TARGET_ASSET_FILES := $(STATIC_ASSET_FILES:static/%=public/%)
 ENTRYPOINTS := \
     ./src/convert/App.tsx \
     ./src/infer/App.tsx \
-    ./src/debug/App.tsx \
-    ./src/worker/Worker.ts \
     ./src/viewer/index.tsx
 OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
-.PHONY=all public/app/bundled/libavjs lint public/app/tsc libavjs test
+.PHONY=all public/app/bundled/libavjs lint public/app/tsc libavjs test build
 
-all: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(HTML_TARGET_FILES) $(STATIC_TARGET_MARKDOWN_FILES) $(STATIC_TARGET_ASSET_FILES) public/app/bundled/tfjs-wasm
+build: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(STATIC_TARGET_MARKDOWN_FILES) $(STATIC_TARGET_ASSET_FILES) public/app/bundled/tfjs-wasm
 
-test: all lint
+all: build test
+
+test: build lint
 	@npx cypress run --browser=chrome
 
 public/app/bundled/libavjs: public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt
@@ -62,16 +60,16 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@npx eslint --max-warnings 0 src
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
-	@./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION="$$(node determine_version_number.mjs)" --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
+	@./node_modules/esbuild/bin/esbuild ./src/worker/Worker.ts --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION="$$(node determine_version_number.mjs)" --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" && rm public/app/worker/Worker.css*
+	@WORKER_VERSION=$$(md5sum public/app/worker/Worker.js | cut -c-10); \
+	mv public/app/worker/Worker.js public/app/worker/Worker.$${WORKER_VERSION}.js; \
+	./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION="$$(node determine_version_number.mjs)" --define:WORKER_URL=\"worker/Worker.$${WORKER_VERSION}.js\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& if [ -f "$(outfilebase).$(ext)" ]; then MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"; fi))) > $@.part
 	@ mv $@.part $@
 
-$(HTML_TARGET_FILES): public/app/%.html: %.html public/app/tsc
-	@sed -f public/app/tsc < $< > $@
-
 $(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html
 	@mkdir -p "$$(dirname "$@")"
-	@(cat static/header._html && npx showdown makehtml --input "$<" --config tables && cat static/footer._html) | sed 's|$$(ASSETDIR)|'"$$(echo "$<" | sed 's|/[^/]*|/..|g;s|^static/../||')/assets|g" > "$@"
+	@(cat static/header._html && npx showdown makehtml --input "$<" --config tables && cat static/footer._html) | sed 's|$$(ASSETDIR)|'"$$(echo "$<" | sed 's|/[^/]*|/..|g;s|^static/../||')/assets|g" | sed -f public/app/tsc > "$@"
 
 $(STATIC_TARGET_ASSET_FILES): public/%: static/%
 	@mkdir -p "$$(dirname "$@")"

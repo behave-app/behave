@@ -6,4 +6,4 @@ export function App() {
   return <div><Convertor /></div>
 }
 
-render(<App />, document.body)
+render(<App />, document.querySelector("App")!)

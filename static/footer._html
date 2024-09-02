@@ -1,3 +1,8 @@
-<p>MIT licensed</p>
-</body>
+        <div class="page_footer">
+            Developed by Claude, MIT licensed.
+            <a href="https://github.com/behave-app/behave/" target="_blank">
+                Github
+            </a>
+        </div>
+    </body>
 </html>

@@ -4,4 +4,6 @@
     <link rel="stylesheet" href="$(ASSETDIR)/main.css">
   </head>
   <body>
+  <div class="page_header">
     <h1>BEHAVE</h1>
+  </div>

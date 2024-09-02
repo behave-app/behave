@@ -1,3 +1,3 @@
-<script type="module" src="../app/viewer/App.js"></script>
-<link rel="stylesheet" href="../app/viewer/App.css">
+<script type="module" src="../app/viewer/index.js"></script>
+<link rel="stylesheet" href="../app/viewer/index.css">
 <App />

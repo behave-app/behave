@@ -67,7 +67,7 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 	@find static/assets -type f -exec python3 copy_and_version.py {} static public \; >> $@.part
 	@ mv $@.part $@
 
-$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html
+$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html public/app/tsc
 	@mkdir -p "$$(dirname "$@")"
 	@(cat static/header._html && npx showdown -q makehtml --input "$<" --config tables && cat static/footer._html) | sed 's|$$(ASSETDIR)|'"$$(echo "$<" | sed 's|/[^/]*|/..|g;s|^static/../||')/assets|g" | sed -f public/app/tsc > "$@"
 

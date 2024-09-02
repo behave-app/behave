@@ -17,7 +17,7 @@ Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
   const oldBeforeLoad = ((toedit.onBeforeLoad !== undefined) || (() => {})) as CallableFunction
   toedit.onBeforeLoad = (win: typeof window) => {
     oldBeforeLoad(win)
-    cy.stub(win, "showOpenFilePicker", async () => {
+    cy.stub(win, "showOpenFilePicker").callsFake(async () => {
       const getFilesRecursively = async(dir: FileSystemDirectoryHandle): Promise<FileSystemFileHandle[]> => {
         let filehandles: FileSystemFileHandle[] = []
         for await (const [_name, entry] of dir.entries()) {
@@ -42,7 +42,7 @@ Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
       }
       return getFilesRecursively(maindir)
     })
-    cy.stub(win, "showDirectoryPicker", async () => {
+    cy.stub(win, "showDirectoryPicker").callsFake(async () => {
       const opfsRoot = await win.navigator.storage.getDirectory()
       let maindir: FileSystemDirectoryHandle
       try {

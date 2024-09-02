@@ -29,8 +29,7 @@ OUTFILESBASE := $(basename $(ENTRYPOINTS:./src/%=app/%))
 
 all: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(HTML_TARGET_FILES) $(STATIC_TARGET_MARKDOWN_FILES) $(STATIC_TARGET_ASSET_FILES) public/app/bundled/tfjs-wasm
 
-test: lint
-	@npm install --include=dev .
+test: all lint
 	@npx cypress run --browser=chrome
 
 public/app/bundled/libavjs: public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt
@@ -54,7 +53,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 	@rm -r "$(OUTDIR)"
 
 node_modules/tag: package.json
-	@npm install  --omit=dev --no-save .
+	@npm install  --no-save .
 	@cd node_modules/libavjs-webcodecs-bridge && make all
 	@touch $@
 

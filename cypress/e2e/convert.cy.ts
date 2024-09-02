@@ -1,4 +1,4 @@
-describe('App overview', () => {
+describe('Conversion test', () => {
   it('Has a convert link', () => {
     cy.visit('/app/index.html')
     .get('a[href="convert.html"]')

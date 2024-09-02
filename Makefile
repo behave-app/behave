@@ -69,7 +69,7 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 
 $(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html
 	@mkdir -p "$$(dirname "$@")"
-	@(cat static/header._html && npx showdown makehtml --input "$<" --config tables && cat static/footer._html) | sed 's|$$(ASSETDIR)|'"$$(echo "$<" | sed 's|/[^/]*|/..|g;s|^static/../||')/assets|g" | sed -f public/app/tsc > "$@"
+	@(cat static/header._html && npx showdown -q makehtml --input "$<" --config tables && cat static/footer._html) | sed 's|$$(ASSETDIR)|'"$$(echo "$<" | sed 's|/[^/]*|/..|g;s|^static/../||')/assets|g" | sed -f public/app/tsc > "$@"
 
 $(STATIC_TARGET_ASSET_FILES): public/%: static/%
 	@mkdir -p "$$(dirname "$@")"

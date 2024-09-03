@@ -2,6 +2,9 @@
   <head>
     <title>Behave</title>
     <link rel="stylesheet" href="$(ASSETDIR)/main.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="$(ASSETDIR)/logo-32.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="$(ASSETDIR)/logo-128.png">
+
   </head>
   <body>
   <div class="page_header">

@@ -27,7 +27,7 @@ exec("git log  --date='format-local:%Y-%m-%dT%H:%M UTC' '--pretty=format:%H %ad 
         `${tag}`,
         count ? `-dev+${count} (${sha.slice(0, 7)}) `: " ",
         local_changes ? `changes: ${local_changes} `: "",
-        `(${dt.replace("T", " ")})`
+        `(${dt.replace("T", " ")} UTC)`
       ].join("")}))
     })
   })

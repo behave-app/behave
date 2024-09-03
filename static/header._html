@@ -1,12 +1,17 @@
 <html>
   <head>
     <title>Behave</title>
-    <link rel="stylesheet" href="$(ASSETDIR)/main.css">
-    <link rel="icon" type="image/png" sizes="32x32" href="$(ASSETDIR)/logo-32.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="$(ASSETDIR)/logo-128.png">
+    <link rel="stylesheet" href="$(BASEDIR)/assets/main.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="$(BASEDIR)/assets/logo-32.png">
+    <link rel="icon" type="image/svg" href="$(BASEDIR)/logo-128.svg">
 
   </head>
   <body>
   <div class="page_header">
-    <h1>BEHAVE</h1>
+    <h1 class="title"><a href="$(BASEDIR)/index.html">BEHAVE</a></h1>
+    <h2 class="subtitle">Behaviour Extraction by Humans and Ai from Video</h2>
+    <div class="logo">
+      <a href="$(BASEDIR)/index.html"><img alt="logo" src="$(BASEDIR)/assets/logo-128.svg"></a>
+    </div>
   </div>
+  <div class="page_content">

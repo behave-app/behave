@@ -7,7 +7,7 @@ body {
 }
 
 .page_header {
-  background: linear-gradient(to top, hsl(106, 55%, 31%), hsl(161, 65%, 62%));
+  background: linear-gradient(to top, hsl(210, 90%, 45%), hsl(240, 20%, 80%));
   width: 100%;
   height: var(--header-height);
   overflow: hidden;

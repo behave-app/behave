@@ -3,8 +3,8 @@
     :root {
       --bird-width: 882px;
       --bird-height: 922px;
-      --viewFinderLength: 100px;
-      --viewFinderWidth: 25px;
+      --viewFinderLength: 150px;
+      --viewFinderWidth: 35px;
       --viewFinderCornerRadius: 10px;
 
       --bird-x: calc((100% - var(--bird-width)) / 2);
@@ -27,7 +27,7 @@
       width: var(--bird-width);
       height: var(--bird-height);
       fill: none;
-      stroke: red;
+      stroke: hsl(30, 100%, 40%);
       rx: var(--viewFinderCornerRadius);
       ry: var(--viewFinderCornerRadius);
       stroke-width: calc(var(--viewFinderWidth) * 2);

@@ -49,17 +49,17 @@ body {
   }
 }
 
+.page_content {
+    margin-top: calc(var(--header-height) + .7em);
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
 @media (width >= 816px) {
   .page_content {
     width: 800px;
     margin-left: calc(50% - 400px);
   }
-}
-
-.page_content {
-    margin-top: calc(var(--header-height) + .7em);
-    margin-left: 8px;
-    margin-right: 8px;
 }
 
 .page_footer {

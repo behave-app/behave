@@ -59,7 +59,7 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@tsc --noEmit
 	@npx eslint --max-warnings 0 src
 
-public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES)
+public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES) determine_version_number.mjs
 	@./node_modules/esbuild/bin/esbuild ./src/worker/Worker.ts --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION='$(BEHAVE_VERSION)' --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" && rm public/app/worker/Worker.css*
 	@WORKER_VERSION=$$(md5sum public/app/worker/Worker.js | cut -c-10); \
 	mv public/app/worker/Worker.js public/app/worker/Worker.$${WORKER_VERSION}.js; \
@@ -68,7 +68,7 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 	@find static/assets -type f -exec python3 copy_and_version.py {} static public \; >> $@.part
 	@ mv $@.part $@
 
-$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html public/app/tsc markdown.mjs
+$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html public/app/tsc markdown.mjs determine_version_number.mjs
 	@mkdir -p "$$(dirname "$@")"
 	@node markdown.mjs "$<" static/ '$(BEHAVE_VERSION)' | sed -f public/app/tsc > "$@"
 

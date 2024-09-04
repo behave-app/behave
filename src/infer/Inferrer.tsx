@@ -18,7 +18,7 @@ function fileFilter(file: File, extensions: string[]): boolean {
 
 export function Inferrer(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
-  const [concurrency, setConcurrency] = useState(2)
+  const [concurrency, setConcurrency] = useState(1)
   const [modelName, setModelName] = useState<string | null>(null)
   const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)
@@ -118,6 +118,8 @@ export function Inferrer(): JSX.Element {
       : (<>
         <div className={css.explanation}>
           This page allows detection of items on videos, and saving the result as a json file.
+          You will need to upload a model, check the settings, and add a video file.
+          Check the <a href="../help/infer.html">help page</a> or the <a href="../help/quickstart.html">quick start guide</a> for more information.
         </div>
         {yoloSettings ? <div className={css.explanation}>
           Loaded model: {modelName !== null ? modelName : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}

@@ -60,6 +60,13 @@ body {
   }
 }
 
+.page_content > p > img {
+  width: 80%;
+  margin: .7em 10%;
+  border: 1px solid hsl(210, 90%, 45%);
+  border-radius: 1em;
+}
+
 .page_footer {
   background-color: white;
   width: 100%;
@@ -94,5 +101,15 @@ body {
 .centeredButtons a {
   display: block;
   padding: .7em;
-  background-color: silver;
+  background: linear-gradient(to top, hsl(210, 90%, 45%), hsl(240, 20%, 80%));
+  border-radius: .7em;
+  border: 1px solid white;
+  text-decoration: none;
+  color: black;
+}
+.centeredButtons a:hover {
+  border-color: hsl(210, 90%, 20%);
+}
+.centeredButtons a:active {
+  border-color: hsl(210, 90%, 80%);
 }

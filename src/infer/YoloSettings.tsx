@@ -139,7 +139,8 @@ export function YoloSettingsDialog({
   return <>
     <div className={infercss.explanation}>
       In order to do inference, we need a model to work with.
-      Please upload the model, and the settings.
+      Please select the right settings, and upload the model.
+      There is a <a href="../help/infer.html">help page</a> available.
     </div>
     <dl>
       <dt>Backend</dt>

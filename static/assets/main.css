@@ -17,44 +17,40 @@ body {
   left: 0;
   display: grid;
   grid: "logo title" auto
-        "logo subtitle" 1fr
+  "logo subtitle" 1fr
   / auto 1fr;
-  & > * {
-    margin: 0;
-    padding: 0;
-  }
-  .title {
-    font-size: 3.5em;
-    grid-area: title;
-    a {
-      color: unset;
-      text-decoration: unset;
-    }
-  }
-  .subtitle {
-    font-size: 1em;
-    font-weight: normal;
-    grid-area: subtitle;
-  }
-  .logo {
-    grid-area: logo;
-    margin: .5rem .7rem;
-    a {
-      color: unset;
-      text-decoration: unset;
-    }
-    img {
-      height: 100%;
-      aspect-ratio: 1;
-    }
-  }
+}
+.page_header > * {
+  margin: 0;
+  padding: 0;
+}
+.page_header .title {
+  font-size: 3.5em;
+  grid-area: title;
+}
+.page_header .subtitle {
+  font-size: 1em;
+  font-weight: normal;
+  grid-area: subtitle;
+}
+.page_header .logo {
+  grid-area: logo;
+  margin: .5rem .7rem;
+}
+.page_header a {
+  color: unset;
+  text-decoration: unset;
+}
+.page_header .logo a img {
+  height: 100%;
+  aspect-ratio: 1;
 }
 
 .page_content {
-    margin-top: calc(var(--header-height) + .7em);
-    margin-bottom: calc(var(--footer-height) + .7em);
-    margin-left: 8px;
-    margin-right: 8px;
+  margin-top: calc(var(--header-height) + .7em);
+  margin-bottom: calc(var(--footer-height) + .7em);
+  margin-left: 8px;
+  margin-right: 8px;
 }
 
 @media (width >= 816px) {
@@ -79,24 +75,24 @@ body {
   grid: "dev_info version" 1fr
   / 1fr auto;
   border-top: 1px solid hsl(106, 55%, 31%);
-  .dev_info {
-    grid-area: dev_info;
-    font-size: .8rem;
-  }
-  .version {
-    font-size: .6rem;
-    text-align: right;
-    grid-area: version;
-  }
+}
+.page_footer .dev_info {
+  grid-area: dev_info;
+  font-size: .8rem;
+}
+.page_footer .version {
+  font-size: .6rem;
+  text-align: right;
+  grid-area: version;
 }
 
 .centeredButtons {
   display: flex;
   gap: .3em;
   justify-content: center;
-  a {
-    display: block;
-    padding: .7em;
-    background-color: silver;
-  }
+}
+.centeredButtons a {
+  display: block;
+  padding: .7em;
+  background-color: silver;
 }

@@ -5,6 +5,9 @@
     left: 0;
     display: none;
 }
+.page_content {
+  margin: 0;
+}
 .page_footer {
     display: none;
 }

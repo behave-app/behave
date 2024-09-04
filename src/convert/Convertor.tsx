@@ -5,7 +5,7 @@ import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import { API } from "../worker/Api"
 import { useEffect } from "react"
-import { getBehaveVersion, isCompatibleBrowser } from "../lib/util";
+import { isCompatibleBrowser } from "../lib/util";
 
 const NR_WORKERS = 1
 
@@ -51,7 +51,6 @@ export function Convertor(): JSX.Element {
 
   return <>
     <h1>Video file convertor</h1>
-    <div className={css.version}>{getBehaveVersion()}</div>
     <div className={css.explanation}>
       This files converts video files to be used in BEHAVE. At the moment it can only convert MTS files, but it's easy to add additional types upon request.
     </div>

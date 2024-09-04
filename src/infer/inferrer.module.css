@@ -23,13 +23,3 @@ h1 {
 .single_button {
   margin: .7em 1.3em;
 }
-
-.version {
-  width: 100%;
-  text-align: right;
-  font-size: .8em;
-  font-style: italic;
-  &::before {
-    content: "version: ";
-  }
-}

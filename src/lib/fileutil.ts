@@ -22,6 +22,9 @@ export async function getEntry(
     }
     throw(e)
   }
+  if (restpath.length === 0) {
+    return entry
+  }
   return await getEntry(entry, restpath)
 }
 

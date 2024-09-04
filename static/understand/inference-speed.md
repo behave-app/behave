@@ -42,5 +42,3 @@ We have a [speed test](/speedtest) page where the laptop inference speed can qui
 
 At the moment we don't expect inference to run on any mobile phones.
 
-## What inference speed do you need
-

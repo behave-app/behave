@@ -14,7 +14,7 @@ When using the infer tool, inference will run 100% on the computer (or laptop) t
 Because of this, your data stays on your computer, and we can offer inference for free, and without any limitation.
 Inference however is a relatively heavy calculation, and it has to be repeated for every frame in the video.
 Most laptops in use today will be able to run inference, however how long a run takes depends on your hardware (your laptop), the settings chosen in the infer tool, and the chosen model.
-There is a [page with more detailed information]($(BASEDIR)/understand/inference-speed.md), this page will take a more practical approach.
+There is a [page with more detailed information]($(BASEDIR)/understand/inference-speed.html).
 
 ### Step by step
 
@@ -51,7 +51,7 @@ for now it needs to be YOLOv5 for the MegaDetectorV5 model, and YOLOv8 for all o
 #### Backend
 This gives three on what technology is used for inference: WASM, WebGL, and WebGPU.
 Generally WebGPU will be the fastest, WebGL will be second fastest, and WASM will be slowest -- however this is not true on all computers.
-However not all technologies work on all computers; WASM is most likely to work, WebGL is second most likely and WebGPU is least likely to work.
+Not all technologies work on all computers; WASM is most likely to work, WebGL is second most likely and WebGPU is least likely to work.
 
 The advice is to select WebGL first and try if it works. If it does not, you may try WASM, if it does work, you can try WebGPU for even more speed.
 

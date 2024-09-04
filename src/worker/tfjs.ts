@@ -99,9 +99,8 @@ export async function infer(
   output: {dir: FileSystemDirectoryHandle},
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
-  const updateProgress = (step: "hash" | "infer", progress: number) => {
+  const updateProgress = (step: "infer", progress: number) => {
     const DURATIONS: {[key in Parameters<typeof updateProgress>[0]]: number} = {
-      hash: .01,
       infer: 1,
     }
     let sumProgress = 0
@@ -124,8 +123,7 @@ export async function infer(
   try {
     const parts = input.file.name.split(".")
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
-    const hash = await xxh64sum(input.file, progress => updateProgress(
-      "hash", progress))
+    const hash = await xxh64sum(input.file)
     outputfilename = [...baseparts, ".",  hash, EXTENSIONS.detectionFile].join("")
     if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")

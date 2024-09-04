@@ -60,24 +60,15 @@ export async function cp_r(
 
 export async function xxh64sum(
   file: File,
-  reportProgress?: (progress: number) => void
 ): Promise<string> {
-  const READSIZE = 10 *  1024 * 1024
-  const UPDATE_FREQUENCY_MS = 200
-  let lastUpdate = Date.now()
-  reportProgress && reportProgress(0)
+  const START_END_READ_PART = 5 * 1024 * 1024 // we only read this many bytes from the start/end
   const hasher = await createXXHash64()
   hasher.init()
-  for (let start=0; start < file.size; start += READSIZE) {
-    const end = Math.min(file.size, start + READSIZE)
-    hasher.update(new Uint8Array(await file.slice(start, end).arrayBuffer()))
-    if (reportProgress) {
-      const now = Date.now()
-      if (now - lastUpdate > UPDATE_FREQUENCY_MS) {
-        lastUpdate = Date.now()
-        reportProgress(end / file.size)
-      }
-    }
+  if (file.size < 2 * START_END_READ_PART) {
+    hasher.update(new Uint8Array(await file.arrayBuffer()))
+  } else {
+    hasher.update(new Uint8Array(await file.slice(0, START_END_READ_PART).arrayBuffer()))
+    hasher.update(new Uint8Array(await file.slice(file.size -START_END_READ_PART).arrayBuffer()))
   }
   return hasher.digest("hex")
 }

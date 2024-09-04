@@ -13,9 +13,10 @@ export function exhausted(key: never): null {
 }
 
 export function formatTime(totalseconds: number): string {
-  return totalseconds < 3600
-    ? formatTimeMSS(totalseconds)
-    : formatTimeHMMSS(totalseconds)
+  const roundedSeconds = Math.round(totalseconds)
+  return roundedSeconds < 3600
+    ? formatTimeMSS(roundedSeconds)
+    : formatTimeHMMSS(roundedSeconds)
 }
 
 export function formatTimeMSS(totalseconds: number): string {

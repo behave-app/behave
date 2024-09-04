@@ -1199,9 +1199,8 @@ export async function convert(
   onProgress: (progress: FileTreeLeaf["progress"]) => void
 ) {
 
-  const updateProgress = (step: "hash" | "timestamps" | "convert", progress: number) => {
+  const updateProgress = (step: "timestamps" | "convert", progress: number) => {
     const DURATIONS: {[key in Parameters<typeof updateProgress>[0]]: number} = {
-      hash: .1,
       timestamps: 1,
       convert: 1,
     }
@@ -1226,8 +1225,7 @@ export async function convert(
   try {
     const parts = input.file.name.split(".")
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
-    const hash = await xxh64sum(input.file, progress => updateProgress(
-      "hash", progress))
+    const hash = await xxh64sum(input.file)
     outputfilename = [...baseparts, ".", hash, EXTENSIONS.videoFile].join("")
     if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")

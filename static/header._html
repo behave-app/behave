@@ -2,9 +2,7 @@
   <head>
     <title>Behave</title>
     <link rel="stylesheet" href="$(BASEDIR)/assets/main.css">
-    <link rel="icon" type="image/png" sizes="32x32" href="$(BASEDIR)/assets/logo-32.png">
-    <link rel="icon" type="image/svg" href="$(BASEDIR)/logo-128.svg">
-
+    <link rel="icon" type="image/svg" href="$(BASEDIR)/assets/favicon.svg">
   </head>
   <body>
   <div class="page_header">

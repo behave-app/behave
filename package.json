@@ -20,6 +20,7 @@
     "eslint-plugin-cypress": "^3.5.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jest": "^27.9.0",
+    "fflate": "^0.8.2",
     "hash-wasm": "^4.11.0",
     "libavjs-webcodecs-bridge": "github:Yahweasel/libavjs-webcodecs-bridge#98fb137f2b06029e376dc252c31d2f0b540a5919",
     "markdown-it": "^14.1.0",

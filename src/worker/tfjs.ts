@@ -5,12 +5,14 @@ import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
-import { getEntry, xxh64sum } from '../lib/fileutil'
+import { xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
 import { DetectionInfo, SingleFrameInfo, detectionInfoToString } from '../lib/detections'
 import { ObjectEntries, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
-import { YOLO_MODEL_NAME_FILE, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
+import { YoloSettings, YoloBackend } from '../lib/tfjs-shared'
+
+
 
 export async function setBackend(backend: YoloBackend) {
   await tf.setBackend(backend)
@@ -28,13 +30,12 @@ export type Model = {
   model: tf.GraphModel<string>
 }
 
-export async function getModel(
-  modelDirectory: FileSystemDirectoryHandle
-): Promise<Model> {
-  const modelName = (await getEntry(modelDirectory, [YOLO_MODEL_NAME_FILE]))
-    ?  await modelDirectory.getFileHandle(YOLO_MODEL_NAME_FILE).then(
-      fh => fh.getFile()).then(f => f.text()) : "<no name>"
-  const modelFile = await modelDirectory.getFileHandle("model.json").then(
+export async function getModel(model: {
+  name: string,
+  zipFileHandle: FileSystemFileHandle
+}): Promise<Model> {
+
+  const modelFile = await model.getFileHandle("model.json").then(
     fh => fh.getFile())
   const modelData = JSON.parse(await modelFile.text()) as ModelData
   const weightFiles = await Promise.all(

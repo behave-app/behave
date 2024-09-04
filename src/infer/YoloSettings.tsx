@@ -6,8 +6,9 @@ import {getEntry, cp_r} from "../lib/fileutil"
 import { Checker, LiteralChecker, TypeChecker, getCheckerFromObject } from "../lib/typeCheck"
 import { API } from "../worker/Api"
 
+
 export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
-const YOLO_MODEL_DIRECTORY = "YoloModelDir"
+const YOLO_MODEL_ZIP_FILE = "YoloModel.zip"
 
 const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
   version: new LiteralChecker(1),
@@ -19,14 +20,14 @@ const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
 export async function loadCachedSettings(): Promise<YoloSettings | null> {
   try {
     const opfsRoot = await navigator.storage.getDirectory()
-    const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
+    const modelZipFileHandle = await opfsRoot.getDirectoryHandle(YOLO_MODEL_ZIP_FILE)
 
     const settings = {
       ...JSON.parse(localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)!),
-      modelDirectory: opfsModelDir
+      modelZipFileHandle,
     }
     YoloSettingsChecker.assertInstance(settings)
-    await API.checkValidModel(settings.backend, opfsModelDir)
+    await API.checkValidModel(settings.backend, modelZipFileHandle)
     return settings
   } catch (e) {
     console.error("Problem retrieving settings:")
@@ -46,22 +47,22 @@ export function YoloSettingsDialog({
   yoloSettings,
   closeSettingsDialog,
 }: Props): JSX.Element {
-  const [yoloVersion, setYoloVersion] = useState<YoloSettings["yoloVersion"]>("v8")
+  const [modelName, setModelName] = useState<string>()
   const [backend, setBackend] = useState<YoloSettings["backend"]>("webgl")
-  const [modelDir, setModelDir] = useState<FileSystemDirectoryHandle>()
+  const [modelZipFileHandle, setModelZipFileHandle] = useState<FileSystemFileHandle>()
 
   useEffect(() => {
     if (yoloSettings === null) {
-      setYoloVersion("v8")
+      setModelName(undefined)
       setBackend("webgl")
-      setModelDir(undefined)
+      setModelZipFileHandle(undefined)
     } else {
       // basically we assume that the model is still in opfs
       // Technically someone can have removed it since the last load of the site
       // If so, bad luck. This will generate an error, and that's it
       // Reload and you'll start with an empty model
       void(navigator.storage.getDirectory()
-        .then(opfsRoot => opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY))
+        .then(opfsRoot => opfsRoot.getFileHandle(YOLO_MODEL_ZIP_FILE))
         .then(opfsModelDir => {
           setYoloVersion(yoloSettings.yoloVersion)
           setBackend(yoloSettings.backend)
@@ -71,10 +72,13 @@ export function YoloSettingsDialog({
   }, [yoloSettings])
 
   async function save() {
+    if (modelName === undefined) {
+      throw new Error("Cannot be called with 'null' modelName")
+    }
     localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
-    const newYoloSettingsWithoutModel: Omit<YoloSettings, "modelDirectory"> = {
+    const newYoloSettingsWithoutModel: Omit<YoloSettings, "modelZipFileHandle"> = {
       version: 1,
-      yoloVersion,
+      modelName,
       backend,
     }
     const opfsRoot = await navigator.storage.getDirectory()

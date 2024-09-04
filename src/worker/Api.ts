@@ -34,7 +34,10 @@ export type WorkerCheckValidModel = {
   call: {
     method: "check_valid_model",
     backend: YoloBackend
-    directory: FileSystemDirectoryHandle
+    model: {
+      name: string,
+      zipFileHandle: FileSystemFileHandle
+    }
   }
   message: {type: "done", result: {name: string}}
   | {type: "error", error: Error}
@@ -116,7 +119,10 @@ export class API {
 
   static checkValidModel(
     yoloBackend: YoloBackend,
-    directory: FileSystemDirectoryHandle,
+    model: {
+      name: string,
+      zipFileHandle: FileSystemFileHandle,
+    }
   ): Promise<{name: string}> {
     const {promise, resolve, reject} = promiseWithResolve<{name: string}>()
     const worker = new Worker(WORKER_URL, {name: "checkValidModel"}) as ValidModelWorker
@@ -133,7 +139,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "check_valid_model", backend: yoloBackend, directory})
+    worker.postMessage({method: "check_valid_model", backend: yoloBackend, model})
     return promise
   }
 

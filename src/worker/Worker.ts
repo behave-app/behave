@@ -49,7 +49,7 @@ self.addEventListener("message", e => {
         self.postMessage(message)
       }
       setBackend(data.backend).then(() =>
-        getModel(data.directory)
+        getModel(data.model)
       ).then((model) => {
           reply({type: "done", result: {name: model.name}})
         }).catch(error => {

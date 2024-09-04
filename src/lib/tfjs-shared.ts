@@ -1,10 +1,12 @@
-export const YOLO_MODEL_NAME_FILE = "modelname.txt"
 export type YoloSettings = {
   version: 1,
-  yoloVersion: YoloVersion,
-  modelDirectory: FileSystemDirectoryHandle,
+  model: {
+    name: string,
+    zipFileHandle: FileSystemFileHandle,
+  } | null,
   backend: YoloBackend,
 }
+export type YoloSettingsOnDisk = Omit<YoloSettings, "model"> & {
+  model: null | {name: string}}
 
 export type YoloBackend = "wasm" | "webgl" | "webgpu"
-export type YoloVersion = "v5" | "v8"

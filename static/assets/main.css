@@ -1,5 +1,6 @@
 :root {
   font-family: Arial, helvetica, sans-serif;
+  scroll-behavior: smooth;
   --header-height: 6rem;
   --footer-height: 1.3rem;
 }

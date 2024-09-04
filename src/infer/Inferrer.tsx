@@ -126,9 +126,7 @@ export function Inferrer(): JSX.Element {
           onClick={() => setState("selectmodel")}
         >change</button>
         </div> : <div className={css.explanation}>
-            At the moment no yolo model is selected. Running this way means that no
-            detection is done on the videos. It means you can still use all the
-            tools in Behave, you just don't have any detections.
+            At the moment no yolo model is selected. Please add a model in order to start.
             <button disabled={state!=="uploading"}
               onClick={() => setState("selectmodel")}
             >add a model</button>
@@ -150,7 +148,7 @@ export function Inferrer(): JSX.Element {
           <FileTree {...{files, removeFile}} />
           {state === "uploading" && <Upload addFiles={addFiles} />}
         </div>
-        <button className={css.single_button} disabled={!(state==="uploading" && files.size > 0)}
+        <button className={css.single_button} disabled={!(state==="uploading" && files.size > 0 && yoloSettings)}
           onClick={doConvertAll}
         >Start inference</button>
       </>)}

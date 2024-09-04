@@ -25,7 +25,6 @@ When the infer tool is opened for the first time, it will show that no model is 
 
 ![infer page with no model loaded]($(BASEDIR)/assets/infer/infer-start.png)
 
-Although it is possible to run this step without a model, it defeats the purpose of BEHAVE, so we suggest to add a model.
 Click "add a model"
 
 ![infer model settings page]($(BASEDIR)/assets/infer/infer-choose-model.png)

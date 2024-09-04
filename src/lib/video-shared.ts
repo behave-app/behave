@@ -8,7 +8,7 @@ export type VideoMetadata = {
   frameTypeInfo: {
     iFrameInterval: number,
     iFrameStarts: number[],
-    idrFrameInterval: number,
+    idrFrameInterval: number | null,
     idrFrameStarts: number[],
   } | null
   numberOfFrames: number
@@ -26,7 +26,7 @@ export const videoMetadataChecker: ObjectChecker<VideoMetadata, Record<never, ne
   frameTypeInfo: new UnionChecker([{
     iFrameInterval: 1,
     iFrameStarts: new ArrayChecker(1),
-    idrFrameInterval: 1,
+    idrFrameInterval: new UnionChecker([1, null]),  // will be null if only 1 idr frame
     idrFrameStarts: new ArrayChecker(1),
   }, null]),
   numberOfFrames: 1,

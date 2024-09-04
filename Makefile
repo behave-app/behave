@@ -23,7 +23,7 @@ BEHAVE_VERSION := $(shell node determine_version_number.mjs)
 
 .PHONY=all public/app/bundled/libavjs lint public/app/tsc libavjs test build
 
-build: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(STATIC_TARGET_MARKDOWN_FILES) $(STATIC_TARGET_ASSET_FILES) public/app/bundled/tfjs-wasm
+build: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(STATIC_TARGET_MARKDOWN_FILES) public/app/bundled/tfjs-wasm
 
 all: build test
 
@@ -59,7 +59,7 @@ lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMI
 	@tsc --noEmit
 	@npx eslint --max-warnings 0 src
 
-public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES) determine_version_number.mjs
+public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES) determine_version_number.mjs copy_and_version.py
 	@./node_modules/esbuild/bin/esbuild ./src/worker/Worker.ts --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION='$(BEHAVE_VERSION)' --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" && rm public/app/worker/Worker.css*
 	@WORKER_VERSION=$$(md5sum public/app/worker/Worker.js | cut -c-10); \
 	mv public/app/worker/Worker.js public/app/worker/Worker.$${WORKER_VERSION}.js; \
@@ -71,10 +71,6 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 $(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html public/app/tsc markdown.mjs determine_version_number.mjs
 	@mkdir -p "$$(dirname "$@")"
 	@node markdown.mjs "$<" static/ '$(BEHAVE_VERSION)' | sed -f public/app/tsc > "$@"
-
-$(STATIC_TARGET_ASSET_FILES): public/%: static/%
-	@mkdir -p "$$(dirname "$@")"
-	@cp "$<" "$@"
 
 clean:
 	@if [ -e public ]; then rm -r public; fi

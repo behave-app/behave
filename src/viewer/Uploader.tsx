@@ -292,7 +292,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
           Cancel
         </button>
         <button onClick={onSelectFileUpload}>
-          Upload more files
+          Add more files
         </button>
       </div>
     </div>
@@ -315,7 +315,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         Cancel
       </button>
       <button onClick={onSelectFileUpload}>
-        Upload files
+        Add files
       </button>
     </div>
   </div>

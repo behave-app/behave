@@ -74,7 +74,7 @@ body {
   display: grid;
   grid: "dev_info version" 1fr
   / 1fr auto;
-  border-top: 1px solid hsl(106, 55%, 31%);
+  border-top: 1px solid hsl(210, 90%, 45%);
 }
 .page_footer .dev_info {
   grid-area: dev_info;

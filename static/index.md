@@ -10,7 +10,7 @@ BEHAVE is:
 - Free to use (although we love citations, and coffee)
 - Open source (MIT licensed)
 - Runs directly from the browser (no install, no risk)
-- No registration / no tracking / no cookies (anonymous statistics are collected)
+- No registration / no tracking / no cookies ([anonymous statistics are collected](anonymous-statistics.html))
 
 ![robot scientist observing a bird colony]($(BASEDIR)/assets/robot-scientist.webp)
 

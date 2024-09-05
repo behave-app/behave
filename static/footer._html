@@ -1,8 +1,8 @@
         </div>
         <div class="page_footer">
           <div class="dev_info">
-            Developed by Claude (behave-app@cla<span></span>ude.nl), MIT licensed.
-            <a href="https://github.com/behave-app/behave/" target="_blank">
+            Developed by XXXXX (xxxxx@xxxx<span></span>xxxxx.xx), MIT licensed.
+            <a href="https://github.com/xxxxx/xxxxxx/" target="_blank">
                 Github
             </a>
             </a>
@@ -13,7 +13,7 @@
     <script src="https://getinsights.io/js/insights.js"></script>
     <script>
     if (!window.Cypress) {  // don't record statistics when running tests
-        const insights_id = (window.location.host === "behave.claude-apps.com") ? "LZIOzF3YBxQFz68h" : "agV6GnAAVoIvJDuW"
+        const insights_id = "MHclOOL1xnkUUT0_"
         insights.init(insights_id);
         insights.trackPages();
     }

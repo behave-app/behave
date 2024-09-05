@@ -1,4 +1,4 @@
-# This stack accompanies an article on my blog: https://blog.claude.nl/tech/manual/create-a-static-https-site-on-aws-with-cloudformation/
+# This stack accompanies an article on my blog: https://xxxxxxxxx
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: Creates an https website

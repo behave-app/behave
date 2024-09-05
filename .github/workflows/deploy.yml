@@ -69,11 +69,11 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
-          role-to-assume: arn:aws:iam::442430797903:role/behave-claude-apps-com-UploadRole-bcTUZbepmRpa
+          role-to-assume: arn:aws:iam::442430797903:role/XXXXXXXXXX
       - name: Deploy to beta
         env:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: aws s3 sync --delete --content-encoding utf8 public "s3://behave.claude-apps.com/website/beta/${BRANCH_NAME}"
+        run: aws s3 sync --delete --content-encoding utf8 public "s3://xxxxxxxx/website/beta/${BRANCH_NAME}"
   deploy-release:
     runs-on: ubuntu-22.04
     if: github.event_name == 'release' && github.event.action == 'created'
@@ -88,6 +88,6 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
-          role-to-assume: arn:aws:iam::442430797903:role/behave-claude-apps-com-UploadRole-bcTUZbepmRpa
+          role-to-assume: arn:aws:iam::442430797903:role/XXXXXXX
       - name: Deploy to live
-        run: aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 public s3://behave.claude-apps.com/website/
+        run: aws s3 sync --delete --exclude=beta/\* --content-encoding utf8 public s3://XXXXXX/website/

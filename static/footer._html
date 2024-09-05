@@ -12,7 +12,7 @@
     </body>
     <script src="https://getinsights.io/js/insights.js"></script>
     <script>
-    const insights_id = (window.location === "behave.claude-apps.com") ? "LZIOzF3YBxQFz68h" : "agV6GnAAVoIvJDuW"
+    const insights_id = (window.location.host === "behave.claude-apps.com") ? "LZIOzF3YBxQFz68h" : "agV6GnAAVoIvJDuW"
     insights.init(insights_id);
     insights.trackPages();
     </script>

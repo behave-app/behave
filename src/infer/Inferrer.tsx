@@ -43,7 +43,9 @@ export function Inferrer(): JSX.Element {
       concurrency,
       async (input, output, onProgress) => API.inferVideo(
         yoloSettings, input, output, onProgress),
-      setFiles)
+      setFiles,
+      "infer-done",
+    )
     setState("done")
   }
   useEffect(() => {

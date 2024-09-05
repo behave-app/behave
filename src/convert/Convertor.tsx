@@ -36,7 +36,9 @@ export function Convertor(): JSX.Element {
       files,
       NR_WORKERS,
       API.convertToMp4,
-      setFiles)
+      setFiles,
+      "convert-done",
+    )
     setState("done")
   }
   useEffect(() => {

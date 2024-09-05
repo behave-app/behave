@@ -189,6 +189,7 @@ export async function convertAll(
   concurrency: number,
   conversionAction: ConvertAction,
   setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void,
+  insightKey: string,
 ) {
   const destination = await window.showDirectoryPicker(
     {id: "mp4save", mode: "readwrite"})
@@ -219,6 +220,21 @@ export async function convertAll(
       setFiles
     )
     promises.add(promise)
+    void(promise.then(() => {
+      const file = findLeaf(files, path).file
+      const MB = 1024 * 1024
+      window.insights.track({
+        id: insightKey,
+        parameters: {
+          extension: file.name.split(".").at(-1)!,
+          filesize: file.size < 100 * MB ? "XS (<100MB)"
+            : file.size < 500 * MB ? "S (<500MB)"
+              : file.size < 1000 * MB ? "M (<1000MB)"
+                : file.size < 2000 * MB ? "L (<2000MB)"
+                  : file.size < 4000 * MB ? "XL (<4000MB)" : "XXL (>4000MB)"
+        }
+      })
+    }))
     void(promise.finally(() => finished.push(promise)))
   }
   await Promise.all(promises)

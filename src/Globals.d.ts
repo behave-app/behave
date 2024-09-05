@@ -6,3 +6,11 @@ declare interface Object {
     getKey: (item: T) => K
   ): Record<K, T[]>;
 }
+declare interface Window {
+  insights: {
+    track(event: {
+      id: string
+      parameters?: { [key: string]: string }
+    }): void,
+  }
+}

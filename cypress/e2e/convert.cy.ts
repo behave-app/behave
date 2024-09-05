@@ -22,7 +22,7 @@ describe('Conversion test', () => {
     .trigger("dragleave")
     .should("not.contain", "Drop files here")
   })
-  it("Accepts an MTS file", () => {
+  it("Converts an MTS file", () => {
     cy.visitWithStubbedFileSystem("/app/convert.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
@@ -42,5 +42,16 @@ describe('Conversion test', () => {
     cy.contains(".filetree_filename.filetree_converting", /^file\.MTS$/)
     cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.mp4")
+    cy.wait("@postTic").its("request.body").then($body => {
+      cy.wrap($body).its("id").should("equal", "page-views")
+      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+      cy.wrap($body).its("parameters.path").should("equal", "/app/convert.html")
+    })
+    cy.wait("@postTic").its("request.body").then($body => {
+      cy.wrap($body).its("id").should("equal", "convert-done")
+      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+      cy.wrap($body).its("parameters.extension").should("equal", "MTS")
+      cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
+    })
   })
 })

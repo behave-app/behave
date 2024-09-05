@@ -12,8 +12,10 @@
     </body>
     <script src="https://getinsights.io/js/insights.js"></script>
     <script>
-    const insights_id = (window.location.host === "behave.claude-apps.com") ? "LZIOzF3YBxQFz68h" : "agV6GnAAVoIvJDuW"
-    insights.init(insights_id);
-    insights.trackPages();
+    if (!window.Cypress) {  // don't record statistics when running tests
+        const insights_id = (window.location.host === "behave.claude-apps.com") ? "LZIOzF3YBxQFz68h" : "agV6GnAAVoIvJDuW"
+        insights.init(insights_id);
+        insights.trackPages();
+    }
     </script>
 </html>

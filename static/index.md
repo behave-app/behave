@@ -2,7 +2,7 @@ BEHAVE is a collection of tools that makes it easy to extract behaviour (or: cod
 
 [Learn more](#learnmore)
 [Quick start](help/quickstart.html)
-[Now BEHAVE!](app/index.html)
+[BEHAVE now!](app/index.html)
 {.centeredButtons}
 
 BEHAVE is:

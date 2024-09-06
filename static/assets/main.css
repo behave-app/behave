@@ -1,7 +1,12 @@
 :root {
   font-family: Arial, helvetica, sans-serif;
   scroll-behavior: smooth;
-  --header-height: 6rem;
+  --logo-height: 96px;
+  --logo-width: var(--logo-height);
+  --logo-vertical-margins: .5rem;
+  --logo-horizontal-margins: .7rem;
+  --header-height: calc(var(--logo-height) + 2 * var(--logo-vertical-margins));
+  --logo-section-width: calc(var(--logo-width) + 2 * var(--logo-horizontal-margins));
   --footer-height: 1.3rem;
 }
 body {
@@ -19,7 +24,7 @@ body {
   display: grid;
   grid: "logo title" auto
   "logo subtitle" 1fr
-  / auto 1fr;
+  / var(--logo-section-width) 1fr;
 }
 .page_header > * {
   margin: 0;
@@ -36,14 +41,15 @@ body {
 }
 .page_header .logo {
   grid-area: logo;
-  margin: .5rem .7rem;
+  margin: var(--logo-vertical-margins) var(--logo-horizontal-margins);
 }
 .page_header a {
   color: unset;
   text-decoration: unset;
 }
 .page_header .logo a img {
-  height: 100%;
+  width: var(--logo-width);
+  height: var(--logo-height);
   aspect-ratio: 1;
 }
 

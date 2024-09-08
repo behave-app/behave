@@ -134,9 +134,9 @@ export function Inferrer(): JSX.Element {
             >add a model</button>
           </div>}
         <div>
-      Concurrency ({concurrency} file{concurrency !==1 && "s"} at the same time):
+      Concurrency:
         <input type="range" value={concurrency} min={1} max={10} step={1}
-          onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency})
+          onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency} file{concurrency ===1 ? " is"  : "s are"} getting processed at the same time) 
         </div>
         <div>
           <button className={css.checkbox}

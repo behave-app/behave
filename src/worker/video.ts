@@ -1,239 +1,23 @@
 import { xxh64sum } from '../lib/fileutil'
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
-import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString } from "../lib/datetime"
+import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString, ISODATETIMESTRINGREGEX } from "../lib/datetime"
 import { EXTENSIONS } from '../lib/constants'
 import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
 import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep, ObjectKeys} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
 import { VideoMetadata, videoMetadataChecker, } from '../lib/video-shared'
-
-const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
-  0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
-  0x0c, 0x9a, 0x66, 0x4d, 0x44, 0x50, 0x4d
-])
-
-type FrameInfo = {
-  timestamp?: ISODateTimeString
-  startByte: number,
-  pts: number,
-  dts: number,
-  type: "I" | "IDR" | "P" | "B"
-}
-
-export function dumpPacket(packet: LibAVTypes.Packet) {
-  //assumes (for now) a avc (non annex B) packet and dumps it
-  const view = new DataView(packet.data.buffer)
-  let index = 0
-  while (index < view.byteLength) {
-    const length = view.getUint32(index)
-    if (length < 2) {
-      console.log("special case, I run away")
-      return
-    }
-    index += 4
-    const startBytes = new Uint8Array(
-      packet.data.buffer.slice(index, index + Math.min(length, 16)))
-    const str = [...startBytes].map(b => b.toString(16).padStart(2, "0")).join(" ")
-    console.log(`length ${length}: ${str}`)
-    index += length
-  }
-}
-
-export function extractNALs(packet: LibAVTypes.Packet): number[] {
-  const view = new DataView(packet.data.buffer)
-  const nals = []
-  let index = 0
-  while (index < view.byteLength) {
-    const length = view.getUint32(index)
-    if (length < 2) {
-      console.log("special case, I run away")
-      return nals
-    }
-    index += 4
-    nals.push(view.getUint8(index))
-    index += length
-  }
-  return nals
-}
-
-
-function removeEscapeSequences(inputNAL: Uint8Array): Uint8Array {
-  const outputNAL = new Uint8Array(inputNAL.length); // Initialize with the same size
-
-  let outputIndex = 0;
-
-  for (let i = 0; i < inputNAL.length; i++) {
-    // Check for 0x03 byte
-    if (inputNAL[i] === 0x03) {
-      // Check the following byte
-      if (i + 1 < inputNAL.length && inputNAL[i + 1] <= 0x03 &&
-        i >= 2 && inputNAL[i - 1] === 0 && inputNAL[i - 2] === 0
-      ) {
-        // Skip the escape sequence (0x03)
-      } else {
-        // If not a valid escape sequence, copy the byte as-is
-        outputNAL[outputIndex] = inputNAL[i];
-        outputIndex++;
-      }
-    } else {
-      // Copy non-escape sequence bytes as-is
-      outputNAL[outputIndex] = inputNAL[i];
-      outputIndex++;
-    }
-  }
-
-  // Create a new Uint8Array with the actual size
-  return new Uint8Array(outputNAL.slice(0, outputIndex));
-}
-
-export function* getNALs(
-  packet: LibAVTypes.Packet,
-  isAnnexB: boolean,
-  ): Generator<Uint8Array, void, void> {
-  if (!isAnnexB) {
-    throw new Error("is todo")
-  }
-
-  let nrOfZeroes = 0
-  let nalStartedAt = NaN
-
-  for (let i = 0; i < packet.data.byteLength ; i++) {
-    const byte = packet.data.at(i)!
-    if (byte === 0) {
-      nrOfZeroes++;
-      continue
-    }
-    if (byte === 1) {
-      if (nrOfZeroes >= 2) {
-        if (Number.isFinite(nalStartedAt)) {
-          yield new Uint8Array(
-            packet.data.buffer,
-            packet.data.byteOffset + nalStartedAt,
-            i - nrOfZeroes - nalStartedAt)
-        }
-        const nalType = packet.data.at(i + 1)! & 0x1f
-        if (nalType === 0x01 || nalType === 0x05) {
-          // last NAL, no need to continue
-          yield new Uint8Array(
-            packet.data.buffer,
-            packet.data.byteOffset + i + 1,
-            packet.data.byteLength - (i + 1))
-          return
-        }
-        nalStartedAt = i + 1
-      }
-    }
-    nrOfZeroes = 0
-  }
-  yield new Uint8Array(
-    packet.data.buffer,
-    packet.data.byteOffset + nalStartedAt,
-    packet.data.byteLength - nalStartedAt)
-}
-
-export function extractFrameInfo(
-  packet: LibAVTypes.Packet,
-  isAnnexB: boolean,
-): Omit<FrameInfo, "pts" | "dts"> {
-  if (!isAnnexB) {
-    throw new Error("is todo")
-  }
-  const frameInfo: Partial<ReturnType<typeof extractFrameInfo>>= {}
-
-  for (const nal of getNALs(packet, isAnnexB)) {
-    const firstbyte = nal.at(0)!
-    const ref = (firstbyte & 0xe0) >> 5
-    const nalType = firstbyte & 0x1f
-    switch (nalType) {
-      case 0x01: {
-        switch (ref) {
-          case 0:
-            frameInfo.type = "B"
-            break
-          case 2:
-            frameInfo.type = "P"
-            break
-          case 3:
-            frameInfo.type = "I"
-            break
-          default:
-            throw new Error(`Uknown ${ref} ${nalType}`)
-        }
-      } break
-      case 0x05: {
-        frameInfo.type = "IDR"
-      } break
-      case 0x06: {
-        const unescapedNal = isAnnexB ? removeEscapeSequences(nal) : nal
-        let rest = new Uint8Array(unescapedNal.buffer, unescapedNal.byteOffset + 1)
-        while (rest.byteLength) {
-          const current = rest
-          const type = current.at(0)!
-          if (type == 0x80) {
-            // padding
-            rest = new Uint8Array(current.buffer, current.byteOffset + 1)
-            continue
-          }
-          const length = current.at(1)!
-          const newOffset = current.byteOffset + length + 2
-          if (newOffset > current.buffer.byteLength) {
-            console.log("problem with buffer: ", current.buffer)
-            throw new Error("problem with nal 6")
-          }
-          rest = new Uint8Array(current.buffer, current.byteOffset + length + 2)
-          if (type !== 5) {
-            continue
-          }
-          if (length < UUID_ISO_IEC_11578_PLUS_MDPM.byteLength) {
-            continue
-          }
-          for (let i=0; i < UUID_ISO_IEC_11578_PLUS_MDPM.byteLength; i++) {
-            if (UUID_ISO_IEC_11578_PLUS_MDPM.at(i)! !== current.at(i + 2)!) {
-              console.warn("different nal")
-              continue
-            }
-          }
-          const nrItems = current.at(
-            2 + UUID_ISO_IEC_11578_PLUS_MDPM.byteLength)!
-          if (length !== UUID_ISO_IEC_11578_PLUS_MDPM.byteLength + 1 + nrItems * 5) {
-            console.warn("Not sure...")
-            continue
-          }
-          const dataByType: Record<number, number[]> = {}
-          const view = new DataView(
-            current.buffer, current.byteOffset + 2 + UUID_ISO_IEC_11578_PLUS_MDPM.byteLength + 1)
-          for (let itemNr = 0; itemNr < nrItems; itemNr++) {
-            const type = view.getUint8(5 * itemNr)
-            dataByType[type] = [1, 2, 3, 4].map(i => view.getUint8(5 * itemNr + i))
-          }
-          if (0x18 in dataByType && 0x19 in dataByType) {
-            // strange encoding, where 0x20 --> 20 (decimal)
-            const decodeNr = (nr: number) => parseInt(nr.toString(16))
-            const [_, century, year2digit, month] = dataByType[0x18].map(decodeNr)
-            const offsetRaw = dataByType[0x18][0]
-            const [day, hour, min, sec] = dataByType[0x19].map(decodeNr)
-            const year = 100 * century + year2digit
-            const localHoursOffset = (offsetRaw & 0x40 ? -1 : 1) * (offsetRaw & 0x3f) / 2
-            const p2 = (n: number) => n.toString().padStart(2, "0")
-            const p4 = (n: number) => n.toString().padStart(4, "0")
-            const isoDateString = [p4(year), p2(month), p2(day)].join("-")
-            const isoTimeString = [p2(hour), p2(min), p2(sec)].join(":")
-            const isoTz = localHoursOffset === 0 ? "Z" :
-              `${localHoursOffset > 0 ? "+" : "-"}${p2(Math.floor(Math.abs(localHoursOffset)))}:${p2((Math.abs(localHoursOffset) % 1)*60)}`
-            frameInfo.timestamp = `isodate:${isoDateString}T${isoTimeString}${isoTz}` as typeof frameInfo["timestamp"]
-          }
-        }
-      } break
-    }
-  }
-  return frameInfo as ReturnType<typeof extractFrameInfo>
-}
+import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
+import { FrameInfo, extractFrameInfo } from "./frameinfo"
 
 type VideoInfo = {
+  // the pts of the first frame
   readonly startTick: number,
+  // the pts of the last frame
   readonly endTick: number,
+  // basically endtick - starttick
   readonly durationTicks: number,
+  // number of ticks that one frame takes
   // this is a best guess, assuming the frame rate is constant. This is in TS
   readonly frameDurationTicks: number,
   // observed gop length in first X frames
@@ -246,22 +30,8 @@ type VideoInfo = {
   readonly frameDurationSeconds: number,
   readonly numberOfFramesInStream: number,
   readonly fps: number,
+  // true if packets are annexB encoded
   readonly isAnnexB: boolean,
-}
-
-export function splitLowHigh(combined: number): {lo: number, hi: number} {
-  const hi = Math.floor(combined / 0x100000000)
-  const lo = combined & 0xFFFFFFFF
-  return {hi, lo}
-}
-
-export function combineLowHigh(lo: number, hi: number): number {
-  const unsigned_lo = lo >= 0 ? lo : lo + 0x100000000
-  const tsCombined = unsigned_lo + hi * 0x100000000
-  if (!Number.isSafeInteger(tsCombined)) {
-    throw new Error("Unsafe")
-  }
-  return tsCombined
 }
 
 type FrameCacheItem = null | "loading" | "pastEOS" | VideoFrame
@@ -425,19 +195,13 @@ export class Video {
     this.frameInfo = null
   }
 
-  async init(options?: {
-    keepFrameInfo?: boolean
-  }) {
-    if (options?.keepFrameInfo ?? false) {
-      this.frameInfo = new Map()
-    }
+  private async openVideoFile() {
     const _rwthis = this as {
       -readonly [K in keyof typeof this]: typeof this[K]
     }
     if (_rwthis.libav !== null) {
       throw new Error("already inited");
     }
-
     const LibAV = await getLibAV()
     _rwthis.libav = await LibAV.LibAV(Video.DEFAULT_LIBAV_OPTIONS);
     await this.libav.av_log_set_level(this.libav.AV_LOG_ERROR);
@@ -455,9 +219,30 @@ export class Video {
     }
     _rwthis.formatContext = fmt_ctx;
     _rwthis.videoStream = video_streams[0];
+    this.videoStream.codecpar
     _rwthis.ticksToUsFactor = 
       1e6 * this.videoStream.time_base_num / this.videoStream.time_base_den
+
+  }
+
+  async init(options?: {
+    keepFrameInfo?: boolean
+  }) {
+    if (options?.keepFrameInfo ?? false) {
+      this.frameInfo = new Map()
+    }
+    await this.openVideoFile()
     await this.setVideoInfo()
+
+    // reinitialize the stream to make sure we seek to 0
+    await this.libav.unlink(this.input.name);
+    this.libav.terminate();
+
+    const _rwthis = this as {libav: LibAVTypes.LibAV | null}
+
+    _rwthis.libav = null;
+    await this.openVideoFile()
+
     const frameCache = new FrameCache(0, 50, 50)
     this.frameStreamState = {state: "streaming", frameCache}
   }
@@ -489,7 +274,10 @@ export class Video {
     // TODO: first try hardware, if fails try software
     decoderConfig.hardwareAcceleration = "prefer-software";
     videoDecoder.configure(decoderConfig);
-    videoDecoder.decode(await createFakeKeyFrameChunk(decoderConfig));
+    videoDecoder.decode(await createFakeKeyFrameChunk(
+      await this.libav.AVCodecParameters_width(this.videoStream.codecpar),
+      await this.libav.AVCodecParameters_height(this.videoStream.codecpar),
+      decoderConfig));
     return videoDecoder
   }
 
@@ -544,7 +332,7 @@ export class Video {
             break;
           }
           const isKeyFrame = (packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY
-          const pts = combineLowHigh(packet.pts!, packet.ptshi!)
+          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
           if (isKeyFrame) {
           keyFrameUs_s.add(pts)
           }
@@ -575,7 +363,7 @@ export class Video {
     assert(frameDurationTicks !== undefined)
     assert(maxGopLength !== undefined)
     assert(frameDurationTicks !== "variable", "" + frameDurationTicks_s)
-    const durationTicks = combineLowHigh(
+    const durationTicks = this.libav.i64tof64(
       await this.libav.AVStream_duration(this.videoStream.ptr),
       await this.libav.AVStream_durationhi(this.videoStream.ptr),
     )
@@ -680,7 +468,7 @@ export class Video {
       }
       const frameNumberPts = this.videoInfo.startTick
         + frameNumber * this.videoInfo.frameDurationTicks
-      const {lo: ptslo, hi: ptshi} = splitLowHigh(frameNumberPts)
+      const [ptslo, ptshi] = this.libav.f64toi64(frameNumberPts)
       const seekFlags = 0
       await this.libav.avformat_seek_file_max(
         this.formatContext, this.videoStream.index, ptslo, ptshi, seekFlags)
@@ -778,7 +566,7 @@ export class Video {
             await videoDecoder.flush()
             continue
           }
-          const pts = combineLowHigh(packet.pts!, packet.ptshi!)
+          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
           const framenr = (pts - startTick) / frameDurationTicks
           if (framenr < 0) {
             // these frames we should ignore
@@ -797,7 +585,7 @@ export class Video {
           }
           const chunk = new EncodedVideoChunk({
             type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
-            timestamp: combineLowHigh(packet.pts!, packet.ptshi!) * this.ticksToUsFactor,
+            timestamp: Math.round(this.libav.i64tof64(packet.pts!, packet.ptshi!) * this.ticksToUsFactor),
             duration: 100,
             data: packet.data.buffer,
           })
@@ -845,7 +633,7 @@ export class Video {
             }
             this.frameInfo.set(framenr, frameInfo)
           }
-          const timestamp = pts * this.ticksToUsFactor
+          const timestamp = Math.round(pts * this.ticksToUsFactor)
           timestampToFramenumber[timestamp] = framenr
           const chunk = new EncodedVideoChunk({
             type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
@@ -947,14 +735,13 @@ export class Video {
  * See https://github.com/Yahweasel/libavjs-webcodecs-bridge/issues/3#issuecomment-1837189047 for more info
  */
 export async function createFakeKeyFrameChunk(
+  width: number, height: number,
   decoderConfig: VideoDecoderConfig
 ): Promise<EncodedVideoChunk> {
   const { promise, resolve, reject } = promiseWithResolve<EncodedVideoChunk>();
   const encoderConfig = { ...decoderConfig } as VideoEncoderConfig;
-  // encoderConfig needs a width and height set; it seems to not matter for
-  // annexB, but it does matter for avcc
-  encoderConfig.width = 1920;
-  encoderConfig.height = 1080;
+  encoderConfig.width = width
+  encoderConfig.height = height
   encoderConfig.avc = { format: decoderConfig.description ? "avc" : "annexb" };
   const videoEncoder = new VideoEncoder({
     output: (chunk, _metadata) => resolve(chunk),
@@ -985,7 +772,7 @@ export async function createFakeKeyFrameChunk(
 }
 
 export async function extractMetadata(file: File): Promise<VideoMetadata> {
-  if (file.name.endsWith(EXTENSIONS.videoFile)) {
+  if (file.name.toLowerCase().endsWith(EXTENSIONS.videoFile.toLowerCase())) {
     const behaveData = await extractBehaveMetadata(file)
     if (ObjectKeys(behaveData).length) {
       const parsedBehaveData: {frameTypeInfo: Record<string, unknown>} & Record<string, unknown> = {
@@ -1015,8 +802,100 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     }
     console.warn({behaveData})
     throw new Error("No metadata found, using an old video file?")
+  } else if (file.name.toLowerCase().endsWith(EXTENSIONS.videoFileMp4.toLowerCase())) {
+    const tags = await extractTags(file)
+    const hash = await xxh64sum(file)
+    const video = new Video(file)
+    await video.init({keepFrameInfo: false})
+    const numberOfFrames = video.videoInfo.numberOfFramesInStream
+    const playbackFps = video.videoInfo.fps
+    const creationTime  = [
+      tags.format.tags.creation_time,
+      ...tags.streams.map(s => s.tags.creation_time)
+    ].filter(ct => ct)
+    .map(ct => "isodate:" + ct)
+    .filter(ct => ISODATETIMESTRINGREGEX.test(ct))
+    .at(0) as ISODateTimeString | undefined
+    const result: VideoMetadata = {
+      hash,
+      startTimestamps: creationTime !== undefined ? {"0": creationTime}: {},
+      recordFps: playbackFps,
+      frameTypeInfo: null,
+      numberOfFrames,
+      playbackFps,
+    }
+    console.log(JSON.stringify(result))
+    return result
   }
-  throw new Error("TODO")
+  throw new Error("TODO: " + file.name)
+}
+
+export type Tags = {
+  programs: Array<unknown>,
+  streams: Array<{
+    index: number
+    codec_type: "video" | "audio" | "data" | "subtitle"
+    tags: Record<string, string>
+  }>
+  format: {
+    tags: Record<string, string>
+  }
+}
+const validateTags: Checker<Tags> = getCheckerFromObject({
+  programs: new ArrayChecker(new UnknownChecker()),
+  streams: new ArrayChecker({
+    index: 1,
+    codec_type: new LiteralChecker(["video", "audio", "data", "subtitle"]),
+    tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
+  }),
+  format: {
+    tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
+  }
+})
+
+export async function extractTags(file: File): Promise<Tags> {
+  let libav: LibAVTypes.LibAV | undefined = undefined
+  let writtenData = new Uint8Array(0);
+  try {
+    const FFMPEGOUTPUT = "__ffmpeg_output__";
+    const LibAV = await getLibAV()
+    libav = await LibAV.LibAV({ noworker: false, nothreads: true });
+    assert(libav !== undefined)
+    await libav.mkreadaheadfile(file.name, file);
+    await libav.mkwriterdev(FFMPEGOUTPUT);
+    libav.onwrite = function (_name, pos, data) {
+      const newLen = Math.max(writtenData.length, pos + data.length);
+      if (newLen > writtenData.length) {
+        const newData = new Uint8Array(newLen);
+        newData.set(writtenData);
+        writtenData = newData;
+      }
+      writtenData.set(data, pos);
+    };
+    const exit_code = await libav.ffprobe(
+      "-hide_banner",
+      "-loglevel", "error",
+      "-i", file.name,
+      "-print_format", "json",
+      "-show_entries", "stream=index,codec_type:stream_tags:format_tags",
+      "-o", FFMPEGOUTPUT,
+    );
+    if (exit_code != 0) {
+      throw new Error(`ffprobe exit code: ${exit_code}`);
+    }
+    await libav.unlink(file.name);
+    await libav.unlink(FFMPEGOUTPUT);
+  } finally {
+    if (libav !== undefined) {
+      libav.terminate()
+    }
+  }
+  const output = new TextDecoder("utf-8").decode(writtenData);
+  const tags = JSON.parse(output)
+  if (!validateTags.isInstance(tags)) {
+  throw new Error("Error getting tags")
+  }
+  return tags
 }
 
 export async function extractBehaveMetadata(file: File): Promise<Record<string, string>> {

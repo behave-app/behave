@@ -14,3 +14,7 @@ declare interface Window {
     }): void,
   }
 }
+
+declare interface Iterator<T> {
+  forEach(callback: (item: T, index: number) => void): void;
+}

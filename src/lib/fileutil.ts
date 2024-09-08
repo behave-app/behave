@@ -4,6 +4,9 @@ export async function getEntry(
   fsh: FileSystemDirectoryHandle,
   path: string[],
 ): Promise<FileSystemFileHandle | FileSystemDirectoryHandle | null> {
+  if (path.length === 0) {
+    return fsh
+  }
   const [name, ...restpath] = path
   let entry: FileSystemDirectoryHandle;
   try {

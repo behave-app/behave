@@ -141,7 +141,7 @@ export class API {
     file: File,
   ): Promise<VideoMetadata> {
     const {promise, resolve, reject} = promiseWithResolve<VideoMetadata>()
-    const worker = new Worker(WORKER_URL, {name: "checkValidModel"}) as ExtractMetadataWorker
+    const worker = new Worker(WORKER_URL, {name: "extractMetadata"}) as ExtractMetadataWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerExtractMetadata["message"]
       switch (data.type) {

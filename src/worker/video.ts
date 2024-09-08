@@ -325,6 +325,9 @@ export class Video {
       while (!done) {
         const {endOfFile, videoPackets} = await this.doReadMulti()
         for (const packet of videoPackets) {
+          if ((packet.flags ?? 0) & Video.AV_PKT_FLAG_DISCARD) {
+            continue
+          }
           while (videoDecoder.decodeQueueSize > 10) {
             await getPromiseFromEvent(videoDecoder, "dequeue")
           }
@@ -596,7 +599,10 @@ export class Video {
       } else {
         console.log("flush before seek")
         await videoDecoder.flush()
-        videoDecoder.decode(await createFakeKeyFrameChunk(decoderConfig))
+        videoDecoder.decode(await createFakeKeyFrameChunk(
+          await this.libav.AVCodecParameters_width(this.videoStream.codecpar),
+          await this.libav.AVCodecParameters_height(this.videoStream.codecpar),
+          decoderConfig))
         console.log("seek to framenr " + nextFrameNumberToLoad)
         await this.packetStreamSeek(nextFrameNumberToLoad)
         lastFrameNumberToAddToDecoder = "good enough"
@@ -623,6 +629,9 @@ export class Video {
       while (true) {
         const {endOfFile, videoPackets} = await this.doReadMulti()
         for (const packet of videoPackets) {
+          if ((packet.flags ?? 0) & Video.AV_PKT_FLAG_DISCARD) {
+            continue
+          }
           const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
           const framenr = (pts - startTick) / frameDurationTicks
           if (this.frameInfo && !this.frameInfo.has(framenr)) {
@@ -824,7 +833,6 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
       numberOfFrames,
       playbackFps,
     }
-    console.log(JSON.stringify(result))
     return result
   }
   throw new Error("TODO: " + file.name)
@@ -1103,9 +1111,9 @@ export async function convert(
 
   try {
     const parts = input.file.name.split(".")
-    const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
+    const base = (parts.length == 1 ? parts : parts.slice(0, -1)).join(".")
     const hash = await xxh64sum(input.file)
-    outputfilename = [...baseparts, ".", hash, EXTENSIONS.videoFile].join("")
+    outputfilename = [base, ".", hash, EXTENSIONS.videoFile].join("")
     if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")
       return

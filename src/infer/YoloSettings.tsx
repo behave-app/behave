@@ -78,8 +78,9 @@ export function YoloSettingsDialog({
       backend,
     }
     const opfsRoot = await navigator.storage.getDirectory()
-    const modelDirIsOnUsersFilesystem /*as opposed to in OPFS*/ =
-      modelDir && !await opfsRoot.resolve(modelDir)
+    const modelDirRelativeToOPFSRoot = modelDir && await opfsRoot.resolve(modelDir)
+    const modelDirNeedsCopying /*as opposed to in OPFS*/ =
+      (modelDirRelativeToOPFSRoot ?? []).join("/") !== YOLO_MODEL_DIRECTORY
     if (!modelDir) {
       if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
         await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
@@ -87,7 +88,7 @@ export function YoloSettingsDialog({
       localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
       setYoloSettings(null)
     } else {
-      if (modelDirIsOnUsersFilesystem) {
+      if (modelDirNeedsCopying) {
         await API.checkValidModel(backend, modelDir)
         if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
           await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})

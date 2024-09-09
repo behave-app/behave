@@ -1,0 +1,17 @@
+description: Ultralytics 21324_2023-10-03_640-best model trained on /data/2023-10-03_640-trainingdata/data.yaml
+author: Ultralytics
+license: AGPL-3.0 https://ultralytics.com/license
+date: '2024-02-03T16:50:07.479166'
+version: 8.1.9
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: little auk
+  1: human
+  2: fox
+  3: other bird
+  4: reindeer

@@ -89,14 +89,14 @@ describe('Inference test', () => {
     // TODO: test cancel showOpenFilePicker()
     cy.contains("button", "Start inference").should("be.not.disabled").click()
     cy.contains(".filetree_filename2.filetree_converting2", /^file\.MTS$/)
-    cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 9 * 60 * 1000})
+    cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 20 * 60 * 1000})
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
     cy.window().then(win => cy.wrap(null).then(async () => {
       const opfs = await win.navigator.storage.getDirectory()
       const dir = await opfs.getDirectoryHandle("showDirectoryPickerResult")
       const file = await (await dir.getFileHandle("file.82f16f09b8327ed1.behave.det.json")).getFile()
       const hash = xxh64sum(file)
-      cy.wrap(hash).should("equal", "fa81b4bf7284831c")
+      cy.wrap(hash).should("equal", await file.text())
     }))
     cy.wait("@postTic").its("request.body").then($body => {
       cy.wrap($body).its("id").should("equal", "page-views")

@@ -34,7 +34,7 @@ jobs:
         # is unchanged.
         run: make -t public/app/bundled/libavjs || true
       - name: Build
-        run: DOCKER="docker buildx" DOCKER_TMPDIR=/tmp ENVIRONMENT=production make lint all
+        run: DOCKER="docker buildx" DOCKER_TMPDIR=/tmp ENVIRONMENT=production make lint build
       - name: Upload artifacts
         uses: actions/upload-artifact@master
         with:

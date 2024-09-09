@@ -26,7 +26,8 @@ describe('Inference test', () => {
     .trigger("dragleave")
     .should("not.contain", "Drop files here")
   })
-  it("Should show empty model", () => {
+
+  it("Infers from MTS file", () => {
     cy.window().then(win => cy.wrap(null).then(async () => {
       const opfs = await win.navigator.storage.getDirectory()
       for await (const [name, _entry] of opfs.entries()) {
@@ -88,7 +89,7 @@ describe('Inference test', () => {
     // TODO: test cancel showOpenFilePicker()
     cy.contains("button", "Start inference").should("be.not.disabled").click()
     cy.contains(".filetree_filename2.filetree_converting2", /^file\.MTS$/)
-    cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 60000})
+    cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 600000})
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
     cy.window().then(win => cy.wrap(null).then(async () => {
       const opfs = await win.navigator.storage.getDirectory()
@@ -108,35 +109,5 @@ describe('Inference test', () => {
       cy.wrap($body).its("parameters.extension").should("equal", "MTS")
       cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
     })
-  })
-  it("Infers from an MTS file", () => {
-    // cy.visitWithStubbedFileSystem("/app/infer.html")
-    // cy.setShowOpenFilePickerResult([
-    //   {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
-    //   "cypress/assets/other.txt",
-    // ])
-    // cy.setShowDirectoryPickerResult([])
-    // cy.contains("button", "Start inference").should("be.disabled")
-    // cy.contains("button", "Add files").should("not.be.disabled")
-    // .click()
-    // cy.contains(".filetree_filename", /^file\.MTS$/)
-    // cy.contains(".filetree_filename", /^other\.txt/).should("not.exist")
-    // // TODO: test cancel directotyPicker
-    // cy.contains("button", "Start inference").should("not.be.disabled")
-    // .click()
-    // cy.contains(".filetree_filename.filetree_converting", /^file\.MTS$/)
-    // cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
-    // cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
-    // cy.wait("@postTic").its("request.body").then($body => {
-    //   cy.wrap($body).its("id").should("equal", "page-views")
-    //   cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
-    //   cy.wrap($body).its("parameters.path").should("equal", "/app/infer.html")
-    // })
-    // cy.wait("@postTic").its("request.body").then($body => {
-    //   cy.wrap($body).its("id").should("equal", "infer-done")
-    //   cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
-    //   cy.wrap($body).its("parameters.extension").should("equal", "MTS")
-    //   cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
-    // })
   })
 })

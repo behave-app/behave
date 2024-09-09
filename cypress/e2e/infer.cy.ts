@@ -53,7 +53,7 @@ describe('Inference test', () => {
     .contains("add a model")
     .click()
     assertDefaultValues()
-    cy.contains("dt", "Backend").next().find("select").select("wasm")
+    cy.contains("dt", "Backend").next().find("select").select("webgpu")
     cy.contains("dt", "Yolo version").next().find("select").select("v5")
     cy.contains("button", "Select model").click()
     cy.contains("Model loaded")
@@ -73,9 +73,9 @@ describe('Inference test', () => {
     cy.contains("button", "change").click()
     cy.contains("button", "Change model")
     cy.contains("button", "Unload model")
-    cy.contains("dt", "Backend").next().find("select").select("wasm")
+    cy.contains("dt", "Backend").next().find("select").select("webgpu")
     cy.contains("button", "Save").click()
-    cy.contains("Loaded model: showDirectoryPickerResult (v8 / wasm)")
+    cy.contains("Loaded model: showDirectoryPickerResult (v8 / webgpu)")
 
     cy.setShowOpenFilePickerResult([])
     cy.setShowOpenFilePickerResult([

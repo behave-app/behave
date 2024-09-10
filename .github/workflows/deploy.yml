@@ -41,7 +41,7 @@ jobs:
           name: built-app
           path: public
   test:
-    runs-on: ubuntu-22.04
+    runs-on: macos-latest  # turns out that macos is much much faster :)
     needs: build
     steps:
       - name: Checkout

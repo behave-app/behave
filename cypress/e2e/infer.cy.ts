@@ -1,6 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { xxh64sum } from "../../src/lib/fileutil"
+const ALLOWED_DIFFERENCE = 0.05
 
 describe('Inference test', () => {
   it('Has an infer link', () => {
@@ -91,12 +89,35 @@ describe('Inference test', () => {
     cy.contains(".filetree_filename2.filetree_converting2", /^file\.MTS$/)
     cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 20 * 60 * 1000})
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
+    let groundTruth: Record<string, unknown> & {
+      frameInfo: ReadonlyArray<{
+      detections: ReadonlyArray<Record<string, number>>
+    }>}
+    cy.readFile("cypress/assets/example.82f16f09b8327ed1.behave.det.json", "utf-8").then(res => {
+      groundTruth = res as typeof groundTruth
+    })
     cy.window().then(win => cy.wrap(null).then(async () => {
       const opfs = await win.navigator.storage.getDirectory()
       const dir = await opfs.getDirectoryHandle("showDirectoryPickerResult")
       const file = await (await dir.getFileHandle("file.82f16f09b8327ed1.behave.det.json")).getFile()
-      const hash = xxh64sum(file)
-      cy.wrap(hash).should("equal", await file.text())
+      const data = JSON.parse(await file.text()) as typeof groundTruth
+      for (const key of Object.keys(groundTruth)) {
+        if (key !== "frameInfo") {
+          cy.wrap(JSON.stringify(data[key])).should("equal", JSON.stringify(groundTruth[key]))
+          continue
+        }
+        const nrFrames = groundTruth.frameInfo.length
+        cy.wrap(data.frameInfo.length).should("equal", nrFrames)
+        for (let framenr = 0; framenr < nrFrames; framenr++) {
+          const groundDetections = groundTruth.frameInfo[framenr].detections
+          const foundDetections = data.frameInfo[framenr].detections
+          const compareMap = groundDetections.map(gd => foundDetections.map(fd =>
+            Object.keys(gd).every(k => Math.abs(gd[k] - fd[k]) < ALLOWED_DIFFERENCE)
+          ))
+          cy.wrap(groundDetections.length).should("equal", foundDetections.length)
+          cy.wrap(compareMap.every(it => it.some(n => n))).should("be.true")
+        }
+      }
     }))
     cy.wait("@postTic").its("request.body").then($body => {
       cy.wrap($body).its("id").should("equal", "page-views")

@@ -90,7 +90,7 @@ describe('Inference test', () => {
     cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 20 * 60 * 1000})
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
     let groundTruth: Record<string, unknown> & {
-      frameInfo: ReadonlyArray<{
+      framesInfo: ReadonlyArray<{
       detections: ReadonlyArray<Record<string, number>>
     }>}
     cy.readFile("cypress/assets/example.82f16f09b8327ed1.behave.det.json", "utf-8").then(res => {
@@ -102,15 +102,15 @@ describe('Inference test', () => {
       const file = await (await dir.getFileHandle("file.82f16f09b8327ed1.behave.det.json")).getFile()
       const data = JSON.parse(await file.text()) as typeof groundTruth
       for (const key of Object.keys(groundTruth)) {
-        if (key !== "frameInfo") {
+        if (key !== "framesInfo") {
           cy.wrap(JSON.stringify(data[key])).should("equal", JSON.stringify(groundTruth[key]))
           continue
         }
-        const nrFrames = groundTruth.frameInfo.length
-        cy.wrap(data.frameInfo.length).should("equal", nrFrames)
+        const nrFrames = groundTruth.framesInfo.length
+        cy.wrap(data.framesInfo.length).should("equal", nrFrames)
         for (let framenr = 0; framenr < nrFrames; framenr++) {
-          const groundDetections = groundTruth.frameInfo[framenr].detections
-          const foundDetections = data.frameInfo[framenr].detections
+          const groundDetections = groundTruth.framesInfo[framenr].detections
+          const foundDetections = data.framesInfo[framenr].detections
           const compareMap = groundDetections.map(gd => foundDetections.map(fd =>
             Object.keys(gd).every(k => Math.abs(gd[k] - fd[k]) < ALLOWED_DIFFERENCE)
           ))

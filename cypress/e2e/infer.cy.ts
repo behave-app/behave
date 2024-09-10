@@ -106,6 +106,8 @@ describe('Inference test', () => {
           cy.wrap(JSON.stringify(data[key])).should("equal", JSON.stringify(groundTruth[key]))
           continue
         }
+        // do some fuzzy-match, since values seem to differ a bit between ARM and x86
+        // (either because of AI calc, or maybe the WebCodecs Video player is slightly different)
         const nrFrames = groundTruth.framesInfo.length
         cy.wrap(data.framesInfo.length).should("equal", nrFrames)
         for (let framenr = 0; framenr < nrFrames; framenr++) {

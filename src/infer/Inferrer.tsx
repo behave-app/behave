@@ -1,19 +1,29 @@
 import "preact/debug"
 import {Upload} from "../lib/Upload"
-import {FileTree, FileTreeBranch, readFileSystemHandle, updateLeaf, convertAll} from "../lib/FileTree"
+import {FileTree, FileTreeBranch, readFileSystemHandle, setStateAndConvertNextIfPossible } from "../lib/FileTree"
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {YoloSettingsDialog, loadCachedSettings} from "./YoloSettings"
 import { useEffect } from "react"
-import { isCompatibleBrowser } from "../lib/util";
+import { isCompatibleBrowser, valueOrErrorAsync2 } from "../lib/util";
 import { Icon } from "../lib/Icon"
 import { API } from "../worker/Api"
 import { YoloSettings } from "../lib/tfjs-shared"
+import { EXTENSIONSMATCH } from "../lib/constants"
 
-function fileFilter(file: File, extensions: string[]): boolean {
-  return !file.name.startsWith(".") && extensions.some(
-    extension => file.name.toUpperCase().endsWith("." + extension.toUpperCase()))
+function fileFilterForInfer(file: File): boolean | string {
+  if (file.name.startsWith(".")) {
+    return false
+  }
+  const validExtensionsMatch = [EXTENSIONSMATCH.videoSourceMts, EXTENSIONSMATCH.videoSourceMp4]
+  if (!validExtensionsMatch.some(ext => ext.test(file.name))) {
+    return false
+  }
+  if (EXTENSIONSMATCH.notVideoSource.test(file.name)) {
+    return "Use the original video file, not the result of convert"
+  }
+  return true
 }
 
 export function Inferrer(): JSX.Element {
@@ -22,32 +32,45 @@ export function Inferrer(): JSX.Element {
   const [modelName, setModelName] = useState<string | null>(null)
   const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)
+  const [destination, setDestination] = useState<FileSystemDirectoryHandle>()
 
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
-    const [newFiles, rejectedFiles] = await readFileSystemHandle(
-      fileSystemHandles, file => fileFilter(file, ["MP4", "MTS"]))
-    if (rejectedFiles.length) {
-      alert(`${rejectedFiles.length} files were rejected, because they are not the right type. Only MTS files are accepted for now.`)
-    }
+    const newFiles = await readFileSystemHandle(
+      fileSystemHandles, fileFilterForInfer)
     setFiles(files => new Map([...files, ...newFiles]))
+    setState("uploading")
   }
-  function removeFile(path: string[]) {
-    setFiles(files => updateLeaf(files, path, null))
-  }
+  
+  useEffect(() => {
+    if (state === "uploading") {
+      return
+    }
+    if (!destination) {
+      return
+    }
+    setStateAndConvertNextIfPossible(
+      files, concurrency, destination, 
+      async (input, output, onProgress, forceOverwrite) => API.inferVideo(
+        yoloSettings, input, output, onProgress, forceOverwrite),
+      setFiles, setState)
+  }, [files, destination, state, concurrency])
+
 
   async function doConvertAll() {
-    setState("converting");
-    await convertAll(
-      files,
-      concurrency,
-      async (input, output, onProgress) => API.inferVideo(
-        yoloSettings, input, output, onProgress),
-      setFiles,
-      "infer-done",
-    )
-    setState("done")
+    const result = await valueOrErrorAsync2(() => window.showDirectoryPicker(
+      {id: "det-json-save", mode: "readwrite"}))
+    if ("error" in result) {
+      if ((result.error as DOMException).name === "AbortError") {
+        console.warn("Directory selection aborted, nothing happened")
+        return
+      }
+      throw(result.error)
+    }
+    setDestination(result.value)
+    setState("converting")
   }
+
   useEffect(() => {
     if (!isCompatibleBrowser()) {
       alert(
@@ -125,8 +148,8 @@ export function Inferrer(): JSX.Element {
         </div>
         {yoloSettings ? <div className={css.explanation}>
           Loaded model: {modelName !== null ? modelName : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
-          onClick={() => setState("selectmodel")}
-        >change</button>
+            onClick={() => setState("selectmodel")}
+          >change</button>
         </div> : <div className={css.explanation}>
             At the moment no yolo model is selected. Please add a model in order to start.
             <button disabled={state!=="uploading"}
@@ -134,9 +157,9 @@ export function Inferrer(): JSX.Element {
             >add a model</button>
           </div>}
         <div>
-      Concurrency:
-        <input type="range" value={concurrency} min={1} max={10} step={1}
-          onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency} file{concurrency ===1 ? " is"  : "s are"} getting processed at the same time) 
+          Concurrency:
+          <input type="range" value={concurrency} min={1} max={10} step={1}
+            onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency} file{concurrency ===1 ? " is"  : "s are"} getting processed at the same time) 
         </div>
         <div>
           <button className={css.checkbox}
@@ -147,12 +170,15 @@ export function Inferrer(): JSX.Element {
           Prevent sleep while inference is running.
         </div>
         <div className={css.files}>
-          <FileTree {...{files, removeFile}} />
-          {state === "uploading" && <Upload addFiles={addFiles} />}
+          {files.size ? <FileTree parentPath={[]} files={files} setFiles={setFiles} /> : <span className={css.select_files_message}>Select files to infer, either drag them into this page, or press the "Add files" button below.</span>}
         </div>
-        <button className={css.single_button} disabled={!(state==="uploading" && files.size > 0 && yoloSettings)}
-          onClick={doConvertAll}
-        >Start inference</button>
+        {state !== "converting" && <Upload addFiles={addFiles} />}
+        {state === "done"
+          ? <div>Inference done, feel free to add more files to convert more </div>
+          : <button disabled={!(state==="uploading" && files.size > 0)}
+            onClick={doConvertAll}
+          >Start inference</button>
+        }
       </>)}
   </>
 }

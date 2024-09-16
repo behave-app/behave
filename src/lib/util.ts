@@ -329,6 +329,14 @@ export function* toJSONStringIterator(
   }
 }
 
+export async function valueOrErrorAsync2<T>(func: () => Promise<T>): Promise<{value: T} | {error: unknown}> {
+  try {
+    return {value: await func()}
+  } catch (error) {
+    return {error}
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function valueOrErrorAsync<T extends (...params: any[]) => Promise<any>>(
   func: T

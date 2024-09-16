@@ -7,10 +7,15 @@ h1 {
   padding-bottom: 2em;
 
 }
+
 .files {
   border: .2em solid hsl(240, 100%, 50%);
   position: relative;
   left: 0;
+}
+.select_files_message {
+  display: block;
+  padding: .7em;
 }
 
 .more_info > * {

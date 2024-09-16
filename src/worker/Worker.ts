@@ -12,7 +12,7 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerConvertMethod["message"]) => {
         self.postMessage(message)
       }
-      convert(data.input, data.output, progress => {
+      convert(data.input, data.output, data.forceOverwrite, progress => {
         reply({type: "progress", progress})
       }).then(() => {
           reply({type: "done"})
@@ -30,7 +30,7 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerInferMethod["message"]) => {
         self.postMessage(message)
       }
-      getModelAndInfer(data.yoloSettings, data.input, data.output, progress => {
+      getModelAndInfer(data.yoloSettings, data.input, data.output, data.forceOverwrite, progress => {
         reply({type: "progress", progress})
       }).then(() => {
           reply({type: "done"})

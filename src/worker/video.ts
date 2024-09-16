@@ -1083,6 +1083,7 @@ const getCompressedFrameInfo = (
 export async function convert(
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
+  forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void
 ) {
 
@@ -1114,7 +1115,8 @@ export async function convert(
     const base = (parts.length == 1 ? parts : parts.slice(0, -1)).join(".")
     const hash = await xxh64sum(input.file)
     outputfilename = [base, ".", hash, EXTENSIONS.videoFile].join("")
-    if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
+    if (!forceOverwrite
+      && await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")
       return
     }

@@ -25,6 +25,7 @@ body {
   grid: "logo title" auto
   "logo subtitle" 1fr
   / var(--logo-section-width) 1fr;
+  z-index: 10;
 }
 .page_header > * {
   margin: 0;

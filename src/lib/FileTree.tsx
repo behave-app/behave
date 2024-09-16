@@ -1,11 +1,12 @@
 import * as css from "./filetree.module.css"
 import { JSX } from "preact"
-import { formatTime } from "./util";
+import { ObjectEntries, ObjectFromEntries, formatTime } from "./util";
 import { CSSProperties } from "preact/compat";
 
 export type ConvertAction = (
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
+  forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) => Promise<void>
 
@@ -19,54 +20,55 @@ async function fromAsync<T>(source: Iterable<T> | AsyncIterable<T>): Promise<T[]
 
 export async function readFileSystemHandle(
   fshs: FileSystemHandle[],
-  fileFilter: (file: File) => boolean,
-): Promise<[FileTreeBranch, ReadonlyArray<File>]> {
+  fileFilter: (file: File) => boolean | string,
+): Promise<FileTreeBranch> {
   const result: FileTreeBranch = new Map()
-  const rejectedFiles: File[] = []
   for (const fsh of fshs) {
     if (fsh instanceof FileSystemFileHandle) {
       const file = await fsh.getFile()
-      if (fileFilter(file)) {
-        result.set(fsh.name, {file: await fsh.getFile()})
-      } else {
-        rejectedFiles.push(file)
-      }
+      const filterResult = fileFilter(file)
+      result.set(fsh.name, {
+        file: await fsh.getFile(),
+        ...(filterResult === true ? {}
+          : filterResult === false ? {progress: {error: "Filetype not supported, file will be skipped"}}
+          : {progress: {warning: filterResult}}),
+      })
     } else if (fsh instanceof FileSystemDirectoryHandle) {
-      const [subtree, subrejected] = await readFileSystemHandle(
+      const subtree = await readFileSystemHandle(
         await fromAsync(fsh.values()), fileFilter)
-      rejectedFiles.concat(subrejected)
       result.set(fsh.name, subtree)
     } else {
       throw new Error(`Unhandled case: ${fsh}`);
     }
   }
-  pruneDeadBranches(result)
-  return [
-    new Map([...result.entries()]
-      .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true}))),
-    rejectedFiles]
+  console.log(result)
+  return new Map([...result.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true})))
 }
 
 export type FileTreeLeaf = {
   file: File
-  progress?: "target_exists" | "queue" | {"converting": number, timing?: {passed: number, expected: number}} | "done" | {error: string}
+  progress?:
+  "target_exists"
+  | "queue"
+  | {"converting": number, timing?: {passed: number, expected: number}}
+  | "done"
+  | {error: string}
+  | {warning: string}
+  forceOverwrite?: boolean
 }
 export type FileTreeBranch = Map<string, FileTreeLeaf | FileTreeBranch>
 
-type FileTreeProps = {
-  files: FileTreeBranch
-  removeFile: (name: string[]) => void
+function removeLeaf(files: FileTreeBranch, path: string[]): FileTreeBranch {
+  return updateLeaf(files, path, null)
 }
 
-function pruneDeadBranches(branch: FileTreeBranch) {
-  for (const [name, entry] of branch.entries()) {
-    if (entry instanceof Map) {
-      pruneDeadBranches(entry)
-      if (entry.size === 0) {
-        branch.delete(name)
-      }
-    }
-  }
+function forceOverwriteLeaf(files: FileTreeBranch, path: string[]): FileTreeBranch {
+  return updateLeaf(files, path, current => ({...current, progress: "queue", forceOverwrite: true}))
+}
+
+function ignoreWarning(files: FileTreeBranch, path: string[]): FileTreeBranch {
+  return updateLeaf(files, path, current => ({...current, progress: undefined}))
 }
 
 export function updateLeaf(files: FileTreeBranch, path: string[], update: FileTreeLeaf | null | ((current: FileTreeLeaf) => (FileTreeLeaf | null))): FileTreeBranch {
@@ -123,6 +125,19 @@ export function getAllLeafPaths(files: FileTreeBranch): string[][] {
         : [[name]])
 }
 
+export function getAllLeafsAndPaths(
+  files: FileTreeBranch
+): Record<string, {path: string[], leaf: FileTreeLeaf}> {
+  type Entry = [string, {path: string[], leaf: FileTreeLeaf}]
+  return ObjectFromEntries([...files.entries()]
+    .flatMap(([name, entry]) =>
+    (entry instanceof Map)
+      ? ObjectEntries(getAllLeafsAndPaths(entry)).map(
+      ([key, val]) => [
+      `${name}/${key}`, {...val, path: [name, ...val.path]}] as Entry)
+        : [[name, {path: [name], leaf: entry}]] as Entry[]))
+}
+
 export async function nonEmptyFileExists(
   directory: FileSystemDirectoryHandle,
   path: string[]
@@ -167,15 +182,20 @@ async function convertOne(
   }
   const start = Date.now()
   try {
-    await conversionAction({file: leaf.file}, {dir: pointer}, (progress: FileTreeLeaf["progress"]) => {
-      const timeLapsed = (Date.now() - start) / 1000
-      const newProgress: FileTreeLeaf["progress"] = (typeof progress === "object" &&"converting" in progress) ? {
-        timing: {passed: timeLapsed, expected: timeLapsed / (progress.converting || 0.0001)},
-        ...progress,
-      } : progress
-      setFiles(files =>
-        updateLeaf(files, path, leaf => ({file: leaf.file, progress: newProgress})))
-    })
+    await conversionAction(
+      {file: leaf.file},
+      {dir: pointer},
+      leaf.forceOverwrite ?? false,
+      (progress: FileTreeLeaf["progress"]) => {
+        const timeLapsed = (Date.now() - start) / 1000
+        const newProgress: FileTreeLeaf["progress"] = (typeof progress === "object" &&"converting" in progress) ? {
+          timing: {passed: timeLapsed, expected: timeLapsed / (progress.converting || 0.0001)},
+          ...progress,
+        } : progress
+        setFiles(files =>
+          updateLeaf(
+            files, path, leaf => ({file: leaf.file, progress: newProgress})))
+      })
   } catch (e) {
     setFiles(files =>
       updateLeaf(files, path, leaf => (
@@ -184,74 +204,71 @@ async function convertOne(
   }
 }
 
-export async function convertAll(
+export function setStateAndConvertNextIfPossible(
   files: FileTreeBranch,
   concurrency: number,
+  destination: FileSystemDirectoryHandle,
   conversionAction: ConvertAction,
   setFiles: (cb: FileTreeBranch | ((files: FileTreeBranch) => FileTreeBranch)) => void,
-  insightKey: string,
+  setState: (state: "uploading" | "converting" | "done") => void
 ) {
-  const destination = await window.showDirectoryPicker(
-    {id: "mp4save", mode: "readwrite"})
-  
-  const paths = getAllLeafPaths(files)
   let newFiles = files
-  const queuedPaths: string[][] = []
-  for (const path of paths) {
-    newFiles = updateLeaf(
-      newFiles, path, leaf => ({file: leaf.file, progress: "queue"}))
-    queuedPaths.push(path)
-  }
-  setFiles(newFiles)
-
-  const promises: Set<Promise<unknown>> = new Set()
-  let finished: Promise<unknown>[] = []
-  for (const path of queuedPaths) {
-    while (promises.size >= concurrency) {
-      await Promise.any(promises).catch(() => {})
-      finished.forEach(p => promises.delete(p))
-      finished = []
+  let nrRunning = 0
+  let firstQueued: string[] | undefined
+  const paths = getAllLeafsAndPaths(files)
+  for (const [_, {path: path, leaf}] of ObjectEntries(paths)) {
+    if (leaf.progress === undefined) {
+      newFiles = updateLeaf(newFiles, path, {...leaf, progress: "queue"})
+    } else if (typeof leaf.progress === "object" && "converting" in leaf.progress) {
+      nrRunning++;
     }
-    const promise = convertOne(
-      files,
-      path,
-      destination,
-      conversionAction,
-      setFiles
-    )
-    promises.add(promise)
-    void(promise.then(() => {
-      const file = findLeaf(files, path).file
-      const MB = 1024 * 1024
-      window.insights.track({
-        id: insightKey,
-        parameters: {
-          extension: file.name.split(".").at(-1)!,
-          filesize: file.size < 100 * MB ? "XS (<100MB)"
-            : file.size < 500 * MB ? "S (<500MB)"
-              : file.size < 1000 * MB ? "M (<1000MB)"
-                : file.size < 2000 * MB ? "L (<2000MB)"
-                  : file.size < 4000 * MB ? "XL (<4000MB)" : "XXL (>4000MB)"
-        }
-      })
-    }))
-    void(promise.finally(() => finished.push(promise)))
+    else if (firstQueued === undefined && leaf.progress === "queue") {
+      firstQueued = path
+    }
   }
-  await Promise.all(promises)
+  if (newFiles !== files) {
+    setFiles(newFiles)
+    return
+  }
+  if (nrRunning >= concurrency) {
+    return
+  }
+  if (firstQueued) {
+    void(convertOne(files, firstQueued, destination, conversionAction, setFiles))
+    return
+  }
+  if (nrRunning === 0) {
+    setState("done")
+  }
 }
 
-function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, style: CSSProperties, title?: string} {
+function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {
+  className: string,
+  style: CSSProperties,
+  title: string | undefined,
+  ignoreWarningButton: boolean,
+  forceOverwriteButton: boolean,
+  deleteButton: boolean
+} {
   const classes = [css.filename]
   const style: CSSProperties = {}
+  let forceOverwriteButton = false
+  let deleteButton = false
+  let ignoreWarningButton = false
   let title: undefined | string = undefined
   if (fileTreeLeaf.progress === undefined) {
-    classes.push(css.editable)
+    classes.push(css.ready)
+    deleteButton = true
   } else if (fileTreeLeaf.progress === "queue") {
+    deleteButton = true
     classes.push(css.inqueue)
   } else if (fileTreeLeaf.progress === "done") {
     classes.push(css.done)
   } else if (fileTreeLeaf.progress === "target_exists") {
-    classes.push(css.target_exists)
+    deleteButton = true
+    forceOverwriteButton = true
+    classes.push(css.warning)
+    style["--warning-message"] = JSON.stringify("Target file already exists, not overwriting")
   } else if ("converting" in fileTreeLeaf.progress) {
     classes.push(css.converting)
     style["--convert-progress"] = fileTreeLeaf.progress.converting
@@ -264,34 +281,71 @@ function attributesForLeaf(fileTreeLeaf: FileTreeLeaf): {className: string, styl
     }
     title = `${(fileTreeLeaf.progress.converting * 100).toFixed(1)}% done`
   } else if ("error" in fileTreeLeaf.progress) {
+    deleteButton = true
     classes.push(css.error)
     style["--error-message"] = JSON.stringify(fileTreeLeaf.progress.error)
     title = `Error: ${fileTreeLeaf.progress.error}`
+  } else if ("warning" in fileTreeLeaf.progress) {
+    deleteButton = true
+    ignoreWarningButton = true
+    classes.push(css.warning)
+    style["--warning-message"] = JSON.stringify(fileTreeLeaf.progress.warning)
+    title = `Warning: ${fileTreeLeaf.progress.warning}`
   } else {
     const exhaustive: never = fileTreeLeaf.progress
     throw new Error(`Exhaustive check: ${exhaustive}`)
   }
-  return {className: classes.join(" "), style, title}
+  return {className: classes.join(" "), style, title, forceOverwriteButton, deleteButton, ignoreWarningButton}
+}
+
+type FileTreeLeafElementProps = {
+  setFiles: (cb: (files: FileTreeBranch) => FileTreeBranch) => void
+  path: string[]
+  leaf: FileTreeLeaf
 }
 
 
-export function FileTree({files, removeFile}: FileTreeProps): JSX.Element {
+export function FileTreeLeafElement({setFiles, path, leaf}: FileTreeLeafElementProps): JSX.Element {
+const {className, style, title, ignoreWarningButton, forceOverwriteButton, deleteButton} = attributesForLeaf(leaf)
+  return <div className={css.leaf}>
+    <div className={className} style={style} title={title}>
+      {path.at(-1)}
+    </div>
+    <div className={css.buttons}>
+      {ignoreWarningButton && <button onClick={() => setFiles(files => ignoreWarning(files, path))}>Ignore warning</button>}
+      {forceOverwriteButton && <button onClick={() => setFiles(files => forceOverwriteLeaf(files, path))}>Overwrite</button>}
+      {deleteButton && <button onClick={() => setFiles(files => removeLeaf(files, path))}>&#x1f5d1;</button>}
+    </div>
+  </div>
+
+}
+
+type FileTreeProps = {
+  files: FileTreeBranch
+  setFiles: (cb: (files: FileTreeBranch) => FileTreeBranch) => void
+  parentPath: string[]
+}
+
+
+export function FileTree({files, setFiles, parentPath}: FileTreeProps): JSX.Element {
   return <ul className={css.filetree}>
-    {[...files.entries()].map(([name, entry]) =>
-      <li>
+    {[...files.entries()].map(([name, entry]) => {
+      const path = [...parentPath, name]
+      return <li>
         {(entry instanceof Map)
         ? <>
           <div className={css.directoryname}>{name}</div>
-          <FileTree files={entry} removeFile={s => removeFile([name, ...s])} />
+          <FileTree files={entry}
+              parentPath={path}
+              setFiles={setFiles}
+          />
         </>
-        : <>
-          <div {...attributesForLeaf(entry)}>
-            {name}
-            <span className={css.delete} onClick={() => removeFile([name])}></span>
-          </div>
-        </>
+        : <FileTreeLeafElement
+            setFiles={setFiles}
+            path={path}
+            leaf={entry} />
       }
       </li>
-    )}
+    })}
   </ul>
 }

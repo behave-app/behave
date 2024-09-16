@@ -81,14 +81,15 @@ export async function getModelAndInfer(
   yoloSettings: YoloSettings | null,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
+  forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
   if (yoloSettings) {
     await setBackend(yoloSettings.backend)
     const model = await getModel(yoloSettings.modelDirectory)
-    await infer(model, yoloSettings.yoloVersion, input, output, onProgress)
+    await infer(model, yoloSettings.yoloVersion, input, output, forceOverwrite, onProgress)
   } else {
-    await infer(null, "v8", input, output, onProgress)
+    await infer(null, "v8", input, output, forceOverwrite, onProgress)
   }
 }
 
@@ -97,6 +98,7 @@ export async function infer(
   yoloVersion: YoloVersion,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
+  forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
   const updateProgress = (step: "infer", progress: number) => {
@@ -125,7 +127,8 @@ export async function infer(
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
     const hash = await xxh64sum(input.file)
     outputfilename = [...baseparts, ".",  hash, EXTENSIONS.detectionFile].join("")
-    if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
+    if (!forceOverwrite
+      && await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")
       return
     }

@@ -23,6 +23,14 @@ declare global {
       visitWithStubbedFileSystem(url: {url: string} & Partial<Cypress.VisitOptions>): Chainable<string>;
       visitWithStubbedFileSystem(url: string | {url: string} & Partial<Cypress.VisitOptions>, options?: Partial<Cypress.VisitOptions> | undefined): Chainable<string>;
 
+    /**
+     * Custom query to get the content of :before or :after pseudo-element.
+     * This will return the content text of the pseudo-element.
+     * @param pseudo - Either 'before' or 'after' to select the pseudo-element.
+     * @example
+     *    cy.get('selector').pseudoElementContent('before').then(content => ...)
+     */
+    pseudoElementContent(pseudo: 'before' | 'after'): Chainable<string>;
     }
   }
 }

@@ -4,6 +4,7 @@ import { exhausted, promiseWithResolve} from "../lib/util"
 import {FileTreeLeaf} from "../lib/FileTree"
 import { YoloBackend, YoloSettings } from "../lib/tfjs-shared"
 import { VideoMetadata } from "../lib/video-shared"
+import { tic } from "../lib/insight";
 
 export type WorkerMethod = WorkerConvertMethod | WorkerInferMethod | WorkerCheckValidModel | WorkerExtractMetadata
 
@@ -12,6 +13,7 @@ export type WorkerConvertMethod = {
     method: "convert",
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
+    forceOverwrite: boolean
   }
   message: {type: "progress", progress: FileTreeLeaf["progress"]}
   | {type: "done"}
@@ -24,6 +26,7 @@ export type WorkerInferMethod = {
     yoloSettings: YoloSettings | null
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
+    forceOverwrite: boolean
   }
   message: {type: "progress", progress: FileTreeLeaf["progress"]}
   | {type: "done"}
@@ -62,6 +65,7 @@ export class API {
   static async convertToMp4(
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
+    forceOverwrite: boolean,
     onProgress: (progress: FileTreeLeaf["progress"]) => void
   ): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolve<void>()
@@ -73,6 +77,7 @@ export class API {
           onProgress(data.progress)
           break
         case "done":
+          tic(input.file, "convert-done")
           resolve();
           break
         case "error":
@@ -82,7 +87,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "convert", input, output})
+    worker.postMessage({method: "convert", input, output, forceOverwrite})
     return promise
   }
 
@@ -90,6 +95,7 @@ export class API {
     yoloSettings: YoloSettings | null,
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
+    forceOverwrite: boolean,
     onProgress: (progress: FileTreeLeaf["progress"]) => void,
   ): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolve<void>()
@@ -101,6 +107,7 @@ export class API {
           onProgress(data.progress)
           break
         case "done":
+          tic(input.file, "infer-done")
           resolve();
           break
         case "error":
@@ -110,7 +117,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "infer", yoloSettings, input, output})
+    worker.postMessage({method: "infer", yoloSettings, input, output, forceOverwrite})
     return promise
   }
 

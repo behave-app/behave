@@ -49,7 +49,6 @@ export function Convertor(): JSX.Element {
     }
     setDestination(result.value)
     setState("converting")
-    console.log(result.value)
   }
 
   useEffect(() => {

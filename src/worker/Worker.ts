@@ -1,7 +1,7 @@
 import { convert, extractMetadata } from "./video"
 import { exhausted } from "../lib/util"
 import { WorkerMethod, WorkerConvertMethod, WorkerInferMethod, WorkerCheckValidModel, WorkerExtractMetadata } from "./Api"
-import { getModel, getModelAndInfer, setBackend, } from "./tfjs"
+import { getModel, getModelAndInfer, setBackend, } from "./infer"
 
 
 
@@ -48,8 +48,8 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerCheckValidModel["message"]) => {
         self.postMessage(message)
       }
-      setBackend(data.backend).then(() =>
-        getModel(data.directory)
+      setBackend(data.yoloSettings.backend).then(() =>
+        getModel(data.yoloSettings.modelFilename)
       ).then((model) => {
           reply({type: "done", result: {name: model.name}})
         }).catch(error => {

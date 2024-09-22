@@ -23,7 +23,7 @@ BEHAVE_VERSION := $(shell node determine_version_number.mjs)
 
 .PHONY=all public/app/bundled/libavjs lint public/app/tsc libavjs test build
 
-build: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(STATIC_TARGET_MARKDOWN_FILES) public/app/bundled/tfjs-wasm
+build: public/app/tsc public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt $(STATIC_TARGET_MARKDOWN_FILES) public/app/bundled/ort-wasm
 
 all: build test
 
@@ -76,6 +76,6 @@ clean:
 	@if [ -e public ]; then rm -r public; fi
 
 
-public/app/bundled/tfjs-wasm: $(wildcard node_modules/@tensorflow/tfjs-backend-wasm/dist/*.wasm)
+public/app/bundled/ort-wasm: $(wildcard node_modules/onnxruntime-web/dist/*.wasm)
 	@mkdir -p $@
-	@cp node_modules/@tensorflow/tfjs-backend-wasm/dist/*.wasm $@
+	@cp node_modules/onnxruntime-web/dist/*.wasm $@

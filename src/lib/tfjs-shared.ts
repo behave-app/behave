@@ -1,8 +1,9 @@
 export const YOLO_MODEL_NAME_FILE = "modelname.txt"
+export const YOLO_MODEL_DIRECTORY = "YoloModelDir"
 export type YoloSettings = {
   version: 1,
   yoloVersion: YoloVersion,
-  modelDirectory: FileSystemDirectoryHandle,
+  modelFilename: string,
   backend: YoloBackend,
 }
 

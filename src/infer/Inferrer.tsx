@@ -29,7 +29,6 @@ function fileFilterForInfer(file: File): boolean | string {
 export function Inferrer(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
   const [concurrency, setConcurrency] = useState(1)
-  const [modelName, setModelName] = useState<string | null>(null)
   const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)
   const [destination, setDestination] = useState<FileSystemDirectoryHandle>()
@@ -85,14 +84,6 @@ export function Inferrer(): JSX.Element {
     void(loadCachedSettings().then(settings => setYoloSettings(settings)))
   }, [])
 
-  useEffect(() => {
-    if (!yoloSettings) {
-      setModelName(null)
-      return;
-    }
-    void(API.checkValidModel(yoloSettings.backend, yoloSettings.modelDirectory).then(response => setModelName(response.name)))
-  }, [yoloSettings])
-
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null)
   const [preventSleep, setPreventSleep] = useState(false)
 
@@ -147,7 +138,7 @@ export function Inferrer(): JSX.Element {
           Check the <a href="../help/infer.html">help page</a> or the <a href="../help/quickstart.html">quick start guide</a> for more information.
         </div>
         {yoloSettings ? <div className={css.explanation}>
-          Loaded model: {modelName !== null ? modelName : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
+          Loaded model: {yoloSettings.modelFilename !== null ? yoloSettings.modelFilename : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
             onClick={() => setState("selectmodel")}
           >change</button>
         </div> : <div className={css.explanation}>

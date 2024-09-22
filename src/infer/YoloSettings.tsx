@@ -1,19 +1,19 @@
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
-import {YoloBackend, YoloSettings, YOLO_MODEL_NAME_FILE} from "../lib/tfjs-shared"
+import {YoloBackend, YoloSettings, YOLO_MODEL_NAME_FILE, YOLO_MODEL_DIRECTORY} from "../lib/tfjs-shared"
 import * as infercss from "./inferrer.module.css"
 import {getEntry, cp_r} from "../lib/fileutil"
-import { Checker, LiteralChecker, TypeChecker, getCheckerFromObject } from "../lib/typeCheck"
+import { Checker, LiteralChecker, StringChecker, getCheckerFromObject } from "../lib/typeCheck"
 import { API } from "../worker/Api"
+import { valueOrErrorAsync2 } from "src/lib/util"
 
 export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
-const YOLO_MODEL_DIRECTORY = "YoloModelDir"
 
 const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
   version: new LiteralChecker(1),
   yoloVersion: new LiteralChecker(["v5", "v8"]),
   backend: new LiteralChecker(["wasm", "webgl", "webgpu"]),
-  modelDirectory: new TypeChecker(FileSystemDirectoryHandle),
+  modelFilename: new StringChecker(),
 })
 
 export async function loadCachedSettings(): Promise<YoloSettings | null> {
@@ -21,13 +21,17 @@ export async function loadCachedSettings(): Promise<YoloSettings | null> {
     const opfsRoot = await navigator.storage.getDirectory()
     const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
 
-    const settings = {
-      ...JSON.parse(localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)!),
-      modelDirectory: opfsModelDir
+    const settingsJSON = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
+    if (settingsJSON === null) {
+      console.log("No yolo settings found")
+      return null
     }
-    YoloSettingsChecker.assertInstance(settings)
-    await API.checkValidModel(settings.backend, opfsModelDir)
-    return settings
+    const yoloSettings = {
+      ...JSON.parse(settingsJSON)
+    }
+    YoloSettingsChecker.assertInstance(yoloSettings)
+    await API.checkValidModel(yoloSettings)
+    return yoloSettings
   } catch (e) {
     console.error("Problem retrieving settings:")
     console.error(e)
@@ -48,93 +52,81 @@ export function YoloSettingsDialog({
 }: Props): JSX.Element {
   const [yoloVersion, setYoloVersion] = useState<YoloSettings["yoloVersion"]>("v8")
   const [backend, setBackend] = useState<YoloSettings["backend"]>("webgl")
-  const [modelDir, setModelDir] = useState<FileSystemDirectoryHandle>()
+  const [newModelFile, setNewModelFile] = useState<FileSystemFileHandle>()
+  const modelFileName = newModelFile ? newModelFile.name
+    : yoloSettings ? yoloSettings.modelFilename : null
 
   useEffect(() => {
     if (yoloSettings === null) {
       setYoloVersion("v8")
       setBackend("webgl")
-      setModelDir(undefined)
     } else {
-      // basically we assume that the model is still in opfs
-      // Technically someone can have removed it since the last load of the site
-      // If so, bad luck. This will generate an error, and that's it
-      // Reload and you'll start with an empty model
       void(navigator.storage.getDirectory()
         .then(opfsRoot => opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY))
-        .then(opfsModelDir => {
-          setYoloVersion(yoloSettings.yoloVersion)
-          setBackend(yoloSettings.backend)
-          setModelDir(opfsModelDir)
+        .then(opfsModelDir => opfsModelDir.getFileHandle(yoloSettings.modelFilename))
+        .then(fileHandle => fileHandle.getFile())
+        .then(file => file.arrayBuffer())
+        .catch(error => {
+          console.error("Error reading the model", error)
+          setYoloSettings(null)
         }))
     }
   }, [yoloSettings])
 
   async function save() {
-    localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
-    const newYoloSettingsWithoutModel: Omit<YoloSettings, "modelDirectory"> = {
+    const newYoloSettings = {
       version: 1,
       yoloVersion,
       backend,
-    }
-    const opfsRoot = await navigator.storage.getDirectory()
-    const modelDirRelativeToOPFSRoot = modelDir && await opfsRoot.resolve(modelDir)
-    const modelDirNeedsCopying /*as opposed to in OPFS*/ =
-      (modelDirRelativeToOPFSRoot ?? []).join("/") !== YOLO_MODEL_DIRECTORY
-    if (!modelDir) {
-      if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
-        await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
-      } 
-      localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
-      setYoloSettings(null)
+      modelFilename: yoloSettings ? yoloSettings.modelFilename : null
+    } as Omit<YoloSettings, "modelFilename"> & {modelFilename: string | null}
+    localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
+    if (newModelFile) {
+      const opfsRoot = await navigator.storage.getDirectory()
+      const opfsModelDir = await opfsRoot.getDirectoryHandle(
+        YOLO_MODEL_DIRECTORY, {create: true})
+      const newModelName = newModelFile.name
+      const file = await opfsModelDir.getFileHandle(newModelName, {create: true})
+      const stream = await file.createWritable()
+      const data = await (await newModelFile.getFile()).arrayBuffer()
+      await stream.truncate(0)
+      await stream.write(data)
+      await stream.close()
+      newYoloSettings.modelFilename = newModelName
     } else {
-      if (modelDirNeedsCopying) {
-        await API.checkValidModel(backend, modelDir)
-        if (await getEntry(opfsRoot, [YOLO_MODEL_DIRECTORY])) {
-          await opfsRoot.removeEntry(YOLO_MODEL_DIRECTORY, {recursive: true})
-        } 
-        const opfsModelDir = await opfsRoot.getDirectoryHandle(
-          YOLO_MODEL_DIRECTORY, {create: true})
-        await cp_r(modelDir, opfsModelDir)
-        if (!await getEntry(opfsModelDir, [YOLO_MODEL_NAME_FILE])) {
-          const modelNameHandle = await opfsModelDir.getFileHandle(
-            YOLO_MODEL_NAME_FILE, {create: true})
-          const os = await modelNameHandle.createWritable()
-          await os.write(modelDir.name)
-          await os.close()
-        }
+      if (newYoloSettings.modelFilename === null) {
+        throw new Error("You need a model")
       }
-      localStorage.setItem(
-        YOLO_SETTINGS_STORAGE_KEY, JSON.stringify(newYoloSettingsWithoutModel))
-      const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
-      await API.checkValidModel(backend, opfsModelDir)
-
-      const newYoloSettings = {
-        ...newYoloSettingsWithoutModel, modelDirectory: opfsModelDir}
-      setYoloSettings(newYoloSettings)
     }
+    YoloSettingsChecker.assertInstance(newYoloSettings)
+      localStorage.setItem(
+        YOLO_SETTINGS_STORAGE_KEY, JSON.stringify(newYoloSettings))
+      setYoloSettings(newYoloSettings)
     closeSettingsDialog()
   }
 
-  async function unloadModelDir() {
-    setModelDir(undefined)
-  }
-
-  async function setNewModelDir() {
-    const modelDirectory = await window.showDirectoryPicker({id: "modelpicker"})
-
-    try {
-      await API.checkValidModel(backend, modelDirectory)
-    } catch (e) {
-      console.log("opening of model failed", e)
-      window.alert("Opening of model failed; either the directory pointed to does not contain a valid model, or backend is not supported")
-      return
+  async function selectNewModelFile() {
+    const result = await valueOrErrorAsync2(() => window.showOpenFilePicker({
+      id: "modelpicker",
+      types: [{description: "ONNX model", accept: {"application/onnx": [".onnx"]}}]
+    }))
+    if ("error" in result) {
+      if ((result.error as DOMException).name === "AbortError") {
+        console.log("Cancel clicked, do nothing")
+        return
+      } else {
+        throw result.error
+      }
     }
-    setModelDir(modelDirectory)
+    const modelFiles = result.value
+    if (modelFiles.length !== 1) {
+      throw new Error("There should (per spec) always be exactly one file")
+    }
+    setNewModelFile(modelFiles[0])
   }
 
   if (yoloSettings === undefined) {
-    return  <></>
+    return  <div>Loading yolo settings....</div>
   }
 
   return <>
@@ -164,20 +156,19 @@ export function YoloSettingsDialog({
       </dd>
       <dt>Model</dt>
       <dd>
-        {modelDir !== undefined
+        {modelFileName !== null
           ? <div>
-            Model loaded
-            <button onClick={setNewModelDir}>Change model</button>
-            <button onClick={unloadModelDir}>Unload model</button>
+            Model {modelFileName} loaded
+            <button onClick={selectNewModelFile}>Change model</button>
             </div>
           : <>
-            <div>No model selected, load one here (or continue without a model)</div>
-            <button onClick={setNewModelDir}>Select model</button>
+            <div>No model selected, load one here</div>
+            <button onClick={selectNewModelFile}>Select model</button>
           </>
         }
       </dd>
     </dl>
-    <button onClick={save}>Save</button>
+    <button disabled={modelFileName === null} onClick={save}>Save</button>
     <button onClick={closeSettingsDialog}>Cancel</button>
   </>
 }

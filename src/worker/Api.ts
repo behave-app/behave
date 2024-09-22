@@ -2,7 +2,7 @@ declare const WORKER_URL: string;
 
 import { exhausted, promiseWithResolve} from "../lib/util"
 import {FileTreeLeaf} from "../lib/FileTree"
-import { YoloBackend, YoloSettings } from "../lib/tfjs-shared"
+import { YoloSettings } from "../lib/tfjs-shared"
 import { VideoMetadata } from "../lib/video-shared"
 import { tic } from "../lib/insight";
 
@@ -36,8 +36,7 @@ export type WorkerInferMethod = {
 export type WorkerCheckValidModel = {
   call: {
     method: "check_valid_model",
-    backend: YoloBackend
-    directory: FileSystemDirectoryHandle
+    yoloSettings: YoloSettings
   }
   message: {type: "done", result: {name: string}}
   | {type: "error", error: Error}
@@ -69,7 +68,7 @@ export class API {
     onProgress: (progress: FileTreeLeaf["progress"]) => void
   ): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolve<void>()
-    const worker = new Worker(WORKER_URL, {name: "convertor"}) as ConvertWorker
+    const worker = new Worker(WORKER_URL, {name: "convertor", type: "module"}) as ConvertWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerConvertMethod["message"]
       switch (data.type) {
@@ -99,7 +98,7 @@ export class API {
     onProgress: (progress: FileTreeLeaf["progress"]) => void,
   ): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolve<void>()
-    const worker = new Worker(WORKER_URL, {name: "inferrer"}) as InferWorker
+    const worker = new Worker(WORKER_URL, {name: "inferrer", type: "module"}) as InferWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerConvertMethod["message"]
       switch (data.type) {
@@ -122,11 +121,10 @@ export class API {
   }
 
   static checkValidModel(
-    yoloBackend: YoloBackend,
-    directory: FileSystemDirectoryHandle,
+    yoloSettings: YoloSettings,
   ): Promise<{name: string}> {
     const {promise, resolve, reject} = promiseWithResolve<{name: string}>()
-    const worker = new Worker(WORKER_URL, {name: "checkValidModel"}) as ValidModelWorker
+    const worker = new Worker(WORKER_URL, {name: "checkValidModel", type: "module"}) as ValidModelWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerCheckValidModel["message"]
       switch (data.type) {
@@ -140,7 +138,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "check_valid_model", backend: yoloBackend, directory})
+    worker.postMessage({method: "check_valid_model", yoloSettings})
     return promise
   }
 
@@ -148,7 +146,7 @@ export class API {
     file: File,
   ): Promise<VideoMetadata> {
     const {promise, resolve, reject} = promiseWithResolve<VideoMetadata>()
-    const worker = new Worker(WORKER_URL, {name: "extractMetadata"}) as ExtractMetadataWorker
+    const worker = new Worker(WORKER_URL, {name: "extractMetadata", type: "module"}) as ExtractMetadataWorker
     worker.addEventListener("message", e => {
       const data = e.data as WorkerExtractMetadata["message"]
       switch (data.type) {

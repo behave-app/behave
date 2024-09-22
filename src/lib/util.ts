@@ -375,3 +375,20 @@ export async function debugImage(imageData: ImageData) {
   }
 }
 
+type ArgMinMaxReturn = {maxIndex: number, maxValue: number} | undefined
+export function argMax(items: ReadonlyArray<number>): ArgMinMaxReturn {
+  return items.reduce((acc, cur, index) => (
+    acc === undefined || cur > acc.maxValue
+      ? {maxValue: cur, maxIndex: index}
+      : acc),
+    undefined as ArgMinMaxReturn
+  )
+}
+export function argMin(items: ReadonlyArray<number>): ArgMinMaxReturn {
+  return items.reduce((acc, cur, index) => (
+    acc === undefined || cur < acc.maxValue
+      ? {maxValue: cur, maxIndex: index}
+      : acc),
+    undefined as ArgMinMaxReturn
+  )
+}

@@ -1,4 +1,4 @@
-import { env, InferenceSession, TypedTensor, Tensor } from 'onnxruntime-web';
+import { env, InferenceSession, TypedTensor, Tensor } from 'onnxruntime-web/all';
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
 import { xxh64sum } from '../lib/fileutil'
@@ -150,9 +150,9 @@ export async function getModel(
     await modelDir.getFileHandle(modelFilename)
   ).getFile()).arrayBuffer()
   const metadata = await readModelMetadata(buffer)
-  const model = await InferenceSession.create(buffer)
+  const model = await InferenceSession.create(buffer, {executionProviders: ['webgpu'], preferredOutputLocation: 'gpu-buffer' });
   const nmsModelData = await (await fetch(NMS_MODEL_PATH)).arrayBuffer()
-  const nms = await InferenceSession.create(nmsModelData)
+  const nms = await InferenceSession.create(nmsModelData, {executionProviders: ['webgpu'] });
   return {
     model,
     nms,
@@ -352,6 +352,7 @@ export async function inferSingleFrame(
   const d2 = Date.now()
   const { selected } = await model.nms.run({ detection: output0, config: config });
   const d3 = Date.now()
+  output0.dispose()
   console.log(`Model run took ${d2 - d}ms, NMS took ${d3-d2}ms`)
   assert(selected.dims.length === 3)
   assert(selected.dims[0] === 1)

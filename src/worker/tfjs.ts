@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import {setWasmPaths} from "@tensorflow/tfjs-backend-wasm"
-setWasmPaths("app/bundled/tfjs-wasm/")
+setWasmPaths("../../app/bundled/tfjs-wasm/")
 import "@tensorflow/tfjs-backend-webgl"
 import "@tensorflow/tfjs-backend-webgpu"
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"

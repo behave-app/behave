@@ -346,7 +346,7 @@ export class Video {
             type: isKeyFrame ? "key" : "delta",
             timestamp: pts,
             duration: 100,
-            data: packet.data.buffer,
+            data: packet.data.buffer as ArrayBuffer,
           })
           videoDecoder.decode(chunk)
         }
@@ -590,7 +590,7 @@ export class Video {
             type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
             timestamp: Math.round(this.libav.i64tof64(packet.pts!, packet.ptshi!) * this.ticksToUsFactor),
             duration: 100,
-            data: packet.data.buffer,
+            data: packet.data.buffer as ArrayBuffer,
           })
           videoDecoder.decode(chunk)
           lastFrameNumberToAddToDecoder = framenr
@@ -648,7 +648,7 @@ export class Video {
             type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
             timestamp,
             duration: 100,
-            data: packet.data.buffer,
+            data: packet.data.buffer as ArrayBuffer,
           })
           videoDecoder.decode(chunk)
           while (videoDecoder.decodeQueueSize > 10) {
@@ -1148,7 +1148,7 @@ export async function convert(
     libav.onwrite = function(name, pos, data) {
       assert(progressController)
       if (name === PROGRESSFILENAME) {
-        progressController.enqueue(data)
+        progressController.enqueue(data as ArrayBuffer)
         return
       }
       const promise = outputstream!.write(

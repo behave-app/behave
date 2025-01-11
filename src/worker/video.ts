@@ -1139,7 +1139,7 @@ export async function convert(
     await libav.mkwriterdev(outputfilename)
     await libav.mkstreamwriterdev(PROGRESSFILENAME)
     const writePromises: Set<Promise<unknown>> = new Set()
-    let progressController = null as ReadableStreamDefaultController<ArrayBuffer> | null
+    let progressController = null as ReadableStreamDefaultController<Uint8Array> | null
     const progressStream = new ReadableStream({
       start(controller) {
         progressController = controller
@@ -1148,7 +1148,7 @@ export async function convert(
     libav.onwrite = function(name, pos, data) {
       assert(progressController)
       if (name === PROGRESSFILENAME) {
-        progressController.enqueue(data as ArrayBuffer)
+        progressController.enqueue(data as Uint8Array)
         return
       }
       const promise = outputstream!.write(

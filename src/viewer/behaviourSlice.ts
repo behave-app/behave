@@ -116,8 +116,37 @@ export const behaviourSlice = createSlice({
     behaviourInfoLineRemoved: (state, action: PayloadAction<number>) => {
       assert(state.behaviourInfo)
       assert(state.behaviourInfo.readonly === false)
+
+      const getFrameNumber = (index: number | null) => {
+        if (index === null) {
+          return null
+        }
+        assert(state.behaviourInfo)
+        assert(state.behaviourInfo.readonly === false)
+        const frameNumberIndex = state.behaviourInfo.layout.findIndex(
+          col => col.type === "frameNumber")
+        if (state.behaviourInfo.lines[index] === undefined) {
+          return null
+        }
+        return parseInt(state.behaviourInfo.lines[index][frameNumberIndex])
+
+      }
+      const currentFrameNumber =
+        getFrameNumber(state.behaviourInfo.currentlySelectedLine)
       state.behaviourInfo.lines.splice(
         action.payload, 1)
+
+      // fix currentlySelectedLine
+      if (action.payload === state.behaviourInfo.currentlySelectedLine) {
+        const selectedIndex = action.payload
+        if (getFrameNumber(selectedIndex) === currentFrameNumber) {
+          // keep current selected line, turns out the next line was for the same framenumber
+        } else if(getFrameNumber(selectedIndex - 1) === currentFrameNumber) {
+          state.behaviourInfo.currentlySelectedLine = selectedIndex - 1
+        } else {
+          state.behaviourInfo.currentlySelectedLine = null;
+        }
+      }
     },
     behaviourInfoFieldEdited: (state, action: PayloadAction<{
       lineNumber: number, fieldIndex: number, newContent: string

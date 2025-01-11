@@ -301,7 +301,11 @@ const BehaviourCreator: FunctionComponent = () => {
         types: [{description: "behave csv file", accept: {"text/csv": [".behave.csv"]}}],
       })
       if ("error" in fileHandleOrError) {
-        return
+        if ((fileHandleOrError.error as DOMException).name === "AbortError") {
+          console.warn("Save file selection cancelled, not creating behaviour file")
+          return
+        }
+        throw(fileHandleOrError.error)
       }
       dispatch(behaviourInfoCreatedNew({
         fileHandle: fileHandleOrError.value,

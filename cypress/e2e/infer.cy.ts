@@ -13,15 +13,19 @@ describe('Inference test', () => {
     cy.get("body")
     .should("not.contain", "Drop files here")
     .trigger("dragenter")
+    cy.get("body")
     .should("contain", "Drop files here")
     .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
     .trigger("dragenter")
+    cy.get("body")
     .should("contain", "Drop files here")
+    .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
     .trigger("dragleave")
+    cy.get("body")
     .should("contain", "Drop files here")
-    cy.document()
-    .get("body")
+    cy.get("body")
     .trigger("dragleave")
+    cy.get("body")
     .should("not.contain", "Drop files here")
   })
 

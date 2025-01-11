@@ -83,7 +83,8 @@ const VideoCanvas: FunctionComponent = () => {
           height / parent.clientHeight,
         )
 
-        setContainerDimensions({width, height, zoom})
+        // delay to prevent firing resizeObserver in this paint cycle
+        window.setTimeout(() => setContainerDimensions({width, height, zoom}), 1)
 
       }
     })

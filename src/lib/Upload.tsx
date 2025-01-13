@@ -25,7 +25,6 @@ export function Upload({addFiles}: Props): JSX.Element {
       dragCounter.current -= 1
       event.preventDefault()
       if (event.dataTransfer !== null) {
-        console.log(event.dataTransfer.items[0], await event.dataTransfer.items[0].getAsFile())
         const fileSystemHandles = filterNull(await Promise.all(
           [...event.dataTransfer.items].map(dti => dti.getAsFileSystemHandle())))
         void(addFiles(fileSystemHandles))
@@ -37,7 +36,6 @@ export function Upload({addFiles}: Props): JSX.Element {
       if (dragCounter.current > 0) {
         return;
       }
-      console.log("leave")
       setDragState("nodrag")
     }
     const dragOver = (event: DragEvent) => {

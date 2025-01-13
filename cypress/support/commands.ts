@@ -1,7 +1,8 @@
 export type Files = null | ReadonlyArray<string | {localPath: string, pickerPath: string}>
 
 const OPEN_PICKER_DIRNAME = "showOpenFilePickerResult"
-const SAVE_PICKER_DIRNAME = "showDirectoryPickerResult"
+const SAVE_PICKER_DIRNAME = "showSavePickerResult"
+const DIRECTORY_PICKER_DIRNAME = "showDirectoryPickerResult"
 Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
   let toedit: typeof options
   if (options === undefined) {
@@ -17,6 +18,30 @@ Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
   const oldBeforeLoad = ((toedit.onBeforeLoad !== undefined) || (() => {})) as CallableFunction
   toedit.onBeforeLoad = (win: typeof window) => {
     oldBeforeLoad(win)
+    cy.stub(win, "showSaveFilePicker").callsFake(async () => {
+      const opfsRoot = await win.navigator.storage.getDirectory()
+      let maindir: FileSystemDirectoryHandle
+      try {
+        maindir = await opfsRoot.getDirectoryHandle(SAVE_PICKER_DIRNAME, {create: false})
+      } catch (e) {
+        if (e instanceof win.DOMException && e.name === 'NotFoundError') {
+          throw new win.DOMException("Simulating abort", "AbortError")
+        } else {
+          assert.fail(`${e}`)
+        }
+      }
+      const entries: FileSystemFileHandle[] = []
+      for await (const [_name, entry] of maindir.entries()) {
+        if (entry instanceof FileSystemDirectoryHandle) {
+          throw new Error("There should not be directories in showSaveFilePickerResult")
+        }
+        entries.push(entry);
+      }
+      if (entries.length !== 1) {
+          throw new Error("There should be exactly 1 entry in in showSaveFilePickerResult")
+      }
+      return entries[0]
+    })
     cy.stub(win, "showOpenFilePicker").callsFake(async () => {
       const getFilesRecursively = async(dir: FileSystemDirectoryHandle): Promise<FileSystemFileHandle[]> => {
         let filehandles: FileSystemFileHandle[] = []
@@ -46,7 +71,7 @@ Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
       const opfsRoot = await win.navigator.storage.getDirectory()
       let maindir: FileSystemDirectoryHandle
       try {
-        maindir = await opfsRoot.getDirectoryHandle(SAVE_PICKER_DIRNAME, {create: false})
+        maindir = await opfsRoot.getDirectoryHandle(DIRECTORY_PICKER_DIRNAME, {create: false})
       } catch (e) {
         if (e instanceof win.DOMException && e.name === 'NotFoundError') {
           throw new win.DOMException("Simulating abort", "AbortError")
@@ -78,6 +103,7 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
         }
       }
       if (files === null) {
+        console.log("no dir")
         return
       }
       console.log(`made ${dirname}`)
@@ -104,10 +130,27 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
   })
 }
 
+// cypress/support/commands.ts
+
+Cypress.Commands.addQuery('pseudoElementContent', (pseudo: 'before' | 'after') => {
+  return function $pseudoContent(subject: JQuery<HTMLElement>) {
+    const el = subject.get(0)
+    // Get the computed style for the element and the specified pseudo-element
+    const computedStyle = window.getComputedStyle(el, `::${pseudo}`);
+    const content = computedStyle.getPropertyValue('content');
+
+    return JSON.parse(content);
+  };
+});
+
+
 Cypress.Commands.add(
   "setShowOpenFilePickerResult", (files) => prepareOPFS(files, OPEN_PICKER_DIRNAME))
 Cypress.Commands.add(
-  "setShowDirectoryPickerResult", (files) => prepareOPFS(files, SAVE_PICKER_DIRNAME))
+  "setShowDirectoryPickerResult", (files) => prepareOPFS(files, DIRECTORY_PICKER_DIRNAME))
+Cypress.Commands.add(
+  "setShowSaveFilePickerResult", (files) => prepareOPFS(files, SAVE_PICKER_DIRNAME))
+
 Cypress.Commands.add(
   "assertFileExistsInPickedDirectory", (filename) => {
     cy.window().then(win => {
@@ -115,7 +158,7 @@ Cypress.Commands.add(
         const opfsRoot = await win.navigator.storage.getDirectory()
         let dir: FileSystemDirectoryHandle
         try {
-          dir = await opfsRoot.getDirectoryHandle(SAVE_PICKER_DIRNAME, {create: false})
+          dir = await opfsRoot.getDirectoryHandle(DIRECTORY_PICKER_DIRNAME, {create: false})
         } catch (e) {
           if (e instanceof win.DOMException && e.name === 'NotFoundError') {
             assert.fail(`Picker directory does not exist`)
@@ -134,4 +177,14 @@ Cypress.Commands.add(
         }
       })
     })
+  })
+
+Cypress.Commands.add(
+  "listMatch", (listSelector, expected) => {
+    cy.get(listSelector).should("have.length", expected.length)
+    for (let i=0; i<expected.length; i++) {
+      cy.get(listSelector)
+        .eq(i)
+        .contains(expected[i])
+    }
   })

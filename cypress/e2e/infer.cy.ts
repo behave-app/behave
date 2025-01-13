@@ -1,0 +1,180 @@
+const ALLOWED_DIFFERENCE = 0.05
+
+describe('Inference test', () => {
+  it('Has an infer link', () => {
+    cy.visit('/app/index.html')
+    .get('a[href="infer.html"]')
+    .click()
+    cy.document()
+    .contains("h1", "Infer videos (detect items)")
+  })
+  it('Changes visuals on file drag', () => {
+    cy.visit("/app/infer.html")
+    cy.get("body")
+    .should("not.contain", "Drop files here")
+    .trigger("dragenter")
+    cy.get("body")
+    .should("contain", "Drop files here")
+    .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
+    .trigger("dragenter")
+    cy.get("body")
+    .should("contain", "Drop files here")
+    .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
+    .trigger("dragleave")
+    cy.get("body")
+    .should("contain", "Drop files here")
+    cy.get("body")
+    .trigger("dragleave")
+    cy.get("body")
+    .should("not.contain", "Drop files here")
+  })
+
+  it("Infers from MTS file", () => {
+    cy.window().then(win => cy.wrap(null).then(async () => {
+      const opfs = await win.navigator.storage.getDirectory()
+      for await (const [name, _entry] of opfs.entries()) {
+        await opfs.removeEntry(name, {recursive: true})
+      }
+      win.localStorage.clear()
+    }))
+    cy.setShowDirectoryPickerResult(
+      ["model.json", "metadata.yaml", ...[1, 2, 3].map(i => `group1-shard${i}of3.bin`)].map(filename =>
+      ({localPath: `cypress/assets/yolov8-little-auk.model/${filename}`, pickerPath: filename}))
+    )
+    const assertDefaultValues = () => {
+    cy.contains("Model loaded").should("not.exist")
+    cy.contains("button", "Change model").should("not.exist")
+    cy.contains("button", "Unload model").should("not.exist")
+    cy.contains("dt", "Backend").next().find("select").should("have.value", "webgl")
+    cy.contains("dt", "Yolo version").next().find("select").should("have.value", "v8")
+
+    }
+    cy.visitWithStubbedFileSystem("/app/infer.html")
+    .contains("At the moment no yolo model is selected. Please add a model in order to start")
+    .get("button")
+    .contains("add a model")
+    .click()
+    assertDefaultValues()
+    cy.contains("dt", "Backend").next().find("select").select("webgpu")
+    cy.contains("dt", "Yolo version").next().find("select").select("v5")
+    cy.contains("button", "Select model").click()
+    cy.contains("Model loaded")
+    cy.contains("button", "Cancel").click()
+
+    cy.contains("At the moment no yolo model is selected. Please add a model in order to start")
+    .get("button")
+    .contains("add a model")
+    .click()
+    assertDefaultValues()
+    cy.contains("button", "Select model").click()
+    cy.contains("Model loaded")
+    cy.contains("button", "Change model")
+    cy.contains("button", "Save").click()
+    cy.contains("Loaded model: showDirectoryPickerResult (v8 / webgl)")
+
+    cy.contains("button", "change").click()
+    cy.contains("button", "Change model")
+    cy.contains("button", "Unload model")
+    cy.contains("dt", "Backend").next().find("select").select("webgpu")
+    cy.contains("button", "Save").click()
+    cy.contains("Loaded model: showDirectoryPickerResult (v8 / webgpu)")
+
+    cy.setShowOpenFilePickerResult([
+    // NOTE: Make sure file.MTS is alphabetically first
+      {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/file2.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/file2.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.MTS"},
+      "cypress/assets/other.txt",
+    ])
+    cy.contains("button", "Start inference").should("be.disabled")
+    cy.contains("button", "Add files").click()
+    cy.contains(".filetree_filename2.filetree_ready2", /^file\.MTS$/)
+    cy.contains(".filetree_filename2.filetree_ready2", /^file2\.mp4$/)
+    cy.contains(".filetree_filename2.filetree_warning2", /^file2.82f16f09b8327ed1.behave.mp4$/)
+      .pseudoElementContent("after").should("contain", "Use the original")
+    cy.contains(".filetree_filename2", /^file2.82f16f09b8327ed1.behave.mp4$/)
+      .parent().find("button:last-child").click()
+    cy.contains(".filetree_filename2", /^file2.82f16f09b8327ed1.behave.mp4$/)
+      .should("not.exist")
+    cy.contains(".filetree_filename2.filetree_error2", /^other\.txt/)
+      .pseudoElementContent("after").should("contain", "Filetype not supported")
+
+    cy.setShowDirectoryPickerResult(null)
+    cy.window().then(win => {
+      cy.spy(win.console, "warn")
+        .withArgs("Directory selection aborted, nothing happened")
+        .as("directoryPickerCancelled")
+    })
+    cy.get("@directoryPickerCancelled").should("not.be.called")
+    cy.contains("button", "Start inference").should("not.be.disabled")
+      .click()
+    cy.get("@directoryPickerCancelled").should("be.called")
+
+    cy.setShowDirectoryPickerResult([])
+    cy.contains("button", "Start inference").should("be.not.disabled").click()
+    cy.contains(".filetree_filename2.filetree_converting2", /^file\.MTS$/)
+    cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 20 * 60 * 1000})
+    cy.contains(".filetree_filename2.filetree_converting2", /^file2\.mp4/)
+    cy.contains(".filetree_filename2.filetree_done2", /^file2\.mp4$/, {timeout: 20 * 60 * 1000})
+    cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
+    cy.assertFileExistsInPickedDirectory("file2.82f16f09b8327ed1.behave.det.json")
+    let groundTruth: Record<string, unknown> & {
+      framesInfo: ReadonlyArray<{
+        detections: ReadonlyArray<Record<string, number>>
+      }>}
+    cy.readFile("cypress/assets/example.82f16f09b8327ed1.behave.det.json", "utf-8").then(res => {
+      groundTruth = res as typeof groundTruth
+    })
+    cy.window().then(win => cy.wrap(null).then(async () => {
+      const opfs = await win.navigator.storage.getDirectory()
+      const dir = await opfs.getDirectoryHandle("showDirectoryPickerResult")
+      for (const filename of ["file.MTS", "file2.mp4"]) {
+        const detFileName = filename.replace(/\.[^,]*$/, "") + ".82f16f09b8327ed1.behave.det.json"
+        const file = await (await dir.getFileHandle(detFileName)).getFile()
+        const data = JSON.parse(await file.text()) as typeof groundTruth
+        for (const key of Object.keys(groundTruth)) {
+          if (key === "sourceFileName") {
+            cy.wrap(data[key]).should("equal", filename)
+            continue
+          }
+          if (key !== "framesInfo") {
+            cy.wrap(JSON.stringify(data[key])).should(
+              "equal", JSON.stringify(groundTruth[key]))
+            continue
+          }
+          // do some fuzzy-match, since values seem to differ a bit between ARM and x86
+          // (either because of AI calc, or maybe the WebCodecs Video player is slightly different)
+          const nrFrames = groundTruth.framesInfo.length
+          cy.wrap(data.framesInfo.length).should("equal", nrFrames)
+          for (let framenr = 0; framenr < nrFrames; framenr++) {
+            const groundDetections = groundTruth.framesInfo[framenr].detections
+            const foundDetections = data.framesInfo[framenr].detections
+            const compareMap = groundDetections.map(gd => foundDetections.map(fd =>
+              Object.keys(gd).every(k => Math.abs(gd[k] - fd[k]) < ALLOWED_DIFFERENCE)
+            ))
+            cy.wrap(groundDetections.length).should("equal", foundDetections.length)
+            cy.wrap(compareMap.every(it => it.some(n => n))).should("be.true")
+          }
+        }
+      }
+    }))
+    cy.wait("@postTic").its("request.body").then($body => {
+      cy.wrap($body).its("id").should("equal", "page-views")
+      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+      cy.wrap($body).its("parameters.path").should("equal", "/app/infer.html")
+    })
+    cy.wait("@postTic").its("request.body").then($body => {
+      cy.wrap($body).its("id").should("equal", "infer-done")
+      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+      cy.wrap($body).its("parameters.extension").should("equal", "MTS")
+      cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
+    })
+    cy.contains("button", "Add files").click()
+    cy.contains("button", "Start inference").should("not.be.disabled")
+      .click()
+    cy.contains(".filetree_filename2", /^file.MTS/)
+      .pseudoElementContent("after").should("contain", "Target file already exists")
+    cy.contains(".filetree_filename2", /^file2.mp4/)
+      .pseudoElementContent("after").should("contain", "Target file already exists")
+  })
+})

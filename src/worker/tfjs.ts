@@ -7,8 +7,8 @@ import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
 import { getEntry, xxh64sum } from '../lib/fileutil'
 import { parse as YAMLParse } from "yaml"
-import { DetectionInfo, SingleFrameInfo, detectionInfoToString } from '../lib/detections'
-import { ObjectEntries, assert } from '../lib/util'
+import { DetectionInfo, SingleFrameInfo, detectionInfoToStrings } from '../lib/detections'
+import { ObjectEntries, ObjectFromEntries, ObjectIsEmpty, ObjectKeys, assert } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 import { YOLO_MODEL_NAME_FILE, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
 
@@ -81,14 +81,15 @@ export async function getModelAndInfer(
   yoloSettings: YoloSettings | null,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
+  forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
   if (yoloSettings) {
     await setBackend(yoloSettings.backend)
     const model = await getModel(yoloSettings.modelDirectory)
-    await infer(model, yoloSettings.yoloVersion, input, output, onProgress)
+    await infer(model, yoloSettings.yoloVersion, input, output, forceOverwrite, onProgress)
   } else {
-    await infer(null, "v8", input, output, onProgress)
+    await infer(null, "v8", input, output, forceOverwrite, onProgress)
   }
 }
 
@@ -97,6 +98,7 @@ export async function infer(
   yoloVersion: YoloVersion,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
+  forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
   const updateProgress = (step: "infer", progress: number) => {
@@ -125,7 +127,8 @@ export async function infer(
     const baseparts = parts.length == 1 ? parts : parts.slice(0, -1)
     const hash = await xxh64sum(input.file)
     outputfilename = [...baseparts, ".",  hash, EXTENSIONS.detectionFile].join("")
-    if (await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
+    if (!forceOverwrite
+      && await nonEmptyFileExists(output.dir, outputfilename.split("/"))) {
       onProgress("target_exists")
       return
     }
@@ -145,42 +148,57 @@ export async function infer(
     }
     let lastProgress = Date.now()
     let frameCount = 0
+    const modelKlasses = new Set<`${number}`>(
+      ObjectKeys(detectionInfo.modelKlasses))
     for await (const [framenr, videoFrame] of video.getFrames()) {
-      assert(frameCount > 0 || framenr == 0, "first frame should have nr 0")
+      assert(frameCount > 0 || framenr == 0, "first frame should have nr 0", framenr)
       frameCount++
       const singleFrameInfo = {
         detections: []
       } as SingleFrameInfo
 
-    const [boxes, scores, classes] = model
-      ? await inferSingleFrame(model, yoloVersion, videoFrame) : [[], [], []]
-    for (let i = 0; i < scores.length; i++) {
-      const [x1, y1, x2, y2] = boxes.slice(i * 4, (i + 1) * 4)
-      const box = [(x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1]
-      const score = scores.at(i)!
-      const klass = classes.at(i)!
-      if (!Number.isInteger(klass)) {
-        throw new Error(`Class is not an int? ${i} ${boxes}, ${scores} ${classes}`)
+      const [boxes, scores, classes] = model
+        ? await inferSingleFrame(model, yoloVersion, videoFrame) : [[], [], []]
+      for (let i = 0; i < scores.length; i++) {
+        const [x1, y1, x2, y2] = boxes.slice(i * 4, (i + 1) * 4)
+        const box = [(x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1]
+        const score = scores.at(i)!
+        const klass = classes.at(i)!
+        if (!Number.isInteger(klass)) {
+          throw new Error(`Class is not an int? ${i} ${boxes}, ${scores} ${classes}`)
+        }
+        const klassString = `${klass}` as `${number}`
+        if (!modelKlasses.has(klassString)) {
+          if (!ObjectIsEmpty(detectionInfo.modelKlasses)) {
+            throw new Error(`Unknown class: ${klass} not in ${[...modelKlasses]}`)
+          }
+          modelKlasses.add(`${klass}`)
+        }
+        const [cx, cy, width, height] = box
+        singleFrameInfo.detections.push(
+          {klass, cx, cy, width, height, confidence: score})
       }
-      const [cx, cy, width, height] = box
-
-      singleFrameInfo.detections.push(
-        {klass, cx, cy, width, height, confidence: score})
-    }
-    detectionInfo.framesInfo.push(singleFrameInfo)
-    videoFrame.close()
-    const now = Date.now()
+      detectionInfo.framesInfo.push(singleFrameInfo)
+      videoFrame.close()
+      const now = Date.now()
       if (now - lastProgress > PROGRESS_INTERVAL_MS) {
         updateProgress("infer", framenr / numberOfFrames)
         lastProgress = now
       }
     }
+    if (modelKlasses.size) {
+      detectionInfo.modelKlasses = ObjectFromEntries([...modelKlasses].map(
+        klass => [klass, detectionInfo.modelKlasses[klass] ?? `Class-${klass}`]))
+    }
     const completeDetectionInfo = {
       ...detectionInfo,
     }
-    const stringData = detectionInfoToString(completeDetectionInfo)
+    completeDetectionInfo
+    const stringDataIterator = detectionInfoToStrings(completeDetectionInfo)
     const textEncoder = new TextEncoder()
-    await outputstream.write(textEncoder.encode(stringData))
+    for (const s of stringDataIterator) {
+      await outputstream.write(textEncoder.encode(s))
+    }
     console.log("Done writing")
     onProgress({"converting": 1})
     await outputstream.close()
@@ -270,10 +288,18 @@ export async function inferSingleFrame(
     const [boxes, scores, classes] = (res as tf.Tensor<tf.Rank>[]).slice(0, 3)
     const boxes_scaled = tf.tidy(() => boxes
       .mul([xRatio, yRatio, xRatio, yRatio]))
-    const boxes_data = await boxes_scaled.data() as Float32Array// indexing boxes by nms index
-    const scores_data = await scores.data() as Float32Array // indexing scores by nms index
-    const classes_data = await classes.data() as Float32Array // indexing classes by nms index
-    tf.dispose([img_tensor, res, boxes, boxes_scaled, scores, classes]);
+    const selector = classes.greaterEqual(0)
+    const boxes_data_promise = tf.booleanMaskAsync(boxes_scaled, selector).then(t => t.data().then(d => [t, d] as const))
+    const scores_data_promise = tf.booleanMaskAsync(scores, selector).then(t => t.data().then(d => [t, d] as const))
+    const classes_data_promise = tf.booleanMaskAsync(classes, selector).then(t => t.data().then(d => [t, d] as const))
+    const [[boxes_data_tensor, boxes_data],
+      [scores_data_tensor, scores_data],
+      [classes_data_tensor, classes_data]] = await Promise.all(
+        [boxes_data_promise, scores_data_promise, classes_data_promise]) as [
+      [tf.Tensor<tf.Rank>, Float32Array],
+      [tf.Tensor<tf.Rank>, Float32Array],
+      [tf.Tensor<tf.Rank>, Float32Array]]
+    tf.dispose([img_tensor, res, boxes, boxes_scaled, scores, classes, selector, boxes_data_tensor, scores_data_tensor, classes_data_tensor]);
     return [boxes_data, scores_data, classes_data]
   } else if (yoloVersion === "v8") {
     const res = tf.tidy(() => model.model.execute(img_tensor))

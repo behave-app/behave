@@ -68,6 +68,18 @@ export class LiteralChecker<T extends boolean | string | number | null | undefin
   }
 }
 
+export class UnknownChecker extends Checker<unknown> {
+  constructor(
+    options?: {
+      valid?: (s: unknown) => boolean
+    }) {
+    super({valid: options?.valid})
+  }
+  _assertInstanceIgnoreValid(value: unknown, _path: string): asserts value is unknown {
+    return
+  }
+}
+
 // NOTE: supporting non-string keys opens a whole new can or worms!
 export class KeyOfChecker<T extends Record<string, unknown>> extends Checker<keyof T> {
   private items: Set<keyof T>

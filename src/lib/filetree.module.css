@@ -8,27 +8,35 @@
 .directoryname {
 
 }
+
 .directoryname::after {
   content: "/";
 }
+.filename.ready {}
 .filename.inqueue {}
 .filename.inqueue::before {
   content: " \1F551";
+  padding-right: .7em;
 }
 .filename.done {
   color: green;
 }
 .filename.done::before {
   content: " \2705";
+  padding-right: .7em;
 }
-.filename.target_exists {
+.filename.warning {
   color: orange;
+  .force_queue {
+    display: inline;
+  }
 }
-.filename.target_exists::before {
+.filename.warning::before {
   content: " \26A0";
+  padding-right: .7em;
 }
-.filename.target_exists::after {
-  content: " \2013  Target file already exists, not overwriting";
+.filename.warning::after {
+  content: " \2013  warning: " var(--warning-message);
 }
 .filename.converting {
   --convert-time-text: "";
@@ -54,23 +62,23 @@
 }
 .filename.error::before {
   content: " \274C";
+  padding-right: .7em;
 }
 .filename.error::after {
   content: " \2013  error: " var(--error-message);
 }
 
-.filename.editable {
-  width: 100%
+.leaf {
+  display: grid;
+  grid: 1fr / 1fr auto;
+  margin-right: 1em;
+  align-items: center;
+  &:hover {
+    background-color: hsl(240, 100%, 50%, 10%);
+  }
+  .buttons {
+    display: flex;
+    gap: .3em;
+  }
 }
 
-.filename.editable:hover {
-  background-color: hsl(240, 100%, 50%, 10%);
-}
-.filename.editable .delete {
-  position: absolute;
-  right: 1.5em;
-}
-.filename.editable .delete::before {
-  content: "\1F5D1";
-  cursor: pointer;
-}

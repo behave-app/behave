@@ -57,12 +57,12 @@ describe('Conversion test', () => {
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.mp4")
     cy.wait("@postTic").its("request.body").then($body => {
       cy.wrap($body).its("id").should("equal", "page-views")
-      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+      cy.wrap($body).its("projectId").should("equal", "MHclOOL1xnkUUT0_")
       cy.wrap($body).its("parameters.path").should("equal", "/app/convert.html")
     })
     cy.wait("@postTic").its("request.body").then($body => {
       cy.wrap($body).its("id").should("equal", "convert-done")
-      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+      cy.wrap($body).its("projectId").should("equal", "MHclOOL1xnkUUT0_")
       cy.wrap($body).its("parameters.extension").should("equal", "MTS")
       cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
     })

@@ -47,3 +47,12 @@
     transform: rotate(360deg); /* End rotation at 360 degrees */
   }
 }
+
+.header_version {
+  font-size: .6em;
+  &::before {
+    content: ' \2014 ';
+    margin-right: .5em;
+    margin-left: .5em;
+  }
+}

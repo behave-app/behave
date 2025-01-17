@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { useSelector } from "react-redux";
 import { VideoFile, createSliceDataFromFile, selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
 import { useAppDispatch } from "./store";
-import { assert, asyncSleep, binItems, isTruthy, valueOrError, valueOrErrorAsync } from "../lib/util";
+import { assert, asyncSleep, binItems, isTruthy, valueOrError, valueOrErrorAsync, getBehaveVersion } from "../lib/util";
 import * as css from "./uploader.module.css"
 import * as generalcss from "./general.module.css"
 import { Icon } from "../lib/Icon";
@@ -230,7 +230,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     }
 
     return <div className={css.uploader}>
-      <h2>Welcome to Behave</h2>
+      <h2>Welcome to Behave <span class={generalcss.header_version}>{getBehaveVersion()}</span></h2>
       {error !== null && <div className={css.warning}>
         Selecting files failed: {error}</div>
       }
@@ -301,7 +301,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   }
 
   return <div className={css.uploader}>
-    <h2>Welcome to Behave</h2>
+    <h2>Welcome to Behave <span class={generalcss.header_version}>{getBehaveVersion()}</span></h2>
     <div>
       This app lets you generate csv (Excel) files from Videos and Detection files. TODO: enhance explanation, add link.
     </div>

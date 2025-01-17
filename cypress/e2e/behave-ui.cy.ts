@@ -90,10 +90,14 @@ describe('Behave UI test', () => {
       .contains("Framenumber: 0")
 
     cy.get('button[title="remove the selected behaviour line"]').click()
-    cy.get(".viewer_controlpanel")
-      .contains("Framenumber: 0")
     cy.get(".behaviour_table tbody tr.behaviour_selectedLine")
       .should("not.exist")
+    cy.get(".behaviour_table tbody tr")
+      .should("have.length", 2)
+    cy.listMatch(".behaviour_table tbody tr:nth-child(2) td",
+    [/^10$/, /^03-07-2021$/, /^00:55:13$/, /^Beatrice$/, /^Diving$/, /^$/])
+    cy.get(".viewer_controlpanel")
+      .contains("Framenumber: 0")
     
     cy.get("body").type("{shift}BC")
     cy.listMatch(".behaviour_table tbody tr:nth-child(2) td",
@@ -109,6 +113,8 @@ describe('Behave UI test', () => {
     [/^0$/, /^03-07-2021$/, /^00:55:03$/, /^Andrea$/, /^Climbing$/, /^$/])
     cy.listMatch(".behaviour_table tbody tr:nth-child(4) td",
     [/^0$/, /^03-07-2021$/, /^00:55:03$/, /^Andrea$/, /^Diving$/, /^$/])
+    cy.listMatch(".behaviour_table tbody tr:nth-child(5) td",
+    [/^10$/, /^03-07-2021$/, /^00:55:13$/, /^Beatrice$/, /^Diving$/, /^$/])
 
     const assertIsSelectedLine = (linenr: number | null) => {
       if (linenr === null) {
@@ -121,7 +127,7 @@ describe('Behave UI test', () => {
     }
 
     assertIsSelectedLine(3)
-    cy.get(".behaviour_table tbody tr").eq(2).click()
+    cy.get(".behaviour_table tbody tr").eq(2).contains("span", /.*/).eq(0).click()
     assertIsSelectedLine(2)
     cy.get('button[title="remove the selected behaviour line"]').click()
     assertIsSelectedLine(2)

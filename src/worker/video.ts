@@ -6,7 +6,7 @@ import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
 import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep, ObjectKeys} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
-import { VideoMetadata, videoMetadataChecker, } from '../lib/video-shared'
+import { VideoMetadata, videoMetadataChecker, definiteFrameTypeInfoChecker} from '../lib/video-shared'
 import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
 import { FrameInfo, extractFrameInfo } from "./frameinfo"
 
@@ -965,7 +965,7 @@ const getCompressedFrameInfo = (
   startTimestamps: Record<number, ISODateTimeString>
   iFrameInterval: number,
   iFrameStarts: number[],
-  idrFrameInterval: number,
+  idrFrameInterval: number | null,
   idrFrameStarts: number[],
 } => {
   const timestamps = new Map(
@@ -1068,16 +1068,28 @@ const getCompressedFrameInfo = (
 
   const [iFrameInterval, iFrameStarts] = getIntervalAndStarts(iFrames)
   const [idrFrameInterval, idrFrameStarts] = getIntervalAndStarts(idrFrames)
+
+  const nonFiniteToNull = (x: number): number | null => {
+    return Number.isFinite(x) ? x : null
+}
+
+  const frameTypeInfo = {
+    iFrameInterval: nonFiniteToNull(iFrameInterval),
+    iFrameStarts,
+    idrFrameInterval: nonFiniteToNull(idrFrameInterval),
+    idrFrameStarts,
+  }
+
+  definiteFrameTypeInfoChecker.assertInstance(frameTypeInfo);
   
-  return {
+  const result = {
     recordFps: wholeRecordTimeFramesPerSecond,
     startTimestamps: ObjectFromEntries(newTSs.map(
       ([framenr, parts]) => [framenr.toString(), partsToIsoDate(parts)])),
-    iFrameInterval,
-    iFrameStarts,
-    idrFrameInterval,
-    idrFrameStarts,
+    ...frameTypeInfo,
   }
+
+  return result
 }
 
 export async function convert(

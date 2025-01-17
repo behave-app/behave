@@ -88,6 +88,38 @@ export function* getNALs(
     packet.data.byteLength - nalStartedAt)
 }
 
+function get_exp_golomb(data: Uint8Array, startbit: number): [number, number] {
+    let bitPosition = startbit;
+    let zeroCount = 0;
+
+    // Count leading zeros
+    while (true) {
+        const bit = (data[bitPosition >> 3] >> (7 - (bitPosition & 7))) & 1;
+        if (bit === 1) break;
+        zeroCount++;
+        bitPosition++;
+        if (bitPosition >= data.length * 8) {
+            throw new Error("Bitstream exhausted while reading Exp-Golomb code.");
+        }
+    }
+
+    bitPosition++; // Skip the leading 1 bit
+
+    // Read the remaining bits of the Exp-Golomb code
+    let value = 1 << zeroCount;
+    for (let i = 0; i < zeroCount; i++) {
+        const bit = (data[bitPosition >> 3] >> (7 - (bitPosition & 7))) & 1;
+        value |= bit << (zeroCount - 1 - i);
+        bitPosition++;
+        if (bitPosition >= data.length * 8) {
+            throw new Error("Bitstream exhausted while reading Exp-Golomb value.");
+        }
+    }
+
+    return [value - 1, bitPosition];
+}
+
+
 export function extractFrameInfo(
   packet: LibAVTypes.Packet,
   isAnnexB: boolean,
@@ -103,14 +135,16 @@ export function extractFrameInfo(
     const nalType = firstbyte & 0x1f
     switch (nalType) {
       case 0x01: {
-        switch (ref) {
+        const [_first_mb_in_slice, pos] = get_exp_golomb(nal, 8);
+        const [slice_type, _pos] = get_exp_golomb(nal, pos)
+        switch (slice_type % 5) {
           case 0:
             frameInfo.type = "B"
             break
-          case 2:
+          case 1:
             frameInfo.type = "P"
             break
-          case 3:
+          case 2:
             frameInfo.type = "I"
             break
           default:

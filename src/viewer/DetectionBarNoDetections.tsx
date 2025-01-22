@@ -1,13 +1,11 @@
 import { FunctionComponent } from 'preact'
-import { useMemo, useState, useCallback } from 'preact/hooks';
-import { assert, binIndices, range, joinedStringFromDict, TSAssertType } from "../lib/util"
+import { useState, useCallback } from 'preact/hooks';
+import { assert, joinedStringFromDict} from "../lib/util"
 import { videoSeekToFrameNumberAndPause } from './videoPlayerActions';
 import { useSelector } from 'react-redux';
-import { selectDetectionInfoPotentiallyNull } from './detectionsSlice';
 import * as css from "./detectionbardetections.module.css"
 import { useAppDispatch } from './store';
-import { selectColoursForClasses, selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors';
-import { hslToString } from '../lib/colour';
+import { selectCurrentFrameNumber } from './selectors';
 import { selectMetadata } from './videoFileSlice';
 
 const MOUSE_PRIMARY_BUTTON = 0 as const
@@ -59,10 +57,6 @@ export const DetectionBarNoDetections: FunctionComponent = () => {
     }
     void(dispatch(videoSeekToFrameNumberAndPause(newFrameNumber)))
   }
-
-  const barViewBox =
-    barRect ? `0 0 ${barRect.width} ${barRect.height}` : `0 0 314 153`
-
 
   if (
     currentFrameNumber == null

@@ -27,16 +27,29 @@ describe('Behave UI test', () => {
   it("Can start a behave", () => {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
-      {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
       {pickerPath: "example.82f16f09b8327ed1.behave.det.json", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.det.json"},
     ])
-    cy.contains("button", "Start").should("be.disabled")
-    cy.contains("button", "Add files").should("not.be.disabled")
+    cy.contains("button", "Start behaviour coding").should("be.disabled")
+    cy.contains("button", "Open video file").should("not.be.disabled")
       .click()
-    cy.contains(".uploader_file_list", /example\.82f16f09b8327ed1\.behave\.det\.json/)
-    cy.contains(".uploader_file_list", /example\.82f16f09b8327ed1\.behave\.mp4/)
-    cy.contains(".uploader_file_list", /hash: 82f16f09b8327ed1/, {timeout: 20 * 1000})
-    cy.contains("button", "Start").should("not.be.disabled")
+    cy.contains("h2", "Error")
+    cy.contains("You cannot open a file of type json")
+    cy.contains("button", "close").click()
+    cy.setShowOpenFilePickerResult([
+      {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
+    ])
+    cy.contains("button", "Open video file").should("not.be.disabled")
+      .click()
+    cy.contains("example.82f16f09b8327ed1.behave.mp4", {timeout: 20 * 1000})
+    cy.contains("hash: 82f16f09b8327ed1")
+    cy.contains("button", "Start behaviour coding").should("not.be.disabled")
+    cy.setShowOpenFilePickerResult([
+      {pickerPath: "example.82f16f09b8327ed1.behave.det.json", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.det.json"},
+    ])
+    cy.contains("button", "Open detection file").should("not.be.disabled")
+      .click()
+    cy.contains("example.82f16f09b8327ed1.behave.det.json")
+    cy.contains("button", "Start behaviour coding").should("not.be.disabled")
       .click()
 
     cy.get("body")

@@ -280,11 +280,10 @@ const DropDownSelect: FunctionComponent<DropDownSelectProps> = (
 
 const BehaviourCreator: FunctionComponent = () => {
   const videoFile = useSelector(selectVideoFilePotentiallyNull)
-  const detectionInfo = useSelector(selectDetectionInfoPotentiallyNull)
   const defaultLayout = useSelector(selectBehaviourLayout)
   const dispatch = useAppDispatch()
 
-  if (!videoFile || !detectionInfo) {
+  if (!videoFile) {
     return <div>Add video file and detection file first</div>
   }
   return <div>

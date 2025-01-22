@@ -1,33 +1,117 @@
 import { FunctionComponent } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState, useCallback } from "preact/hooks";
 import { useSelector } from "react-redux";
 import { VideoFile, createSliceDataFromFile, selectVideoFilePotentiallyNull, videoFileSet } from "./videoFileSlice";
 import { useAppDispatch } from "./store";
-import { assert, asyncSleep, binItems, isTruthy, valueOrError, valueOrErrorAsync, getBehaveVersion } from "../lib/util";
+import { asyncSleep, isTruthy, valueOrError, valueOrErrorAsync, getBehaveVersion, TSAssertType } from "../lib/util";
 import * as css from "./uploader.module.css"
 import * as generalcss from "./general.module.css"
-import { Icon } from "../lib/Icon";
-import { validateDataIsDetectionInfo } from "../lib/detections";
-import { detectionFileNameSet, detectionsInfoSet } from "./detectionsSlice";
-import { behaviourInfoLinesSet, behaviourInfoUnset, csvToLines, validateDataIsBehaviourLines } from "./behaviourSlice";
+import { DetectionInfo, validateDataIsDetectionInfo } from "../lib/detections";
+import { detectionFileNameSet, detectionsInfoSet, detectionsInfoUnset, selectDetectionFilename } from "./detectionsSlice";
+import { behaviourInfoLinesSet, behaviourInfoUnset, csvToLines, selectBehaviourInfo, validateDataIsBehaviourLines } from "./behaviourSlice";
 import { selectBehaviourLayout } from "./generalSettingsSlice";
-import { EXTENSIONS } from "../lib/constants"
+import { extractHashFromFilename } from "../lib/fileutil";
 
 type Props = {
   onRequestClose: () => void
 }
 
 export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
-  const VIDEO_FILE_EXTENSIONS = [EXTENSIONS.videoFile, EXTENSIONS.videoFileMp4]
   type DragState = "nodrag" | "dragging"
   const dragCounter = useRef(0)
-  const [fileSystemHandles, setFileSystemHandles] = useState<ReadonlyArray<FileSystemHandle >>([])
   const [dragState, setDragState] = useState<DragState>("nodrag")
   const dispatch = useAppDispatch()
-  const [error, setError] = useState<string|null>(null)
+  type Questions = {
+    questions: string[],
+    videoFile: VideoFile | null,
+    detection: {
+      filename: string,
+      info: DetectionInfo
+    }| null,
+    behaviour: {
+      filename: string,
+      lines: string[][],
+    } | null,
+  }
+  const [questions, setQuestions] = useState<Questions | null>(null)
+  const [errors, setErrors] = useState<string[]>([])
   const behaviourLayout = useSelector(selectBehaviourLayout)
-  const videoFileAlreadyLoaded = useSelector(selectVideoFilePotentiallyNull) !== null
-  const [videoFileMap, setVideoFileMap] = useState(new Map<FileSystemHandle, "loading" | VideoFile | Error>())
+  const videoFile = useSelector(selectVideoFilePotentiallyNull)
+  const detectionFileName = useSelector(selectDetectionFilename)
+  const behaviourFileName = useSelector(selectBehaviourInfo)?.filename ?? null
+  const [newFiles, setNewFiles] = useState<{video: File|null, detection: File|null, behaviour: File|null}|null>(null)
+
+  const handleNewFiles = useCallback(async (fileSystemHandles: FileSystemHandle[], type: "video" | "detection" | "behaviour" | "all") => {
+    if (fileSystemHandles.length === 0) {
+      return
+    }
+
+    let newVideoFile: File|null = null
+    let newDetectionFile: File|null = null
+    let newBehaviourFile: File|null = null
+    const errors: string[] = []
+
+    for (const handle of fileSystemHandles) {
+      if (handle.kind === "directory") {
+        errors.push("Please add only files")
+        continue
+      }
+      TSAssertType<FileSystemFileHandle>(handle)
+      const extension = handle.name.toLowerCase().split(".").at(-1)!
+      switch (extension) {
+        case "mp4":
+          if (newVideoFile !== null) {
+            errors.push("Only open a single video file")
+          } else if (type === "video" || type === "all") {
+            newVideoFile = await handle.getFile()
+          } else {
+            errors.push(`You cannot open a file of type ${extension}`)
+          }
+          break;
+        case "json":
+          if (newDetectionFile !== null) {
+            errors.push("Only open a single detection file")
+          } else if (type === "detection" || type === "all") {
+            newDetectionFile = await handle.getFile()
+            if (newDetectionFile.size === 0) {
+              errors.push("The detection is empty. Possibly the detection / inference "
+                + "terminated / crashed before it was complete")
+            }
+          } else {
+            errors.push(`You cannot open a file of type ${extension}`)
+          }
+          break;
+        case "csv":
+          if (newBehaviourFile !== null) {
+            errors.push("Only open a single behaviour file")
+          } else if (type === "behaviour" || type === "all") {
+            newBehaviourFile = await handle.getFile()
+          } else {
+            errors.push(`You cannot open a file of type ${extension}`)
+          }
+          break;
+        default:
+          errors.push(`You cannot open a file of type ${extension}`)
+          break;
+      }
+    }
+
+    if (!videoFile && !newVideoFile) {
+      if (newDetectionFile) {
+        errors.push("Cannot open a detection file without first opening a video file")
+      }
+      if (newBehaviourFile) {
+        errors.push("Cannot open a behaviour file without first opening a video file")
+      }
+    }
+
+    if (errors.length > 0) {
+      setErrors(errors)
+      return
+    }
+
+    setNewFiles({video: newVideoFile, detection: newDetectionFile, behaviour: newBehaviourFile})
+  }, [videoFile])
 
   useEffect(() => {
     const aimedAt = window.document.documentElement
@@ -39,15 +123,13 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       dragCounter.current -= 1
       event.preventDefault()
       setDragState("nodrag")
-      setError(null)
 
       if (event.dataTransfer === null || event.dataTransfer.items.length === 0) {
-        setError("Make sure you drag a file")
+        setErrors(["Make sure you drag a file"])
         return
       }
 
-      const newHandles = (await Promise.all([...event.dataTransfer.items].map(item => item.getAsFileSystemHandle()))).filter(isTruthy)
-      setFileSystemHandles(handles => [...handles, ...newHandles])
+      await handleNewFiles((await Promise.all([...event.dataTransfer.items].map(item=>item.getAsFileSystemHandle()))).filter(isTruthy), "all")
     }
 
     const dragLeave = (_event: DragEvent) => {
@@ -70,22 +152,30 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       aimedAt.removeEventListener("dragover", dragOver)
       aimedAt.removeEventListener("drop", dragDrop)
     }
-  }, [])
+  }, [handleNewFiles])
 
-  const onSelectFileUpload = async () => {
+  const onSelectFileUpload = async (type: "video" | "detection" | "behaviour" | "all") => {
     if (document.fullscreenElement) {
+      console.warn("Leaving fullscreen since opening selectFile while full screen leads to a crash")
       await document.exitFullscreen()
       await asyncSleep(1000)
     }
+    const accept: Record<`${string}/${string}`, `.${string}` | `.${string}`[]> = {}
+    if (type === "video" || type === "all") {
+      accept["video/mp4"] = [".mp4"]
+    }
+    if (type === "video" || type === "all") {
+      accept["application/json"] = [".json"]
+    }
+    if (type === "video" || type === "all") {
+      accept["text/csv"] = [".csv"]
+    }
+
     const handlesOrError = await valueOrErrorAsync(window.showOpenFilePicker)({
-      id: "selectInputFiles",
-      multiple: true,
+      id: `selectInputFiles_${type}`,
+      multiple: type === "all",
       types: [
-        {description: "behave files", accept: {
-          "application/json": [EXTENSIONS.detectionFile],
-          "video/mp4": VIDEO_FILE_EXTENSIONS,
-          "text/csv": [EXTENSIONS.behaviourFile]
-        }}]
+        {description: "behave files", accept}]
     })
     if ("error" in handlesOrError) {
       const {error} = handlesOrError
@@ -96,7 +186,7 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         throw error
       }
     } else {
-      setFileSystemHandles(handles => [...handles, ...handlesOrError.value])
+      await handleNewFiles(handlesOrError.value, type)
     }
   }
 
@@ -108,194 +198,141 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     </div>
   }
 
-  const keys = ["video", "detection",  "behaviour",  "other"] as const
-  type TypeKey = typeof keys[number]
-  const filesByType = binItems<FileSystemHandle, TypeKey>(fileSystemHandles,
-    fh => fh.kind === "directory" ? "other"
-      : VIDEO_FILE_EXTENSIONS.some(ext => fh.name.toLocaleLowerCase().endsWith(ext)) ? "video"
-        : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.detectionFile) ? "detection"
-          : fh.name.toLocaleLowerCase().endsWith(EXTENSIONS.behaviourFile) ? "behaviour"
-            : "other")
-  const videos = (filesByType.get("video") ?? []) as FileSystemFileHandle[]
-  const detections = (filesByType.get("detection") ?? []) as FileSystemFileHandle[]
-  const behaviours = (filesByType.get("behaviour") ?? []) as FileSystemFileHandle[]
-  const correctCounts = videos.length === 1 && detections.length === 1
-    && behaviours.length < 2
-
-
-  const extractHashFromFilename = (filename: string): string | symbol  => {
-    const parts = filename.split(".")
-    const behave = parts.lastIndexOf("behave")
-    if (behave === -1 || behave === 0) {
-      return Symbol("no hash")
-    }
-    const hash = parts[behave - 1]
-    if (!/^[0-9a-fA-F]{8,16}$/.test(hash)) {
-      return Symbol("no hash")
-    }
-    return hash
+  if (errors.length) {
+    return <div className={css.uploader}>
+      <h2>Error</h2>
+      <div>
+        {errors.length === 1 ? "An error" : "Several errors"} occured:
+      </div>
+      <ul>
+        {errors.map(error => <li>{error}</li>)}
+      </ul>
+      <div className={generalcss.button_row}>
+        <button onClick={() => setErrors([])}>close</button>
+      </div>
+    </div>
   }
-  const videoFileInfoRaw = videos.length === 1  ? videoFileMap.get(videos[0]) ?? null : null
-  const videoFileInfo = (videoFileInfoRaw === "loading" || videoFileInfoRaw instanceof Error) ? null : videoFileInfoRaw
-  const matchingHashes = videoFileInfo !== null
-    && (detections.length === 1 && videoFileInfo.metadata.hash === extractHashFromFilename(detections[0].name))
-    && (behaviours.length === 0 || (
-      behaviours.length === 1 && videoFileInfo.metadata.hash === extractHashFromFilename(behaviours[0].name)))
+
+  const openFiles = (questions: Questions) => {
+    if (questions.videoFile) {
+      dispatch(videoFileSet(questions.videoFile))
+      if (!questions.detection) {
+        dispatch(detectionFileNameSet(null))
+        dispatch(detectionsInfoUnset())
+      }
+      if (!questions.behaviour) {
+        dispatch(behaviourInfoUnset())
+      }
+    }
+    if (questions.detection) {
+      dispatch(detectionFileNameSet(questions.detection.filename))
+      dispatch(detectionsInfoSet(questions.detection.info))
+    }
+    if (questions.behaviour) {
+      dispatch(behaviourInfoLinesSet({
+        filename: questions.behaviour.filename,
+        layout: behaviourLayout,
+        lines: questions.behaviour.lines
+      }))
+    }
+  }
+
+  if (questions) {
+    return <div className={css.uploader}>
+      <h2>Please check the following information</h2>
+      <div>
+        {questions.questions.length === 1 ? "A potential issue has" : "Several potentia issues have"} popped up with the provided data.
+        You may still move forward if you are sure you wan to continue.
+      </div>
+      <ul>
+        {questions.questions.map(question => <li>{question}</li>)}
+      </ul>
+      <div className={generalcss.button_row}>
+        <button onClick={() => setQuestions(null)}>cancel</button>
+        <button onClick={() => openFiles(questions)}>proceed</button>
+      </div>
+    </div>
+  }
 
   useEffect(() => {
-    if (videos.length !== 1) {
-      return
-    }
-    const video = videos[0]
-    if (videoFileMap.has(video)) {
-      return
-    }
-    if (new Set(videoFileMap.values()).has("loading")) {
-      return
-    }
-    setVideoFileMap(videoFileMap =>
-      new Map([...videoFileMap.entries(), [video, "loading"]]))
     void((async () => {
-      const result = await valueOrErrorAsync(
-        createSliceDataFromFile)(await video.getFile())
-      if ("error" in result) {
-        const error: Error = result.error instanceof Error
-          ? result.error : new Error(`${result.error}`)
-        setVideoFileMap(videoFileMap =>
-          new Map([...videoFileMap.entries(), [video, error]]))
+      if (newFiles === null
+        || (newFiles.video === null &&  newFiles.detection === null
+          && newFiles.behaviour === null)) {
         return
       }
-      setVideoFileMap(videoFileMap =>
-        new Map([...videoFileMap.entries(), [video, result.value]]))
-    })())
-  }, [videos, videoFileMap])
-
-  if (fileSystemHandles.length) {
-    const selectTheseFiles = async () => {
-      assert(correctCounts && matchingHashes)
-      const detectionFile = await detections[0].getFile()
-      const behaviourFile = await behaviours.at(0)?.getFile()
-      const detectionText = await detectionFile.text()
-      if (detectionFile.size === 0) {
-        setError("The detection is empty. Possibly the detection / inference "
-        + "terminated / crashed before it was complete")
-        return
+      const errors: string[] = []
+      const questions: string[] = []
+      const sliceData = newFiles.video ? await createSliceDataFromFile(newFiles.video) : null
+      const metadata = sliceData ? sliceData.metadata : videoFile?.metadata
+      if (!metadata) {
+        throw new Error("Either newFiles.video should be set or a video should have been loaded before.")
       }
-      const detectionInfoOrError = valueOrError(JSON.parse)(detectionText)
-      if ("error" in detectionInfoOrError) {
-        setError("The detection file is corrupted, and cannot be opened")
-        return
+      let detectionInfo = null
+      if (newFiles.detection) {
+        const detectionText = await newFiles.detection.text()
+        const detectionInfoOrError = valueOrError(JSON.parse)(detectionText)
+        if ("error" in detectionInfoOrError) {
+          errors.push("The detection file is corrupted, and cannot be opened")
+        } else {
+          detectionInfo = detectionInfoOrError.value
+          if (!validateDataIsDetectionInfo(detectionInfo)) {
+            errors.push("The detection file is corrupted, and cannot be opened")
+          } else {
+            if (detectionInfo.sourceFileXxHash64 !== metadata.hash) {
+              questions.push("The detection file seems to have been made for a different video file, continue anyways?")
+            }
+          }
+        }
       }
-      const detectionInfo = detectionInfoOrError.value
-      if (!validateDataIsDetectionInfo(detectionInfo)) {
-        setError("The detection file is corrupted, and cannot be opened")
-        return
-      }
-      if (detectionInfo.sourceFileXxHash64 === "See filename") {
-        detectionInfo.sourceFileXxHash64 = videoFileInfo.metadata.hash
-      }
-      assert(detectionInfo.sourceFileXxHash64 === videoFileInfo.metadata.hash)
+      TSAssertType<DetectionInfo | null>(detectionInfo)
       let behaviourLines: null | string[][] = null
-      if (behaviourFile) {
-        const behaviourCSV = await behaviourFile.text()
+      if (newFiles.behaviour) {
+        const behaviourCSV = await newFiles.behaviour.text()
         const linesOrError = valueOrError(csvToLines)(behaviourCSV)
         if ("error" in linesOrError || !validateDataIsBehaviourLines(
           linesOrError.value, behaviourLayout)) {
-          setError("The behaviour file is corrupted, and cannot be opened")
-          return
+          errors.push("The behaviour file is corrupted, and cannot be opened")
+        } else {
+          const behaviourHash = extractHashFromFilename(newFiles.behaviour.name)
+          if (behaviourHash !== null && behaviourHash !== metadata.hash) {
+            questions.push("The behaviour file seems to have been made for a different video file, continue anyways?")
+          }
+          behaviourLines = linesOrError.value
         }
-        behaviourLines = linesOrError.value
       }
-
-      dispatch(videoFileSet(videoFileInfo))
-      dispatch(detectionFileNameSet(detectionFile.name))
-      dispatch(detectionsInfoSet(detectionInfo))
-      if (behaviourLines) {
-        dispatch(behaviourInfoLinesSet({
-          filename: behaviourFile!.name,
-          layout: behaviourLayout,
-          lines: behaviourLines
-        }))
+      if (errors.length) {
+        setErrors(errors)
+        setNewFiles(null)
+        return
+      }
+      const potentialQuestions: Questions = {
+        questions,
+        videoFile: sliceData,
+        detection: newFiles.detection ? {
+          filename: newFiles.detection.name,
+          info: detectionInfo!,
+        } : null,
+        behaviour: newFiles.behaviour ? {
+          filename: newFiles.behaviour.name,
+          lines: behaviourLines!
+        } : null
+      }
+      if (questions.length === 0) {
+        openFiles(potentialQuestions)
       } else {
-        dispatch(behaviourInfoUnset())
+        setQuestions(potentialQuestions)
       }
-      onRequestClose()
+      setNewFiles(null)
     }
+    )())
+  }, [newFiles])
 
-    const messageByType: {[k in TypeKey]: string} = {
-      video: "exactly one needed",
-      detection: "exactly one needed",
-      behaviour: "zero or one needed",
-      other: "will be ignored",
-    }
-
+  if (newFiles) {
     return <div className={css.uploader}>
-      <h2>Welcome to Behave <span class={generalcss.header_version}>{getBehaveVersion()}</span></h2>
-      {error !== null && <div className={css.warning}>
-        Selecting files failed: {error}</div>
-      }
-      {!correctCounts
-        ? <div className={css.warning}>
-          We need one video file ({VIDEO_FILE_EXTENSIONS.map((ext, index) => <>
-          {index > 0 && ", "}<code>*{ext}</code></>)}) and an accompanying
-          detection file (<code>*{EXTENSIONS.detectionFile}</code>) to continue.
-          In addition a single behaviour file (<code>*{EXTENSIONS.behaviourFile}</code>) may
-          be uploaded.
-          Please upload more files below (or drag and drop them in),
-          or remove any excess files below.
-          You can always reload this page to start again.
-        </div>
-        : videoFileInfo === null ?
-          <div>Please wait while the video file is inspected (should take a couple of seconds)</div>
-        : !matchingHashes
-          ?<div className={css.warning}>
-            The selected files seem to be not for the same video file.
-            Each file that is used in behave, has a 16 character code that comes
-            just before the extension, that uniquely points to the source video
-            file that was used to generate this file.
-          </div>
-          :<div>Press the submit button below to continue with these files</div>
-      }
-      <dl>
-        {keys.map(key => <>
-          <dt>
-            {key[0].toUpperCase() + key.slice(1)}s files ({messageByType[key]})
-          </dt>
-          <dd>
-            <ul className={css.file_list}>
-              {(filesByType.get(key) ?? []).map(
-                fh => <li className={generalcss.show_on_hover_buttons}>
-                  <span>{fh.name}</span>
-                  {(info => 
-                  info === undefined ? null
-                    : info === "loading"
-                      ? <span><span className={generalcss.spinner}></span></span>
-                    : info instanceof Error
-                      ? <span className={css.video_error} title={info.message}>video file not valid</span>
-                      : <span>hash: {info.metadata.hash}</span>)(videoFileMap.get(fh))}
-                  <button className={generalcss.show_on_hover}
-                    onClick={() => setFileSystemHandles(fhs => fhs.filter(
-                      filterFh => filterFh !== fh))}>
-                    <Icon iconName="delete" />
-                  </button>
-                </li>)}
-            </ul>
-          </dd>
-        </>
-        )}
-      </dl>
-      <hr />
-      <div className={generalcss.button_row}>
-        <button disabled={!(correctCounts && matchingHashes)}
-          onClick={selectTheseFiles}>
-          Start
-        </button>
-        <button disabled={!videoFileAlreadyLoaded} onClick={onRequestClose}>
-          Cancel
-        </button>
-        <button onClick={onSelectFileUpload}>
-          Add more files
-        </button>
+      <h2>Opening and inspecting files</h2>
+      <div>
+        Please wait a moment... <span className={generalcss.spinner}></span>
       </div>
     </div>
   }
@@ -303,21 +340,53 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
   return <div className={css.uploader}>
     <h2>Welcome to Behave <span class={generalcss.header_version}>{getBehaveVersion()}</span></h2>
     <div>
-      This app lets you generate csv (Excel) files from Videos and Detection files. TODO: enhance explanation, add link.
-    </div>
-    <div>
-      Start by dragging in a Video and a Detection file (and possibly a Behave file), or upload files below
+      In order to get started, you need to open a video file (either through the "Open video file" buttton below, or by dragging in a video file). In addition, you can add a detection file, and a behaviour file.
     </div>
     <hr />
+
+    <h3>Video file</h3>
+    <div>{videoFile ? <>{videoFile.file.name} <span>hash: {videoFile.metadata.hash}</span></> : "<no video file>"}</div>
+    <div className={generalcss.button_row_left}>
+      <button onClick={() => onSelectFileUpload("video")}>
+        Open video file
+      </button>
+    </div>
+    <hr />
+
+    <h3>Detection file</h3>
+    <div>{detectionFileName !== null ? detectionFileName : "<no detection file>"}</div>
+    <div className={generalcss.button_row_left}>
+      <button onClick={() => onSelectFileUpload("detection")}>
+        Open detection file
+      </button>
+      <button disabled={detectionFileName === null} onClick={() => {
+        dispatch(detectionsInfoUnset());
+        dispatch(detectionFileNameSet(null));
+      }}>
+        Close detection file
+      </button>
+    </div>
+    <hr />
+
+    <h3>Behaviour file</h3>
+    <div>Note: this is only if you want to open an exsiting behaviour file to view or edit. If you want to create a new behaviour file, you must do so in the main interface.
+    </div>
+    <div>{behaviourFileName !== null ? behaviourFileName : "<no behaviour file>"}</div>
+    <div className={generalcss.button_row_left}>
+      <button onClick={() => onSelectFileUpload("behaviour")}>
+        Open behaviour file
+      </button>
+      <button disabled={behaviourFileName === null} onClick={() => {
+        dispatch(behaviourInfoUnset());
+      }}>
+        Close behaviour file
+      </button>
+    </div>
+    <hr />
+    
     <div className={generalcss.button_row}>
-      <button disabled>
-        Start
-      </button>
-      <button disabled={!videoFileAlreadyLoaded} onClick={onRequestClose}>
-        Cancel
-      </button>
-      <button onClick={onSelectFileUpload}>
-        Add files
+      <button disabled={!videoFile} onClick={onRequestClose}>
+        Start behaviour coding
       </button>
     </div>
   </div>

@@ -127,14 +127,11 @@ export const selectAppError = (state: RootState) => state.app.error
 export const selectFullscreen = (state: RootState) => state.app.fullscreen
 
 export const selectIsWaitingForSubjectShortcut = (state: RootState) => (
-  !!(state.videoFile
-    && state.detections.detectionInfo
-  )
+  !!(state.videoFile)
 )
 
 export const selectIsWaitingForBehaviourShortcut = (state: RootState) => (
   !!(state.videoFile
-    && state.detections.detectionInfo
     && state.behaviour.behaviourInfo
     && state.behaviour.behaviourInfo.currentlySelectedSubject !== null)
 )

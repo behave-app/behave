@@ -75,3 +75,16 @@ export async function xxh64sum(
   }
   return hasher.digest("hex")
 }
+
+export const extractHashFromFilename = (filename: string): string | null  => {
+  const parts = filename.split(".")
+  const behave = parts.lastIndexOf("behave")
+  if (behave === -1 || behave === 0) {
+    return null
+  }
+  const hash = parts[behave - 1]
+  if (!/^[0-9a-fA-F]{8,16}$/.test(hash)) {
+    return null
+  }
+  return hash
+}

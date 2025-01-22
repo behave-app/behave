@@ -583,8 +583,8 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
     ...(isNewShortcut ? [null] : []),
   ]
 
-  const subjectDisabledLine = <>All subjects are disabled at the moment. Subjects can only be chosen when a Behaviour file was opened in edit mode.</>
-  const behaviourDisabledLine = <>All behaviours are disabled at the moment. Behaviours can only be chosen after a subject is chosen. If you want a line without a subject (and only behaviour), create a subject with an empty string.</>
+  const subjectDisabledLine = <>All subjects are disabled at the moment. Subjects can only be chosen when a video file is loaded.</>
+  const behaviourDisabledLine = <>All behaviours are disabled at the moment. Behaviours can only be chosen after a subject is chosen. If you want a line without a subject (and only behaviour), create a subject with an empty string as "name".</>
 
 
   const intro = useSelector((state: RootState) =>

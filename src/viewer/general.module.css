@@ -28,6 +28,13 @@
   justify-content: center;
 }
 
+.button_row_left {
+  margin-top: 1.5em;
+  display: flex;
+  column-gap: 0.7em;
+  justify-content: left;
+}
+
 .spinner {
   display: inline-block;
   border: 5px solid rgba(255, 255, 255, 0.3); /* Light grey border */

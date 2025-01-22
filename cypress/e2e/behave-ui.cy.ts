@@ -42,7 +42,20 @@ describe('Behave UI test', () => {
       .click()
     cy.contains("example.82f16f09b8327ed1.behave.mp4", {timeout: 20 * 1000})
     cy.contains("hash: 82f16f09b8327ed1")
+    cy.get("#myVideoPlayer").then(videos => {
+      const video = (videos.get(0) as HTMLVideoElement)
+      const callStub = cy.stub().as('loadeddata')
+      if (video.readyState >= video.HAVE_CURRENT_DATA) {
+        callStub();
+      } else {
+        video.addEventListener('loadeddata', callStub);
+      }
+    })
     cy.contains("button", "Start behaviour coding").should("not.be.disabled")
+      .click()
+    cy.get('@loadeddata').should('have.been.calledOnce')
+    cy.contains("span", "upload_file").click()
+
     cy.setShowOpenFilePickerResult([
       {pickerPath: "example.82f16f09b8327ed1.behave.det.json", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.det.json"},
     ])

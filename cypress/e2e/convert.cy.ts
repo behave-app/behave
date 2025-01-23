@@ -37,6 +37,8 @@ describe('Conversion test', () => {
       .pseudoElementContent("after").should("contain", "Filetype not supported")
     cy.contains(".filetree_filename", /^file\.mp4/)
       .pseudoElementContent("after").should("contain", "Filetype not supported")
+    cy.contains("You have added some files with an unsupported extension.")
+    cy.contains("Some converts seem to have failed.").should("not.exist")
 
     cy.setShowDirectoryPickerResult(null)
     cy.window().then(win => {
@@ -76,5 +78,18 @@ describe('Conversion test', () => {
     cy.contains("button", "Overwrite").click()
     cy.contains(".filetree_filename.filetree_converting", /^file\.MTS$/)
     cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
+  })
+  it("Displays a convert error and explanantion if convert fails", () => {
+    cy.visitWithStubbedFileSystem("/app/convert.html")
+    cy.setShowOpenFilePickerResult([
+      {pickerPath: "test/file.MTS", localPath: "cypress/assets/other.txt"},
+    ])
+    cy.contains("button", "Start conversion").should("be.disabled")
+    cy.contains("button", "Add files").should("not.be.disabled")
+      .click()
+    cy.contains("You have added some files with an unsupported extension.").should("not.exist")
+    cy.contains("button", "Start conversion").should("not.be.disabled")
+      .click()
+    cy.contains("Some converts seem to have failed.")
   })
 })

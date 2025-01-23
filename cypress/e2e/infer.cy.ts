@@ -83,7 +83,9 @@ describe('Inference test', () => {
     // NOTE: Make sure file.MTS is alphabetically first
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/file2.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       {pickerPath: "test/file2.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       "cypress/assets/other.txt",
     ])
     cy.contains("button", "Start inference").should("be.disabled")
@@ -98,6 +100,8 @@ describe('Inference test', () => {
       .should("not.exist")
     cy.contains(".filetree_filename2.filetree_error2", /^other\.txt/)
       .pseudoElementContent("after").should("contain", "Filetype not supported")
+    cy.contains("You have added some files with an unsupported extension.")
+    cy.contains("Some infer sessions seem to have failed.").should("not.exist")
 
     cy.setShowDirectoryPickerResult(null)
     cy.window().then(win => {
@@ -169,6 +173,7 @@ describe('Inference test', () => {
     //   cy.wrap($body).its("parameters.extension").should("equal", "MTS")
     //   cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
     // })
+    cy.contains("Some infer sessions seem to have failed.", {timeout: 20 * 60 * 1000})
     cy.contains("button", "Add files").click()
     cy.contains("button", "Start inference").should("not.be.disabled")
       .click()

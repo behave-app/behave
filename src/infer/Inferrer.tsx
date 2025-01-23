@@ -1,12 +1,13 @@
 import "preact/debug"
 import {Upload} from "../lib/Upload"
-import {FileTree, FileTreeBranch, readFileSystemHandle, setStateAndConvertNextIfPossible } from "../lib/FileTree"
+import {FileTree, FileTreeBranch, hasNotWrongFiletypeErrors, hasWrongFiletypeErrors, readFileSystemHandle, setStateAndConvertNextIfPossible} from "../lib/FileTree"
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
 import {YoloSettingsDialog, loadCachedSettings} from "./YoloSettings"
 import { useEffect } from "react"
 import { isCompatibleBrowser, valueOrErrorAsync2 } from "../lib/util";
+import * as filetreecss from "../lib/filetree.module.css"
 import { Icon } from "../lib/Icon"
 import { API } from "../worker/Api"
 import { YoloSettings } from "../lib/tfjs-shared"
@@ -33,6 +34,9 @@ export function Inferrer(): JSX.Element {
   const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)
   const [destination, setDestination] = useState<FileSystemDirectoryHandle>()
+
+  const wrongFiletypeErrors = hasWrongFiletypeErrors(files)
+  const otherErrors = hasNotWrongFiletypeErrors(files)
 
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
@@ -146,6 +150,15 @@ export function Inferrer(): JSX.Element {
           You will need to upload a model, check the settings, and add a video file.
           Check the <a href="../help/infer.html">help page</a> or the <a href="../help/quickstart.html">quick start guide</a> for more information.
         </div>
+        {wrongFiletypeErrors && <div class={filetreecss.note_information}>
+          You have added some files with an unsupported extension.
+          We may be able to add support for this file
+          type, <a target="_blank" href="../help/infer-faq.html">read more here</a>.
+        </div>}
+        {otherErrors && <div class={filetreecss.note_information}>
+          Some infer sessions seem to have failed.
+          Please consult <a target="_blank" href="../help/infer-faq.html">our infer FAQ</a> for possible reasons for the failure.
+        </div>}
         {yoloSettings ? <div className={css.explanation}>
           Loaded model: {modelName !== null ? modelName : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
             onClick={() => setState("selectmodel")}

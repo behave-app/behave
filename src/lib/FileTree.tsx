@@ -18,6 +18,8 @@ async function fromAsync<T>(source: Iterable<T> | AsyncIterable<T>): Promise<T[]
   return items
 }
 
+const FILETYPE_NOT_SUPPORTED_ERROR = "Filetype not supported, file will be skipped"
+
 export async function readFileSystemHandle(
   fshs: FileSystemHandle[],
   fileFilter: (file: File) => boolean | string,
@@ -30,7 +32,7 @@ export async function readFileSystemHandle(
       result.set(fsh.name, {
         file: await fsh.getFile(),
         ...(filterResult === true ? {}
-          : filterResult === false ? {progress: {error: "Filetype not supported, file will be skipped"}}
+          : filterResult === false ? {progress: {error: FILETYPE_NOT_SUPPORTED_ERROR}}
           : {progress: {warning: filterResult}}),
       })
     } else if (fsh instanceof FileSystemDirectoryHandle) {
@@ -44,6 +46,37 @@ export async function readFileSystemHandle(
   console.log(result)
   return new Map([...result.entries()]
       .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true})))
+}
+
+const anyLeaf = (branch: FileTreeBranch, predicate: (leaf: FileTreeLeaf) => boolean): boolean => {
+  for (const item of branch.values()) {
+    const result = item instanceof Map
+      ? anyLeaf(item, predicate)
+      : predicate(item)
+      if (result) {
+        return true;
+      }
+  }
+  return false
+}
+export const hasWrongFiletypeErrors = (branch: FileTreeBranch): boolean => {
+  return anyLeaf(branch, leaf => {
+    const progress = leaf.progress
+    if (progress instanceof Object && "error" in progress) {
+      return progress.error === FILETYPE_NOT_SUPPORTED_ERROR
+    }
+    return false
+  })
+}
+
+export const hasNotWrongFiletypeErrors = (branch: FileTreeBranch): boolean => {
+  return anyLeaf(branch, leaf => {
+    const progress = leaf.progress
+    if (progress instanceof Object && "error" in progress) {
+      return progress.error !== "Filetype not supported, file will be skipped"
+    }
+    return false
+  })
 }
 
 export type FileTreeLeaf = {

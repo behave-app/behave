@@ -1,6 +1,7 @@
 import {Upload} from "../lib/Upload"
-import {FileTree, FileTreeBranch, readFileSystemHandle, setStateAndConvertNextIfPossible} from "../lib/FileTree"
+import {FileTree, FileTreeBranch, hasNotWrongFiletypeErrors, hasWrongFiletypeErrors, readFileSystemHandle, setStateAndConvertNextIfPossible} from "../lib/FileTree"
 import * as css from "./convertor.module.css"
+import * as filetreecss from "../lib/filetree.module.css"
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
 import { API } from "../worker/Api"
@@ -18,6 +19,9 @@ export function Convertor(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
   const [state, setState] = useState<"uploading" | "converting" | "done">("uploading")
   const [destination, setDestination] = useState<FileSystemDirectoryHandle>()
+
+  const wrongFiletypeErrors = hasWrongFiletypeErrors(files)
+  const otherErrors = hasNotWrongFiletypeErrors(files)
 
   async function addFiles(fileSystemHandles: FileSystemHandle[]) {
     const newFiles = await readFileSystemHandle(
@@ -64,8 +68,18 @@ export function Convertor(): JSX.Element {
   return <>
     <h1>Video file convertor</h1>
     <div className={css.explanation}>
-      This files converts video files to be used in the BEHAVE UI. At the moment it can only convert MTS files, but it's easy to add additional types upon request.
+      This files converts video files to be used in the BEHAVE UI. Please <a href="../help/convert-faq.html">read here</a> about what convert does, and which video formats are supported.
     </div>
+    {wrongFiletypeErrors && <div class={filetreecss.note_information}>
+      You have added some files with an unsupported extension.
+      We may be able to add support for this file
+      type, <a target="_blank" href="../help/convert-faq.html">read more here</a>.
+    </div>}
+    {otherErrors && <div class={filetreecss.note_information}>
+      Some converts seem to have failed.
+      It may be that we don't yet support the exact video format you are trying to convert, but we may be happy to add it if we know people need it.
+      Read more <a target="_blank" href="../help/convert-faq.html">in our FAQ</a>.
+    </div>}
     <div className={css.files}>
     {files.size ? <FileTree parentPath={[]} files={files} setFiles={setFiles} /> : <span className={css.select_files_message}>Select files to convert, either drag them into this page, or press the "Add files" button below.</span>}
     </div>

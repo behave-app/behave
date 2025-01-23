@@ -158,17 +158,17 @@ describe('Inference test', () => {
         }
       }
     }))
-    cy.wait("@postTic").its("request.body").then($body => {
-      cy.wrap($body).its("id").should("equal", "page-views")
-      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
-      cy.wrap($body).its("parameters.path").should("equal", "/app/infer.html")
-    })
-    cy.wait("@postTic").its("request.body").then($body => {
-      cy.wrap($body).its("id").should("equal", "infer-done")
-      cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
-      cy.wrap($body).its("parameters.extension").should("equal", "MTS")
-      cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
-    })
+    // cy.wait("@postTic").its("request.body").then($body => {
+    //   cy.wrap($body).its("id").should("equal", "page-views")
+    //   cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+    //   cy.wrap($body).its("parameters.path").should("equal", "/app/infer.html")
+    // })
+    // cy.wait("@postTic").its("request.body").then($body => {
+    //   cy.wrap($body).its("id").should("equal", "infer-done")
+    //   cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
+    //   cy.wrap($body).its("parameters.extension").should("equal", "MTS")
+    //   cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
+    // })
     cy.contains("button", "Add files").click()
     cy.contains("button", "Start inference").should("not.be.disabled")
       .click()

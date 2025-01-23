@@ -1,11 +1,10 @@
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
-import {YoloBackend, YoloSettings, YOLO_MODEL_NAME_FILE, YOLO_MODEL_DIRECTORY} from "../lib/tfjs-shared"
+import {YoloBackend, YoloSettings, YOLO_MODEL_DIRECTORY} from "../lib/tfjs-shared"
 import * as infercss from "./inferrer.module.css"
-import {getEntry, cp_r} from "../lib/fileutil"
 import { Checker, LiteralChecker, StringChecker, getCheckerFromObject } from "../lib/typeCheck"
 import { API } from "../worker/Api"
-import { valueOrErrorAsync2 } from "src/lib/util"
+import { valueOrErrorAsync2 } from "../lib/util"
 
 export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
 
@@ -18,9 +17,6 @@ const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
 
 export async function loadCachedSettings(): Promise<YoloSettings | null> {
   try {
-    const opfsRoot = await navigator.storage.getDirectory()
-    const opfsModelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
-
     const settingsJSON = localStorage.getItem(YOLO_SETTINGS_STORAGE_KEY)
     if (settingsJSON === null) {
       console.log("No yolo settings found")

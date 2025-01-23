@@ -30,7 +30,7 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerInferMethod["message"]) => {
         self.postMessage(message)
       }
-      getModelAndInfer(data.yoloSettings, data.input, data.output, data.forceOverwrite, progress => {
+      getModelAndInfer(data.yoloSettings!, data.input, data.output, data.forceOverwrite, progress => {
         reply({type: "progress", progress})
       }).then(() => {
           reply({type: "done"})

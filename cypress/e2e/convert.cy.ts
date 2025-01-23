@@ -56,13 +56,12 @@ describe('Conversion test', () => {
     cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
     cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.mp4")
     cy.wait("@postTic").its("request.body").then($body => {
-      cy.log($body)
+      cy.task('log', 'body = ' + JSON.stringify($body))
       cy.wrap($body).its("id").should("equal", "page-views")
       cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
       cy.wrap($body).its("parameters.path").should("equal", "/app/convert.html")
     })
     cy.wait("@postTic").its("request.body").then($body => {
-      cy.log($body)
       cy.wrap($body).its("id").should("equal", "convert-done")
       cy.wrap($body).its("projectId").should("equal", "agV6GnAAVoIvJDuW")
       cy.wrap($body).its("parameters.extension").should("equal", "MTS")

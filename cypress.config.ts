@@ -2,8 +2,15 @@ import { defineConfig } from "cypress";
 
 export default defineConfig({
   e2e: {
-    setupNodeEvents(on, config) {
-      // implement node event listeners here
+    setupNodeEvents(on, _config) {
+      on('task', {
+        log(message) {
+          console.log(message)
+
+          return null
+        },
+      })
+
     },
     fileServerFolder: "public",
   },

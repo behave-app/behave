@@ -13,10 +13,6 @@ env.wasm.wasmPaths = "../bundled/ort-wasm/"
 const NMS_MODEL_PATH = "../../assets/nms.ed6dba6edf.onnx"
 const ONNX_PROTO_PATH = "../../assets/onnx.e1280384e3.proto"
 
-// @ts-expect-error: workaround for
-// https://github.com/microsoft/onnxruntime/issues/22152
-globalThis.HTMLCanvasElement = OffscreenCanvas
-
 export async function setBackend(backend: YoloBackend): Promise<void> {
   console.log("TODO implement setBackend", backend)
 }
@@ -288,8 +284,6 @@ export async function infer(
   }
 }
 
-
-
 export async function preprocess(
   videoFrame: VideoFrame,
   model: Model,
@@ -299,7 +293,6 @@ export async function preprocess(
   width: (modelCoord: number) => number,
   height: (modelCoord: number) => number,
 }}> {
-  const d0 = Date.now()
   const [modelWidth, modelHeight] = model.metadata.inputDimensions.slice(2)
   const imageScale = Math.max(
     videoFrame.displayWidth / modelWidth,
@@ -314,20 +307,15 @@ export async function preprocess(
     Math.floor((modelWidth - drawWidth) / 2),
     Math.floor((modelHeight - drawHeight) / 2),
   ]
-  const d1 = Date.now()
   const offScreenCanvas = new OffscreenCanvas(modelWidth, modelHeight)
   const ctx = offScreenCanvas.getContext("2d")!
   ctx.fillStyle = "black"
   ctx.fillRect(0, 0, modelWidth, modelHeight)
-  const d2 = Date.now()
   ctx.drawImage(videoFrame, drawX, drawY, drawWidth, drawHeight)
-  const d3 = Date.now()
   const tensor = await Tensor.fromImage(
-    offScreenCanvas.transferToImageBitmap(), {dataType: "float32"}
+    offScreenCanvas.transferToImageBitmap(), {}
   ) as TypedTensor<"float32">
-  const d4 = Date.now()
   
-  console.log(d1-d0, d2-d1, d3-d2, d4-d3)
   return {tensor, toNormalized: {
     x: x => (x - drawX) / drawWidth,
     y: y => (y - drawY) / drawHeight,
@@ -335,6 +323,12 @@ export async function preprocess(
     height: height => height / drawHeight,
   }}
 }
+
+export async function inferSingleFrame(
+  model: Model,
+  _yoloVersion: YoloVersion,
+  videoFrame: VideoFrame,
+): Promise<InferResult> {
   const topk = 100
   const iouThreshold = 0.45;
   const scoreThreshold = 0.25;
@@ -346,19 +340,9 @@ export async function preprocess(
       scoreThreshold, // score threshold
     ])
   ); // nms config tensor
-
-export async function inferSingleFrame(
-  model: Model,
-  _yoloVersion: YoloVersion,
-  videoFrame: VideoFrame,
-): Promise<InferResult> {
-  const d0 = Date.now()
   const {tensor, toNormalized} = await preprocess(videoFrame, model)
-  const d = Date.now()
   const { output0 } = await model.model.run({images: tensor})
-  const d2 = Date.now()
   const { selected } = await model.nms.run({ detection: output0, config: config });
-  const d3 = Date.now()
   output0.dispose()
   assert(selected.dims.length === 3)
   assert(selected.dims[0] === 1)
@@ -375,8 +359,6 @@ export async function inferSingleFrame(
     const {maxIndex: klass, maxValue: confidence} = argMax([...row.slice(4)])!
     return {klass, cx, cy, width, height, confidence}
   })
-  const d4 = Date.now()
-  console.log(`Full: ${d4-d0}ms, Model run took ${d2 - d}ms, NMS took ${d3-d2}ms, prep ${d - d0}ms, post ${d4-d3}ms`)
   return result
 }
 

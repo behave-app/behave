@@ -165,7 +165,7 @@ export async function getModelAndInfer(
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
   const model = await getModel(yoloSettings.modelFilename, yoloSettings.backend)
-  await infer(model, input, output, forceOverwrite, onProgress)
+  await infer(model, yoloSettings.needsNms, input, output, forceOverwrite, onProgress)
 }
 
 type InferResult = ReadonlyArray<{
@@ -179,6 +179,7 @@ type InferResult = ReadonlyArray<{
 
 export async function infer(
   model: Model,
+  needsNms: boolean,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
   forceOverwrite: boolean,
@@ -239,7 +240,7 @@ export async function infer(
       assert(frameCount > 0 || framenr == 0, "first frame should have nr 0", framenr)
       frameCount++
       const singleFrameInfo = {
-        detections: await inferSingleFrame(model, videoFrame)
+        detections: await inferSingleFrame(model, videoFrame, needsNms)
       } as SingleFrameInfo
 
       detectionInfo.framesInfo.push(singleFrameInfo)
@@ -321,40 +322,64 @@ export async function preprocess(
   }}
 }
 
+const TOPK = 100
+const IOUTHRESHOLD = 0.45;
+const SCORETHRESHOLD = 0.25;
+const NMS_CONFIG = new Tensor(
+  "float32",
+  new Float32Array([
+    TOPK, // topk per class
+    IOUTHRESHOLD, // iou threshold
+    SCORETHRESHOLD, // score threshold
+  ])
+); // nms config tensor
+
 export async function inferSingleFrame(
   model: Model,
   videoFrame: VideoFrame,
+  needsNms: boolean,
 ): Promise<InferResult> {
-  const topk = 100
-  const iouThreshold = 0.45;
-  const scoreThreshold = 0.25;
-  const config = new Tensor(
-    "float32",
-    new Float32Array([
-      topk, // topk per class
-      iouThreshold, // iou threshold
-      scoreThreshold, // score threshold
-    ])
-  ); // nms config tensor
   const {tensor, toNormalized} = await preprocess(videoFrame, model)
   const { output0 } = await model.model.run({images: tensor})
-  const { selected } = await model.nms.run({ detection: output0, config: config });
-  output0.dispose()
-  assert(selected.dims.length === 3)
-  assert(selected.dims[0] === 1)
-  const [nrRows, rowLength] = selected.dims.slice(1)
-  assert(rowLength === 4 + Object.keys(model.metadata.klasses).length)
-  const data = await selected.getData() as Float32Array
-  selected.dispose()
-  const result = range(nrRows).map(rowNr => {
-    const row = data.slice(rowNr * rowLength, (rowNr + 1) * rowLength)
-    const cx = toNormalized.x(row[0])
-    const cy = toNormalized.y(row[1])
-    const width = toNormalized.width(row[2])
-    const height = toNormalized.height(row[3])
-    const {maxIndex: klass, maxValue: confidence} = argMax([...row.slice(4)])!
-    return {klass, cx, cy, width, height, confidence}
-  })
-  return result
+  if (needsNms) {
+    const { selected } = await model.nms.run({ detection: output0, config: NMS_CONFIG });
+    output0.dispose()
+    assert(selected.dims.length === 3)
+    assert(selected.dims[0] === 1)
+    const [nrRows, rowLength] = selected.dims.slice(1)
+    assert(rowLength === 4 + Object.keys(model.metadata.klasses).length)
+    const data = await selected.getData() as Float32Array
+    selected.dispose()
+    const result = range(nrRows).map(rowNr => {
+      const row = data.slice(rowNr * rowLength, (rowNr + 1) * rowLength)
+      const cx = toNormalized.x(row[0])
+      const cy = toNormalized.y(row[1])
+      const width = toNormalized.width(row[2])
+      const height = toNormalized.height(row[3])
+      const {maxIndex: klass, maxValue: confidence} = argMax([...row.slice(4)])!
+      return {klass, cx, cy, width, height, confidence}
+    })
+    return result
+  } else {
+    assert(output0.dims.length === 3)
+    const [batchSize, nrRows, rowLength] = output0.dims
+    assert(batchSize === 1)
+    assert(rowLength === ["x", "y", "w", "h", "class", "conf"].length)
+    const data = await output0.getData() as Float32Array
+    output0.dispose()
+    const result: Array<InferResult[0]> = []
+    for (let i = 0; i < nrRows; i++) {
+      const [x0, y0, x1, y1, confidence, klass] = data.slice(rowLength * i, rowLength * (i + 1))
+      if (confidence < SCORETHRESHOLD) {
+        break
+      }
+      const cx = toNormalized.x((x0 + x1) / 2)
+      const cy = toNormalized.y((y0 + y1) / 2)
+      const width = toNormalized.width(x1 - x0)
+      const height = toNormalized.height(y1 -y0)
+      result.push({klass, cx, cy, width, height, confidence})
+    }
+    return result
+  }
 }
 

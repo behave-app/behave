@@ -4,6 +4,7 @@ export type YoloSettings = {
   version: 1,
   modelFilename: string,
   backend: YoloBackend,
+  needsNms: boolean
 }
 
 export type YoloBackend = "wasm" | "webgpu"

@@ -3,7 +3,7 @@ import {useState, useEffect} from 'preact/hooks'
 import {YoloBackend, YoloSettings, YOLO_MODEL_DIRECTORY} from "../lib/tfjs-shared"
 import * as infercss from "./inferrer.module.css"
 import * as generalcss from "../viewer/general.module.css"
-import { Checker, LiteralChecker, StringChecker, getCheckerFromObject } from "../lib/typeCheck"
+import { BooleanChecker, Checker, LiteralChecker, StringChecker, getCheckerFromObject } from "../lib/typeCheck"
 import { API } from "../worker/Api"
 import { valueOrErrorAsync2 } from "../lib/util"
 
@@ -12,6 +12,7 @@ export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
 const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
   version: new LiteralChecker(1),
   backend: new LiteralChecker(["wasm", "webgpu"]),
+  needsNms: new BooleanChecker(),
   modelFilename: new StringChecker(),
 })
 
@@ -46,6 +47,8 @@ export function YoloSettingsDialog({
   yoloSettings,
   closeSettingsDialog,
 }: Props): JSX.Element {
+  const [needsNms, setNeedsNms] = useState<YoloSettings["needsNms"]>(
+    yoloSettings ? yoloSettings.needsNms : true)
   const [backend, setBackend] = useState<YoloSettings["backend"]>(
     yoloSettings ? yoloSettings.backend : "webgpu")
   const [newModelFile, setNewModelFile] = useState<FileSystemFileHandle>()
@@ -71,6 +74,7 @@ export function YoloSettingsDialog({
     const newYoloSettings = {
       version: 1,
       backend,
+      needsNms,
       modelFilename: yoloSettings ? yoloSettings.modelFilename : null
     } as Omit<YoloSettings, "modelFilename"> & {modelFilename: string | null}
     localStorage.removeItem(YOLO_SETTINGS_STORAGE_KEY)
@@ -147,6 +151,14 @@ export function YoloSettingsDialog({
         onChange={e => setBackend(e.currentTarget.value as YoloBackend)} >
         <option value="wasm">WASM</option>
         <option value="webgpu">WebGPU</option>
+      </select>
+    </div>
+    <h3>needsNms</h3>
+    <div>
+      <select value={needsNms ? "true" : "false"}
+        onChange={e => setNeedsNms(e.currentTarget.value === "true")} >
+        <option value="true">yes</option>
+        <option value="false">no</option>
       </select>
     </div>
     <div class={generalcss.button_row}>

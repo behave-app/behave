@@ -129,6 +129,8 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
         return
       }
 
+      setErrors([])
+      setQuestions(null)
       await handleNewFiles((await Promise.all([...event.dataTransfer.items].map(item=>item.getAsFileSystemHandle()))).filter(isTruthy), "all")
     }
 

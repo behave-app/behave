@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved -- eslint has wrong resolve rules somehow
 import { env, InferenceSession, TypedTensor, Tensor } from 'onnxruntime-web/all';
 import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
@@ -5,17 +6,13 @@ import { xxh64sum } from '../lib/fileutil'
 import { DetectionInfo, SingleFrameInfo, detectionInfoToStrings } from '../lib/detections'
 import { ObjectEntries, ObjectFromEntries, ObjectKeys, argMax, assert, exhausted, range } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
-import { YOLO_MODEL_DIRECTORY, YoloSettings, YoloBackend, YoloVersion } from '../lib/tfjs-shared'
+import { YOLO_MODEL_DIRECTORY, YoloSettings, YoloBackend } from '../lib/tfjs-shared'
 import {load} from "protobufjs"
 
 env.wasm.wasmPaths = "../bundled/ort-wasm/"
 
 const NMS_MODEL_PATH = "../../assets/nms.ed6dba6edf.onnx"
 const ONNX_PROTO_PATH = "../../assets/onnx.e1280384e3.proto"
-
-export async function setBackend(backend: YoloBackend): Promise<void> {
-  console.log("TODO implement setBackend", backend)
-}
 
 export type Model = {
   name: string
@@ -138,7 +135,8 @@ async function readModelMetadata(
 }
 
 export async function getModel(
-  modelFilename: string
+  modelFilename: string,
+  backend: YoloBackend,
 ): Promise<Model> {
   const opfsRoot = await navigator.storage.getDirectory()
   const modelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
@@ -146,7 +144,7 @@ export async function getModel(
     await modelDir.getFileHandle(modelFilename)
   ).getFile()).arrayBuffer()
   const metadata = await readModelMetadata(buffer)
-  const model = await InferenceSession.create(buffer, {executionProviders: ['webgpu']})
+  const model = await InferenceSession.create(buffer, {executionProviders: [backend]})
   const nmsModelData = await (await fetch(NMS_MODEL_PATH)).arrayBuffer()
   const nms = await InferenceSession.create(nmsModelData)
   return {
@@ -166,9 +164,8 @@ export async function getModelAndInfer(
   forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
-  // TODO await setBackend(yoloSettings.backend)
-  const model = await getModel(yoloSettings.modelFilename)
-  await infer(model, yoloSettings.yoloVersion, input, output, forceOverwrite, onProgress)
+  const model = await getModel(yoloSettings.modelFilename, yoloSettings.backend)
+  await infer(model, input, output, forceOverwrite, onProgress)
 }
 
 type InferResult = ReadonlyArray<{
@@ -182,7 +179,6 @@ type InferResult = ReadonlyArray<{
 
 export async function infer(
   model: Model,
-  yoloVersion: YoloVersion,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
   forceOverwrite: boolean,
@@ -243,7 +239,7 @@ export async function infer(
       assert(frameCount > 0 || framenr == 0, "first frame should have nr 0", framenr)
       frameCount++
       const singleFrameInfo = {
-        detections: await inferSingleFrame(model, yoloVersion, videoFrame)
+        detections: await inferSingleFrame(model, videoFrame)
       } as SingleFrameInfo
 
       detectionInfo.framesInfo.push(singleFrameInfo)
@@ -309,9 +305,10 @@ export async function preprocess(
   ]
   const offScreenCanvas = new OffscreenCanvas(modelWidth, modelHeight)
   const ctx = offScreenCanvas.getContext("2d")!
-  ctx.fillStyle = "black"
+  ctx.fillStyle = "rgb(114, 114, 114)"
   ctx.fillRect(0, 0, modelWidth, modelHeight)
   ctx.drawImage(videoFrame, drawX, drawY, drawWidth, drawHeight)
+
   const tensor = await Tensor.fromImage(
     offScreenCanvas.transferToImageBitmap(), {}
   ) as TypedTensor<"float32">
@@ -326,7 +323,6 @@ export async function preprocess(
 
 export async function inferSingleFrame(
   model: Model,
-  _yoloVersion: YoloVersion,
   videoFrame: VideoFrame,
 ): Promise<InferResult> {
   const topk = 100

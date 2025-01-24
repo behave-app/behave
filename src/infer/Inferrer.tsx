@@ -46,6 +46,9 @@ export function Inferrer(): JSX.Element {
   }
   
   useEffect(() => {
+    if (!yoloSettings) {
+      return
+    }
     if (state === "uploading") {
       return
     }
@@ -57,7 +60,7 @@ export function Inferrer(): JSX.Element {
       async (input, output, onProgress, forceOverwrite) => API.inferVideo(
         yoloSettings, input, output, onProgress, forceOverwrite),
       setFiles, setState)
-  }, [files, destination, state, concurrency])
+  }, [files, destination, state, concurrency, yoloSettings])
 
 
   async function doConvertAll() {
@@ -151,7 +154,7 @@ export function Inferrer(): JSX.Element {
           Please consult <a target="_blank" href="../help/infer-faq.html">our infer FAQ</a> for possible reasons for the failure.
         </div>}
         {yoloSettings ? <div className={css.explanation}>
-          Loaded model: {yoloSettings.modelFilename !== null ? yoloSettings.modelFilename : "<loading>"} ({yoloSettings.yoloVersion} / {yoloSettings.backend}) <button disabled={state!=="uploading"}
+          Loaded model: {yoloSettings.modelFilename !== null ? yoloSettings.modelFilename : "<loading>"} ({yoloSettings.backend}) <button disabled={state!=="uploading"}
             onClick={() => setState("selectmodel")}
           >change</button>
         </div> : <div className={css.explanation}>
@@ -179,7 +182,7 @@ export function Inferrer(): JSX.Element {
         {state !== "converting" && <Upload addFiles={addFiles} />}
         {state === "done"
           ? <div>Inference done, feel free to add more files to convert more </div>
-          : <button disabled={!(state==="uploading" && files.size > 0)}
+          : <button disabled={!(state==="uploading" && files.size > 0 && yoloSettings)}
             onClick={doConvertAll}
           >Start inference</button>
         }

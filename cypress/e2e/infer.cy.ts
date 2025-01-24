@@ -3,30 +3,30 @@ const ALLOWED_DIFFERENCE = 0.05
 describe('Inference test', () => {
   it('Has an infer link', () => {
     cy.visit('/app/index.html')
-    .get('a[href="infer.html"]')
-    .click()
+      .get('a[href="infer.html"]')
+      .click()
     cy.document()
-    .contains("h1", "Infer videos (detect items)")
+      .contains("h1", "Infer videos (detect items)")
   })
   it('Changes visuals on file drag', () => {
     cy.visit("/app/infer.html")
     cy.get("body")
-    .should("not.contain", "Drop files here")
-    .trigger("dragenter")
+      .should("not.contain", "Drop files here")
+      .trigger("dragenter")
     cy.get("body")
-    .should("contain", "Drop files here")
-    .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
-    .trigger("dragenter")
+      .should("contain", "Drop files here")
+      .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
+      .trigger("dragenter")
     cy.get("body")
-    .should("contain", "Drop files here")
-    .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
-    .trigger("dragleave")
+      .should("contain", "Drop files here")
+      .get(".upload_fullScreenDropInfo2")  // for some reason this gets a "2" for infer. Hope that is always
+      .trigger("dragleave")
     cy.get("body")
-    .should("contain", "Drop files here")
+      .should("contain", "Drop files here")
     cy.get("body")
-    .trigger("dragleave")
+      .trigger("dragleave")
     cy.get("body")
-    .should("not.contain", "Drop files here")
+      .should("not.contain", "Drop files here")
   })
 
   it("Infers from MTS file", () => {
@@ -37,50 +37,44 @@ describe('Inference test', () => {
       }
       win.localStorage.clear()
     }))
-    cy.setShowDirectoryPickerResult(
-      ["model.json", "metadata.yaml", ...[1, 2, 3].map(i => `group1-shard${i}of3.bin`)].map(filename =>
-      ({localPath: `cypress/assets/yolov8-little-auk.model/${filename}`, pickerPath: filename}))
+    cy.setShowOpenFilePickerResult(
+      ["cypress/assets/yolov8-little-auk-model.onnx"]
     )
     const assertDefaultValues = () => {
-    cy.contains("Model loaded").should("not.exist")
-    cy.contains("button", "Change model").should("not.exist")
-    cy.contains("button", "Unload model").should("not.exist")
-    cy.contains("dt", "Backend").next().find("select").should("have.value", "webgl")
-    cy.contains("dt", "Yolo version").next().find("select").should("have.value", "v8")
-
+      cy.contains("Model yolov8-little-auk-model.onnx loaded").should("not.exist")
+      cy.contains("button", "Change model").should("not.exist")
+      cy.contains("h3", "Backend").next().find("select").should("have.value", "webgpu")
     }
     cy.visitWithStubbedFileSystem("/app/infer.html")
-    .contains("At the moment no yolo model is selected. Please add a model in order to start")
-    .get("button")
-    .contains("add a model")
-    .click()
+      .contains("At the moment no yolo model is selected. Please add a model in order to start")
+      .get("button")
+      .contains("add a model")
+      .click()
     assertDefaultValues()
-    cy.contains("dt", "Backend").next().find("select").select("webgpu")
-    cy.contains("dt", "Yolo version").next().find("select").select("v5")
     cy.contains("button", "Select model").click()
-    cy.contains("Model loaded")
+    cy.contains("Model yolov8-little-auk-model.onnx loaded")
     cy.contains("button", "Cancel").click()
 
     cy.contains("At the moment no yolo model is selected. Please add a model in order to start")
-    .get("button")
-    .contains("add a model")
-    .click()
+      .get("button")
+      .contains("add a model")
+      .click()
     assertDefaultValues()
     cy.contains("button", "Select model").click()
-    cy.contains("Model loaded")
+    cy.contains("Model yolov8-little-auk-model.onnx loaded")
     cy.contains("button", "Change model")
+    cy.contains("h3", "Backend").next().find("select").select("wasm")
     cy.contains("button", "Save").click()
-    cy.contains("Loaded model: showDirectoryPickerResult (v8 / webgl)")
+    cy.contains("Loaded model: yolov8-little-auk-model.onnx (wasm)")
 
     cy.contains("button", "change").click()
     cy.contains("button", "Change model")
-    cy.contains("button", "Unload model")
-    cy.contains("dt", "Backend").next().find("select").select("webgpu")
+    cy.contains("h3", "Backend").next().find("select").select("webgpu")
     cy.contains("button", "Save").click()
-    cy.contains("Loaded model: showDirectoryPickerResult (v8 / webgpu)")
+    cy.contains("Loaded model: yolov8-little-auk-model.onnx (webgpu)")
 
     cy.setShowOpenFilePickerResult([
-    // NOTE: Make sure file.MTS is alphabetically first
+      // NOTE: Make sure file.MTS is alphabetically first
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/file2.mp4", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
@@ -136,6 +130,7 @@ describe('Inference test', () => {
         const detFileName = filename.replace(/\.[^,]*$/, "") + ".82f16f09b8327ed1.behave.det.json"
         const file = await (await dir.getFileHandle(detFileName)).getFile()
         const data = JSON.parse(await file.text()) as typeof groundTruth
+        console.log(await file.text())
         for (const key of Object.keys(groundTruth)) {
           if (key === "sourceFileName") {
             cy.wrap(data[key]).should("equal", filename)

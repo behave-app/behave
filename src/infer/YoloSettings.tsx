@@ -2,6 +2,7 @@ import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
 import {YoloBackend, YoloSettings, YOLO_MODEL_DIRECTORY} from "../lib/tfjs-shared"
 import * as infercss from "./inferrer.module.css"
+import * as generalcss from "../viewer/general.module.css"
 import { Checker, LiteralChecker, StringChecker, getCheckerFromObject } from "../lib/typeCheck"
 import { API } from "../worker/Api"
 import { valueOrErrorAsync2 } from "../lib/util"
@@ -10,8 +11,7 @@ export const YOLO_SETTINGS_STORAGE_KEY = "YoloSettingsStorageKey"
 
 const YoloSettingsChecker: Checker<YoloSettings> = getCheckerFromObject({
   version: new LiteralChecker(1),
-  yoloVersion: new LiteralChecker(["v5", "v8"]),
-  backend: new LiteralChecker(["wasm", "webgl", "webgpu"]),
+  backend: new LiteralChecker(["wasm", "webgpu"]),
   modelFilename: new StringChecker(),
 })
 
@@ -46,33 +46,30 @@ export function YoloSettingsDialog({
   yoloSettings,
   closeSettingsDialog,
 }: Props): JSX.Element {
-  const [yoloVersion, setYoloVersion] = useState<YoloSettings["yoloVersion"]>("v8")
-  const [backend, setBackend] = useState<YoloSettings["backend"]>("webgl")
+  const [backend, setBackend] = useState<YoloSettings["backend"]>(
+    yoloSettings ? yoloSettings.backend : "webgpu")
   const [newModelFile, setNewModelFile] = useState<FileSystemFileHandle>()
   const modelFileName = newModelFile ? newModelFile.name
     : yoloSettings ? yoloSettings.modelFilename : null
 
   useEffect(() => {
     if (yoloSettings === null) {
-      setYoloVersion("v8")
-      setBackend("webgl")
-    } else {
-      void(navigator.storage.getDirectory()
-        .then(opfsRoot => opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY))
-        .then(opfsModelDir => opfsModelDir.getFileHandle(yoloSettings.modelFilename))
-        .then(fileHandle => fileHandle.getFile())
-        .then(file => file.arrayBuffer())
-        .catch(error => {
-          console.error("Error reading the model", error)
-          setYoloSettings(null)
-        }))
+      return
     }
+    void(navigator.storage.getDirectory()
+      .then(opfsRoot => opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY))
+      .then(opfsModelDir => opfsModelDir.getFileHandle(yoloSettings.modelFilename))
+      .then(fileHandle => fileHandle.getFile())
+      .then(file => file.arrayBuffer())
+      .catch(error => {
+        console.error("Error reading the model", error)
+        setYoloSettings(null)
+      }))
   }, [yoloSettings])
 
   async function save() {
     const newYoloSettings = {
       version: 1,
-      yoloVersion,
       backend,
       modelFilename: yoloSettings ? yoloSettings.modelFilename : null
     } as Omit<YoloSettings, "modelFilename"> & {modelFilename: string | null}
@@ -131,40 +128,30 @@ export function YoloSettingsDialog({
       Please select the right settings, and upload the model.
       There is a <a href="../help/infer.html">help page</a> available.
     </div>
-    <dl>
-      <dt>Backend</dt>
-      <dd>
-        <select value={backend}
-          onChange={e => setBackend(e.currentTarget.value as YoloBackend)} >
-          <option value="wasm">WASM</option>
-          <option value="webgl">WebGL</option>
-          <option value="webgpu">WebGPU</option>
-        </select>
-      </dd>
-      <dt>Yolo version</dt>
-      <dd>
-        <select value={yoloVersion}
-          onChange={e => setYoloVersion(
-            e.currentTarget.value as YoloSettings["yoloVersion"])} >
-          <option value="v5">YOLOv5</option>
-          <option value="v8">YOLOv8</option>
-        </select>
-      </dd>
-      <dt>Model</dt>
-      <dd>
-        {modelFileName !== null
-          ? <div>
-            Model {modelFileName} loaded
-            <button onClick={selectNewModelFile}>Change model</button>
-            </div>
-          : <>
-            <div>No model selected, load one here</div>
-            <button onClick={selectNewModelFile}>Select model</button>
-          </>
-        }
-      </dd>
-    </dl>
-    <button disabled={modelFileName === null} onClick={save}>Save</button>
-    <button onClick={closeSettingsDialog}>Cancel</button>
+    <h3>Model (.onnx)</h3>
+    <div>
+      {modelFileName !== null
+        ? <div>
+          Model {modelFileName} loaded
+          <button onClick={selectNewModelFile}>Change model</button>
+        </div>
+        : <>
+          <div>Choose a model to use for inference</div>
+          <button onClick={selectNewModelFile}>Select model</button>
+        </>
+      }
+    </div>
+    <h3>Backend</h3>
+    <div>
+      <select value={backend}
+        onChange={e => setBackend(e.currentTarget.value as YoloBackend)} >
+        <option value="wasm">WASM</option>
+        <option value="webgpu">WebGPU</option>
+      </select>
+    </div>
+    <div class={generalcss.button_row}>
+      <button disabled={modelFileName === null} onClick={save}>Save</button>
+      <button onClick={closeSettingsDialog}>Cancel</button>
+    </div>
   </>
 }

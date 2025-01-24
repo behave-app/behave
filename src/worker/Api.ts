@@ -23,7 +23,7 @@ export type WorkerConvertMethod = {
 export type WorkerInferMethod = {
   call: {
     method: "infer",
-    yoloSettings: YoloSettings | null
+    yoloSettings: YoloSettings
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
     forceOverwrite: boolean
@@ -91,7 +91,7 @@ export class API {
   }
 
   static inferVideo(
-    yoloSettings: YoloSettings | null,
+    yoloSettings: YoloSettings,
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
     forceOverwrite: boolean,

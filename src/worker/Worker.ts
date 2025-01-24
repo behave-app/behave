@@ -1,7 +1,7 @@
 import { convert, extractMetadata } from "./video"
 import { exhausted } from "../lib/util"
 import { WorkerMethod, WorkerConvertMethod, WorkerInferMethod, WorkerCheckValidModel, WorkerExtractMetadata } from "./Api"
-import { getModel, getModelAndInfer, setBackend, } from "./infer"
+import { getModel, getModelAndInfer } from "./infer"
 
 
 
@@ -30,7 +30,7 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerInferMethod["message"]) => {
         self.postMessage(message)
       }
-      getModelAndInfer(data.yoloSettings!, data.input, data.output, data.forceOverwrite, progress => {
+      getModelAndInfer(data.yoloSettings, data.input, data.output, data.forceOverwrite, progress => {
         reply({type: "progress", progress})
       }).then(() => {
           reply({type: "done"})
@@ -48,9 +48,8 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerCheckValidModel["message"]) => {
         self.postMessage(message)
       }
-      setBackend(data.yoloSettings.backend).then(() =>
-        getModel(data.yoloSettings.modelFilename)
-      ).then((model) => {
+      getModel(data.yoloSettings.modelFilename, data.yoloSettings.backend)
+      .then((model) => {
           reply({type: "done", result: {name: model.name}})
         }).catch(error => {
           console.warn(error)

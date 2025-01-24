@@ -1,5 +1,5 @@
 const MB = 1024 * 1024;
-export function tic(file: File, insightKey: string) {
+export function tic(file: File, insightKey: string, extra_parameters: Record<string, string>) {
   window.insights.track({
     id: insightKey,
     parameters: {
@@ -8,7 +8,8 @@ export function tic(file: File, insightKey: string) {
         : file.size < 500 * MB ? "S (<500MB)"
           : file.size < 1000 * MB ? "M (<1000MB)"
             : file.size < 2000 * MB ? "L (<2000MB)"
-              : file.size < 4000 * MB ? "XL (<4000MB)" : "XXL (>4000MB)"
+              : file.size < 4000 * MB ? "XL (<4000MB)" : "XXL (>4000MB)",
+      ...extra_parameters,
     }
   })
 }

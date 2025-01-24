@@ -76,7 +76,7 @@ export class API {
           onProgress(data.progress)
           break
         case "done":
-          tic(input.file, "convert-done")
+          tic(input.file, "convert-done", {})
           resolve();
           break
         case "error":
@@ -106,7 +106,7 @@ export class API {
           onProgress(data.progress)
           break
         case "done":
-          tic(input.file, "infer-done")
+          tic(input.file, "infer-done", {backend: yoloSettings.backend})
           resolve();
           break
         case "error":

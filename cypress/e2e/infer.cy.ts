@@ -61,7 +61,13 @@ describe('Inference test', () => {
     cy.contains("yolov8-little-auk-model.onnx")
 
     cy.contains("Backend").get("select").should("have.value", "webgpu", {timeout: 20 * 60 * 1000}).should("be.disabled")
-    cy.contains("button", "Save").should("not.be.disabled", {timeout: 20 * 60 * 1000}).click()
+    cy.contains("button", "Save", { timeout: 20 * 60 * 1000 })
+      .should("exist")
+      .should("be.visible")
+      .should($btn => {
+        expect($btn.prop("disabled")).to.be.false;
+      })
+      .click();
     cy.contains("Loaded model: yolov8-little-auk-model.onnx (webgpu)")
 
     cy.setShowOpenFilePickerResult([

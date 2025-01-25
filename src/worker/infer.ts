@@ -4,20 +4,22 @@ import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
 import { xxh64sum } from '../lib/fileutil'
 import { DetectionInfo, SingleFrameInfo, detectionInfoToStrings } from '../lib/detections'
-import { ObjectEntries, ObjectFromEntries, ObjectKeys, argMax, assert, exhausted, range } from '../lib/util'
+import { ObjectEntries, ObjectFromEntries, ObjectKeys, argMax, assert, enumerate, exhausted, range } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
-import { YOLO_MODEL_DIRECTORY, YoloSettings, YoloBackend } from '../lib/tfjs-shared'
+import { YoloSettings, YoloBackend, getSavedModelFileHandleFromName } from '../lib/tfjs-shared'
 import {load} from "protobufjs"
+import { AutoConfigureAndTestModelDone } from './Api';
 
 env.wasm.wasmPaths = "../bundled/ort-wasm/"
 
 const NMS_MODEL_PATH = "../../assets/nms.ed6dba6edf.onnx"
 const ONNX_PROTO_PATH = "../../assets/onnx.e1280384e3.proto"
+const TEST_VIDEO_FRAME_PATH = "../../assets/video-frame.229cb58880.jpeg"
 
 export type Model = {
   name: string
   model: InferenceSession
-  nms: InferenceSession
+  nms: InferenceSession | null
   metadata: ModelMetadata
 }
 
@@ -135,25 +137,90 @@ async function readModelMetadata(
 }
 
 export async function getModel(
-  modelFilename: string,
+  modelFile: FileSystemFileHandle,
   backend: YoloBackend,
+  needsNms: boolean,
 ): Promise<Model> {
-  const opfsRoot = await navigator.storage.getDirectory()
-  const modelDir = await opfsRoot.getDirectoryHandle(YOLO_MODEL_DIRECTORY)
-  const buffer = await (await (
-    await modelDir.getFileHandle(modelFilename)
-  ).getFile()).arrayBuffer()
+  const buffer = await (await modelFile.getFile()).arrayBuffer()
   const metadata = await readModelMetadata(buffer)
   const model = await InferenceSession.create(buffer, {executionProviders: [backend]})
   const nmsModelData = await (await fetch(NMS_MODEL_PATH)).arrayBuffer()
-  const nms = await InferenceSession.create(nmsModelData)
+  const nms = needsNms ? await InferenceSession.create(nmsModelData) : null
   return {
     model,
     nms,
-    name: modelFilename,
+    name: modelFile.name,
     metadata,
   }
 }
+
+const MODEL_TEST_WARMUP_ROUNDS =1
+const MODEL_TEST_RUN_ROUNDS = 3
+const MODEL_TEST_RUN_MAX_TIME_MS = 5000
+
+export async function autoConfigureAndTestModel(
+  modelFile: FileSystemFileHandle,
+  progress: (progress: number) => void,
+): Promise<AutoConfigureAndTestModelDone> {
+  const buffer = await (await modelFile.getFile()).arrayBuffer()
+  const metadata = await readModelMetadata(buffer)
+  const needsNms = (() => {
+    if (metadata.outputDimensions[2] !== 6) {
+      return true
+    }
+    if (metadata.outputDimensions[1] !== 4 + Object.keys(metadata.klasses).length) {
+      return false
+    }
+    throw new Error("Heuristics to determine nms fails, please report this error")
+  })()
+  const performance: AutoConfigureAndTestModelDone["performance"] = {
+    wasm: {msPerInfer: NaN},
+    webgpu: {msPerInfer: NaN},
+  }
+  const BACKENDS = ObjectKeys(performance)
+  for (const [i, backend] of enumerate(BACKENDS)) {
+    performance[backend] = await testModel(modelFile, backend, needsNms, testModelProgress => {
+      progress((i + testModelProgress) / BACKENDS.length)
+    })
+  }
+  return {
+    performance,
+    modelNeedsNms: needsNms,
+  }
+}
+
+export async function testModel(
+  modelFile: FileSystemFileHandle,
+  backend: YoloSettings["backend"],
+  needsNms: boolean,
+  progress: (progress: number) => void,
+): Promise<{msPerInfer: number} | {error: Error}> {
+  try {
+    const model = await getModel(modelFile, backend, needsNms)
+    const blob = await (await fetch(TEST_VIDEO_FRAME_PATH)).blob()
+    const videoFrame = new VideoFrame(await globalThis.createImageBitmap(blob),
+      {timestamp: 0})
+    const totalruns = MODEL_TEST_WARMUP_ROUNDS + MODEL_TEST_RUN_ROUNDS
+    for (let i=0; i < MODEL_TEST_WARMUP_ROUNDS; i++) {
+      await inferSingleFrame(model, videoFrame);
+      progress((i + 1) / totalruns)
+    }
+    const startTime = Date.now()
+    let nrRuns = 0
+    for (nrRuns=0; nrRuns < MODEL_TEST_RUN_ROUNDS; nrRuns++) {
+      await inferSingleFrame(model, videoFrame);
+      progress((MODEL_TEST_WARMUP_ROUNDS + nrRuns + 1) / totalruns)
+      if (Date.now() - startTime > MODEL_TEST_RUN_MAX_TIME_MS) {
+        nrRuns++
+        break;
+      }
+    }
+    return {msPerInfer: (Date.now() - startTime) / nrRuns}
+  } catch (e) {
+    return {error: e instanceof Error ? e : new Error("unknown claude error")}
+  }
+}
+
 
 const PROGRESS_INTERVAL_MS = 300
 
@@ -164,8 +231,10 @@ export async function getModelAndInfer(
   forceOverwrite: boolean,
   onProgress: (progress: FileTreeLeaf["progress"]) => void,
 ) {
-  const model = await getModel(yoloSettings.modelFilename, yoloSettings.backend)
-  await infer(model, yoloSettings.needsNms, input, output, forceOverwrite, onProgress)
+  const model = await getModel(
+    await getSavedModelFileHandleFromName(yoloSettings.modelFilename),
+    yoloSettings.backend, yoloSettings.needsNms)
+  await infer(model, input, output, forceOverwrite, onProgress)
 }
 
 type InferResult = ReadonlyArray<{
@@ -179,7 +248,6 @@ type InferResult = ReadonlyArray<{
 
 export async function infer(
   model: Model,
-  needsNms: boolean,
   input: {file: File},
   output: {dir: FileSystemDirectoryHandle},
   forceOverwrite: boolean,
@@ -240,7 +308,7 @@ export async function infer(
       assert(frameCount > 0 || framenr == 0, "first frame should have nr 0", framenr)
       frameCount++
       const singleFrameInfo = {
-        detections: await inferSingleFrame(model, videoFrame, needsNms)
+        detections: await inferSingleFrame(model, videoFrame)
       } as SingleFrameInfo
 
       detectionInfo.framesInfo.push(singleFrameInfo)
@@ -337,11 +405,10 @@ const NMS_CONFIG = new Tensor(
 export async function inferSingleFrame(
   model: Model,
   videoFrame: VideoFrame,
-  needsNms: boolean,
 ): Promise<InferResult> {
   const {tensor, toNormalized} = await preprocess(videoFrame, model)
   const { output0 } = await model.model.run({images: tensor})
-  if (needsNms) {
+  if (model.nms) {
     const { selected } = await model.nms.run({ detection: output0, config: NMS_CONFIG });
     output0.dispose()
     assert(selected.dims.length === 3)

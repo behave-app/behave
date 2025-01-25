@@ -54,7 +54,7 @@ export abstract class Checker<T> {
 export class LiteralChecker<T extends boolean | string | number | null | undefined | symbol> extends Checker<T> {
   private items: Set<T>
   constructor(
-    itemOrItems: T | Array<T>,
+    itemOrItems: T | ReadonlyArray<T>,
     options?: {
       valid?: (s: T) => boolean
     }) {

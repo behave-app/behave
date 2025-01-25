@@ -30,3 +30,111 @@ h1 {
 .single_button {
   margin: .7em 1.3em;
 }
+
+.step {
+  border-top: 1px solid hsl(210, 70%, 70%);
+  border-bottom: 1px solid hsl(210, 70%, 70%);
+  margin: 1.3rem 0;
+  padding: .7rem 1rem 2rem 6rem;
+  min-height: 5rem;
+  position: relative;
+  &::before {
+    position: absolute;
+    width: 4rem;
+    height: 4rem;
+    box-sizing: border-box;
+    top: calc(50% - 2rem);
+    left: .5rem;
+    border: .2rem solid hsl(210, 70%, 60%);
+    border-radius: 50%;
+    color: hsl(210, 70%, 60%);
+    font-size: 3rem;
+    content: "x";
+    text-align: center;
+    font-style: italic;
+  }
+  &:nth-child(1)::before {
+    content: '1';
+  }
+  &:nth-child(2)::before {
+    content: '2';
+  }
+  &:nth-child(3)::before {
+    content: '3';
+  }
+  &:nth-child(4)::before {
+    content: '4';
+  }
+  & + .step {
+    border-top: none;
+  }
+  & > *:not(h3) {
+    margin-left: .8em;
+  }
+}
+
+.settingsLine {
+  margin: .5em 0;
+  & > select {
+    margin-left: 1.3em;
+  }
+}
+
+.loading_overlay {
+  position: absolute;
+}
+
+.hide {
+  visibility: hidden;
+}
+
+.model_selector {
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: center;
+  & > * {
+    margin: .7rem;
+  }
+  & > *:nth-child(1) {
+    font-size: 4em;
+  }
+  & > *:nth-child(2) {
+  }
+  max-width: 20rem;
+  border: 1px solid hsl(210, 70%, 60%);
+  border-radius: 1rem;
+  color: hsl(210, 0%, 25%);
+  margin-bottom: 1.3em;
+  padding-bottom: .4em;
+}
+
+.test_result {
+  margin-top: 2.3em;
+  padding-top: .3em;
+  font-size: .8em;
+  position: relative;
+  &:before {
+    content : "";
+    position: absolute;
+    left    : calc(50% - 10vw);
+    top     : 0;
+    height  : 1px;
+    width   : 20vw;
+    border-top: 1px solid hsl(210, 70%, 70%);
+  }
+  & > ul > li > dl {
+    display: grid;
+    grid-template-columns: max-content auto;
+    dt {
+      grid-column-start: 1;
+    }
+    dd {
+      grid-column-start: 2;
+    }
+  }
+}
+.footnote {
+  margin-top: 1em;
+  font-size: .9em;
+  padding-left: 1.3em;
+}

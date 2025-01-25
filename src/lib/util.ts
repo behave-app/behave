@@ -12,6 +12,35 @@ export function exhausted(key: never): null {
   throw new Error("Not exhausted " + key)
 }
 
+export function formatRoundedTimeHumanFriendly(totalseconds: number): string {
+  assert(totalseconds >= 0)
+  if (totalseconds === 0) {
+    return "0 seconds"
+  }
+  if (totalseconds < 0.01) {
+    return `${(totalseconds * 1000).toFixed(1)} ms`
+  }
+  if (totalseconds < 0.5) {
+    return `${(totalseconds * 1000).toFixed(0)} ms`
+  }
+  if (totalseconds < 10) {
+    return `${totalseconds.toFixed(1)} seconds`
+  }
+  if (totalseconds < 60) {
+    return `${totalseconds.toFixed(0)} seconds`
+  }
+  if (totalseconds < 600) {
+    return `${(totalseconds / 60).toFixed(1)} minutes`
+  }
+  if (totalseconds < 3600) {
+    return `${(totalseconds / 60).toFixed(0)} minutes`
+  }
+  if (totalseconds < 36000) {
+    return `${(totalseconds / 3600).toFixed(1)} hours`
+  }
+  return `${(totalseconds / 3600).toFixed(0)} hours`
+}
+
 export function formatTime(totalseconds: number): string {
   const roundedSeconds = Math.round(totalseconds)
   return roundedSeconds < 3600
@@ -38,6 +67,16 @@ export function formatTimeHMMSS(totalseconds: number): string {
   `${hours}`,
   `${minutes}`.padStart(2, "0"),
   `${seconds}`.padStart(2, "0"),
+  ].join(":")
+}
+
+export function formatTimeHMM(totalseconds: number): string {
+  assert(totalseconds >= 0)
+  const hours = Math.floor(totalseconds / 3600)
+  const minutes = Math.round(totalseconds % 3600 / 60)
+  return [
+  `${hours}`,
+  `${minutes}`.padStart(2, "0"),
   ].join(":")
 }
 
@@ -207,7 +246,7 @@ export function ObjectFromEntries<K extends string, V>(
   return Object.fromEntries(obj) as unknown as {[key in K]: V}
 }
 
-export function enumerate<T>(arr: T[]): Array<[number, T]> {
+export function enumerate<T>(arr: readonly T[]): Array<[number, T]> {
   return arr.map((item, index) => [index, item] as const)
 }
 

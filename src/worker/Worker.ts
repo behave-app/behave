@@ -1,7 +1,8 @@
 import { convert, extractMetadata } from "./video"
 import { exhausted } from "../lib/util"
-import { WorkerMethod, WorkerConvertMethod, WorkerInferMethod, WorkerCheckValidModel, WorkerExtractMetadata } from "./Api"
-import { getModel, getModelAndInfer } from "./infer"
+import { WorkerMethod, WorkerConvertMethod, WorkerInferMethod, WorkerAutoConfigureAndTestModel, WorkerExtractMetadata, WorkerCheckValidModel, WorkerTestModel } from "./Api"
+import { getModel, autoConfigureAndTestModel, getModelAndInfer, testModel} from "./infer"
+import { getSavedModelFileHandleFromName } from "../lib/tfjs-shared"
 
 
 
@@ -48,9 +49,43 @@ self.addEventListener("message", e => {
       const reply = (message: WorkerCheckValidModel["message"]) => {
         self.postMessage(message)
       }
-      getModel(data.yoloSettings.modelFilename, data.yoloSettings.backend)
+    getSavedModelFileHandleFromName(data.yoloSettings.modelFilename)
+      .then(fileHandle => getModel(
+          fileHandle, data.yoloSettings.backend, data.yoloSettings.needsNms))
       .then((model) => {
           reply({type: "done", result: {name: model.name}})
+        }).catch(error => {
+          console.warn(error)
+          reply({type: "error", error})
+        }).finally(() => {
+          self.close()
+        })
+    }
+      break
+    case "auto_configure_and_test_model": {
+      const reply = (message: WorkerAutoConfigureAndTestModel["message"]) => {
+        self.postMessage(message)
+      }
+      autoConfigureAndTestModel(data.modelFile, progress =>
+        reply({type: "progress", progress}))
+      .then((result) => {
+          reply({type: "done", result})
+        }).catch(error => {
+          console.warn(error)
+          reply({type: "error", error})
+        }).finally(() => {
+          self.close()
+        })
+    }
+      break
+    case "test_model": {
+      const reply = (message: WorkerTestModel["message"]) => {
+        self.postMessage(message)
+      }
+      testModel(data.modelFile, data.backend, data.needsNms, progress =>
+        reply({type: "progress", progress}))
+      .then((result) => {
+          reply({type: "done", result})
         }).catch(error => {
           console.warn(error)
           reply({type: "error", error})

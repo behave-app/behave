@@ -2,11 +2,11 @@ declare const WORKER_URL: string;
 
 import { exhausted, promiseWithResolve} from "../lib/util"
 import {FileTreeLeaf} from "../lib/FileTree"
-import { YoloSettings } from "../lib/tfjs-shared"
+import { YoloSettings, YoloBackend } from "../lib/tfjs-shared"
 import { VideoMetadata } from "../lib/video-shared"
 import { tic } from "../lib/insight";
 
-export type WorkerMethod = WorkerConvertMethod | WorkerInferMethod | WorkerCheckValidModel | WorkerExtractMetadata
+export type WorkerMethod = WorkerConvertMethod | WorkerInferMethod | WorkerCheckValidModel | WorkerAutoConfigureAndTestModel | WorkerExtractMetadata | WorkerTestModel
 
 export type WorkerConvertMethod = {
   call: {
@@ -42,6 +42,31 @@ export type WorkerCheckValidModel = {
   | {type: "error", error: Error}
 }
 
+export type AutoConfigureAndTestModelDone = {performance: {[k in YoloBackend]: {msPerInfer: number} | {"error": Error}}, modelNeedsNms: boolean}
+
+export type WorkerAutoConfigureAndTestModel = {
+  call: {
+    method: "auto_configure_and_test_model",
+    modelFile: FileSystemFileHandle,
+  }
+  message: {type: "progress", progress: number}
+  | {type: "done", result: AutoConfigureAndTestModelDone}
+  | {type: "error", error: Error}
+}
+
+export type TestModelDone = AutoConfigureAndTestModelDone["performance"][YoloBackend]
+export type WorkerTestModel = {
+  call: {
+    method: "test_model",
+    modelFile: FileSystemFileHandle,
+    backend: YoloBackend,
+    needsNms: boolean,
+  }
+  message: {type: "progress", progress: number}
+  | {type: "done", result: TestModelDone}
+  | {type: "error", error: Error}
+}
+
 export type WorkerExtractMetadata = {
   call: {
     method: "extract_metadata",
@@ -58,6 +83,8 @@ type LimitedWorker<T extends WorkerMethod> = Omit<Worker, "postMessage"> & {
 type ConvertWorker = LimitedWorker<WorkerConvertMethod>
 type InferWorker = LimitedWorker<WorkerInferMethod>
 type ValidModelWorker = LimitedWorker<WorkerCheckValidModel>
+type AutoConfigureAndTestModelWorker = LimitedWorker<WorkerAutoConfigureAndTestModel>
+type TestModelWorker = LimitedWorker<WorkerTestModel>
 type ExtractMetadataWorker = LimitedWorker<WorkerExtractMetadata>
 
 export class API {
@@ -139,6 +166,59 @@ export class API {
       }
     })
     worker.postMessage({method: "check_valid_model", yoloSettings})
+    return promise
+  }
+  static autoConfigureAndTestModel(
+    modelFile: FileSystemFileHandle,
+    progress: (progress: number) => void,
+  ): Promise<AutoConfigureAndTestModelDone> {
+    const {promise, resolve, reject} = promiseWithResolve<AutoConfigureAndTestModelDone>()
+    const worker = new Worker(WORKER_URL, {name: "autoConfigureAndTestModel", type: "module"}) as AutoConfigureAndTestModelWorker
+    worker.addEventListener("message", e => {
+      const data = e.data as WorkerAutoConfigureAndTestModel["message"]
+      switch (data.type) {
+        case "progress":
+          progress(data.progress)
+          break
+        case "done":
+          resolve(data.result);
+          break
+        case "error":
+          reject(data.error)
+          break
+        default:
+          exhausted(data)
+      }
+    })
+    worker.postMessage({method: "auto_configure_and_test_model", modelFile})
+    return promise
+  }
+
+  static testModel(
+    modelFile: FileSystemFileHandle,
+    backend: YoloBackend,
+    needsNms: boolean,
+    progress: (progress: number) => void,
+  ): Promise<TestModelDone> {
+    const {promise, resolve, reject} = promiseWithResolve<TestModelDone>()
+    const worker = new Worker(WORKER_URL, {name: "testModel", type: "module"}) as TestModelWorker
+    worker.addEventListener("message", e => {
+      const data = e.data as WorkerTestModel["message"]
+      switch (data.type) {
+        case "progress":
+          progress(data.progress)
+          break
+        case "done":
+          resolve(data.result);
+          break
+        case "error":
+          reject(data.error)
+          break
+        default:
+          exhausted(data)
+      }
+    })
+    worker.postMessage({method: "test_model", modelFile, backend, needsNms})
     return promise
   }
 

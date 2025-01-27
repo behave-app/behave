@@ -47,7 +47,7 @@ export function Inferrer(): JSX.Element {
     setFiles(files => new Map([...files, ...newFiles]))
     setState("uploading")
   }
-  
+
   useEffect(() => {
     if (!yoloSettings) {
       return
@@ -84,7 +84,7 @@ export function Inferrer(): JSX.Element {
     if (!isCompatibleBrowser()) {
       alert(
         "This application has only been tested to run on Chrome 121 and higher. "
-        + "If you continue on your current browser, things may not work."
+          + "If you continue on your current browser, things may not work."
       )
     }
 
@@ -142,6 +142,11 @@ export function Inferrer(): JSX.Element {
     }
   }, [preventSleep, state])
 
+  async function selectFilesToAdd() {
+    const files = await window.showOpenFilePicker({multiple: true})
+    void(addFiles(files))
+  }
+
   return <>
     <h1>Infer videos (detect items)</h1>
     {(state === "selectmodel")
@@ -169,13 +174,13 @@ export function Inferrer(): JSX.Element {
               ? <div className={css.looking_for_model}><span className={generalcss.spinner} /> Loading previously selected model</div>
               :<>
                 <dl>
-                <dt>Loaded Model</dt>
-                <dd>
-                {yoloSettings
-                  ? <>{yoloSettings.modelFilename} ({yoloSettings.backend})</>
-                  : "<no model>"
-                }
-                </dd>
+                  <dt>Loaded Model</dt>
+                  <dd>
+                    {yoloSettings
+                      ? <>{yoloSettings.modelFilename} ({yoloSettings.backend})</>
+                      : "<no model>"
+                    }
+                  </dd>
                 </dl>
                 <button disabled={state!=="uploading"}
                   className={generalcss.buttonWhite}
@@ -189,8 +194,8 @@ export function Inferrer(): JSX.Element {
             <div>
               Concurrency: process <select value={concurrency}
                 onInput={e => setConcurrency(parseInt(e.currentTarget.value))}>
-                  {range(8).map(i => <option value={i + 1}>{i + 1}</option>)}
-                </select> file{concurrency !== 1 && "s"} at the same time
+                {range(8).map(i => <option value={i + 1}>{i + 1}</option>)}
+              </select> file{concurrency !== 1 && "s"} at the same time
             </div>
             <div>
               <button className={css.checkbox}
@@ -209,18 +214,19 @@ export function Inferrer(): JSX.Element {
               : <div className={generalcss.select_files_message}>
                 <Icon iconName="upload" />
                 <div>Drag & drop video files here or click below</div>
-                <Upload addFiles={addFiles} />
+                <button className={generalcss.buttonBlack} onClick={selectFilesToAdd}>Add Files</button>
               </div>}
           </div>
         </div>
+        <Upload addFiles={addFiles} />
         <div className={css.startInferenceButtonLine}>
           <button
             disabled={!(state==="uploading" && files.size > 0 && yoloSettings)}
             className={generalcss.buttonBlack}
             onClick={doConvertAll}
           >{state === "done" ? "Inference Done"
-          : state === "converting" ? "Infering..."
-          : "Start Inference"}</button>
+              : state === "converting" ? "Infering..."
+                : "Start Inference"}</button>
         </div>
       </>)}
   </>

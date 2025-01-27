@@ -1,7 +1,8 @@
 import * as css from './upload.module.css'
-import * as generalcss from './general.module.css'
-import {useRef, useState, useEffect} from 'preact/hooks'
+import {useRef, useState, useLayoutEffect} from 'preact/hooks'
+import * as generalcss from "./general.module.css"
 import { JSX } from "preact"
+import { Icon } from './Icon'
 
 type Props = {
   addFiles: (FileSystemHandles: FileSystemHandle[]) => Promise<void>
@@ -16,8 +17,8 @@ export function Upload({addFiles}: Props): JSX.Element {
   const [dragState, setDragState] = useState<DragState>("nodrag")
   const dragCounter = useRef(0)
 
-  useEffect(() => {
-    const aimedAt = window.document.querySelector("html")!
+  useLayoutEffect(() => {
+    const aimedAt = window.document.documentElement
     const dragEnter = (_event: DragEvent) => {
       dragCounter.current += 1
       setDragState("dragging")
@@ -53,12 +54,10 @@ export function Upload({addFiles}: Props): JSX.Element {
       aimedAt.removeEventListener("drop", dragDrop)
     }
   }, [])
-  async function selectFilesToAdd() {
-    const files = await window.showOpenFilePicker({multiple: true})
-    void(addFiles(files))
-  }
   return <>
-    <div className={css.box}><button className={generalcss.buttonBlack} onClick={selectFilesToAdd}>Add Files</button></div> 
-    {dragState === "dragging" && <div className={css.fullScreenDropInfo}>Drop files here</div>}
+    {dragState === "dragging" && <div className={css.fullScreenDropInfo}>
+      <Icon iconName="place_item" />
+      <div>Drop files here</div>
+    </div>}
   </>
 }

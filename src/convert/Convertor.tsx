@@ -31,7 +31,7 @@ export function Convertor(): JSX.Element {
     setFiles(files => new Map([...files, ...newFiles]))
     setState("uploading")
   }
-  
+
   useEffect(() => {
     if (state === "uploading") {
       return
@@ -67,6 +67,11 @@ export function Convertor(): JSX.Element {
 
   }, [])
 
+  async function selectFilesToAdd() {
+    const files = await window.showOpenFilePicker({multiple: true})
+    void(addFiles(files))
+  }
+
   return <>
     <h1>Video file convertor</h1>
     <div className={css.explanation}>
@@ -88,17 +93,18 @@ export function Convertor(): JSX.Element {
         : <div className={generalcss.select_files_message}>
           <Icon iconName="upload" />
           <div>Drag & drop video files here or click below</div>
-          <Upload addFiles={addFiles} />
+          <button className={generalcss.buttonBlack} onClick={selectFilesToAdd}>Add Files</button>
         </div>}
     </div>
+    <Upload addFiles={addFiles} />
 
     <div className={css.startConversionButtonLine}>
       <button disabled={!(state==="uploading" && files.size > 0)}
         className={generalcss.buttonBlack}
         onClick={doConvertAll}
-          >{state === "done" ? "Conversion Done"
+      >{state === "done" ? "Conversion Done"
           : state === "converting" ? "Converting..."
-          : "Start Conversion"}</button>
+            : "Start Conversion"}</button>
     </div>
   </>
 }

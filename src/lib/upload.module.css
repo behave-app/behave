@@ -9,4 +9,18 @@
     bottom: 0;
     background-color: hsl(180, 100%, 50%, 50%);
     backdrop-filter: blur(1em);
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: center;
+    & > * {
+      text-align: center;
+      display: block;
+    }
+    & > *:nth-child(1) {
+      font-size: 4em;
+      padding-bottom: 1.3rem;
+    }
+    & > *:nth-child(2) {
+      font-size: 1.5em;
+    }
 }

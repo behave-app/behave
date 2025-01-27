@@ -1,6 +1,5 @@
 import * as css from './upload.module.css'
 import {useRef, useState, useLayoutEffect} from 'preact/hooks'
-import * as generalcss from "./general.module.css"
 import { JSX } from "preact"
 import { Icon } from './Icon'
 

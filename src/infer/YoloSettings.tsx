@@ -53,7 +53,6 @@ export function YoloSettingsDialog({
   const [autoConfigResults, setAutoConfigResults] = useState<Record<YoloSettings["backend"], {msPerInfer: number} | {error: Error}>>()
   const [testLoading, setTestLoading] = useState<number>(NaN)
   const [testResult, setTestResult] = useState<{msPerInfer: number} | {error: Error}>()
-  console.log({testResult})
 
   const [autoConfigured, setAutoConfigured] = useState<boolean>(yoloSettings ? yoloSettings.autoConfigured : true)
   const [needsNms, setNeedsNms] = useState<YoloSettings["needsNms"]>(

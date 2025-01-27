@@ -62,7 +62,8 @@ describe('Inference test', () => {
 
     cy.contains("Backend").get("select").should("have.value", "webgpu")
 
-    cy.contains("button:not(:disabled)", "Save", { timeout: 20 * 60 * 1000 })
+    cy.contains("Test report", { timeout: 20 * 60 * 1000 })
+    cy.contains("button", "Save")
       .click();
     cy.contains("yolov8-little-auk-model.onnx (webgpu)")
 

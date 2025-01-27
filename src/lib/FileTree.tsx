@@ -207,6 +207,9 @@ async function convertOne(
   setFiles: (cb: (files: FileTreeBranch) => FileTreeBranch) => void
 ) {
   const leaf = findLeaf(files, path)
+        setFiles(files =>
+          updateLeaf(
+            files, path, leaf => ({file: leaf.file, progress: {converting: 0}})))
 
   let pointer = destination
   for (const p of path.slice(0, -1)) {

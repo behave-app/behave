@@ -198,11 +198,9 @@ export function Inferrer(): JSX.Element {
               </select> file{concurrency !== 1 && "s"} at the same time
             </div>
             <div>
-              <button className={css.checkbox}
-                onClick={() => setPreventSleep(x => !x)}>
-                <Icon iconName={preventSleep ? "check_box" : "check_box_outline_blank"}
-                />
-              </button>
+              <input type="checkbox" className={generalcss.ios_switch}
+                checked={preventSleep}
+                onClick={() => setPreventSleep(!preventSleep)} />
               Prevent sleep while inference is running.
             </div>
           </div>

@@ -204,17 +204,18 @@ export function YoloSettingsDialog({
             ? <div className={infercss.model_selector}>
               <Icon iconName="draft" />
               <span>{modelFileName}</span>
-              <button onClick={selectNewModelFile}>Change model</button>
+              <button className={generalcss.buttonWhite} onClick={selectNewModelFile}>Change model</button>
             </div>
             : <div className={infercss.model_selector}>
               <Icon iconName="upload" />
               <span>No model selected</span>
-              <button onClick={selectNewModelFile}>Select model</button>
+              <button className={generalcss.buttonWhite} onClick={selectNewModelFile}>Select model</button>
             </div>
           }
         </div>
         <div className={infercss.settingsLine}>
           <input type="checkbox"
+            className={generalcss.ios_switch}
             id="autoConfigure"
             checked={!autoConfigured}
             onChange={() => {
@@ -284,7 +285,7 @@ export function YoloSettingsDialog({
             : showTestLoading
               ? <div><span className={generalcss.spinner} /> testing the settings ({(testLoading * 100).toFixed(0)}%)</div>
               : <>
-                <button onClick={() => startTest()} disabled={isFinite(testLoading)}>Run test</button>
+                <button className={generalcss.buttonWhite} onClick={() => startTest()} disabled={isFinite(testLoading)}>Run test</button>
                 {testResult && <div className={infercss.test_result}>
                   <h4>Test report</h4>
                   <ul>
@@ -314,8 +315,8 @@ export function YoloSettingsDialog({
           || modelFileName === null  // no model file was selected
           || (autoConfigured && !isNaN(autoConfigureLoading)) // finish auto-configure
           || (!autoConfigured && (!isNaN(testLoading) || !testResult || "error" in testResult)) // make sure configuration was tested
-      } onClick={save}>Save</button>
-      <button onClick={closeSettingsDialog}>Cancel</button>
+      } className={generalcss.buttonBlack} onClick={save}>Save</button>
+      <button className={generalcss.buttonBlack} onClick={closeSettingsDialog}>Cancel</button>
     </div>
   </>
 }

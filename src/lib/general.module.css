@@ -150,3 +150,39 @@
   }
 }
 
+/* Hide default checkbox appearance */
+.ios_switch {
+    appearance: none;
+    width: 2.5em;
+    height: 1.3em;
+    background: #ccc;
+    border-radius: 1.3em;
+    position: relative;
+    top: .5em;
+    transition: background 0.3s ease-in-out;
+    cursor: pointer;
+    display: inline-block;
+}
+
+/* Create the switch knob */
+.ios_switch::before {
+    content: "";
+    position: absolute;
+    width: 1.1em;
+    height: 1.1em;
+    background: white;
+    border-radius: 50%;
+    top: 0.1em;
+    left: 0.1em;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Checked state: green background and shift knob */
+.ios_switch:checked {
+    background: #4cd964;
+}
+
+.ios_switch:checked::before {
+    transform: translateX(1.2em);
+}

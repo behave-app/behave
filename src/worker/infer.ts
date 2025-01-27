@@ -274,7 +274,6 @@ export async function infer(
   let outputstream: FileSystemWritableFileStream | undefined = undefined
   let video: Video | undefined = undefined
   env.wasm.numThreads = 0;
-  console.log({threads: env.wasm.numThreads});
 
   try {
     const parts = input.file.name.split(".")

@@ -4,9 +4,10 @@ import {FileTree, FileTreeBranch, hasNotWrongFiletypeErrors, hasWrongFiletypeErr
 import * as css from "./inferrer.module.css"
 import { JSX } from "preact"
 import {useState} from 'preact/hooks'
+import * as generalcss from "../lib/general.module.css"
 import {YoloSettingsDialog, loadCachedSettings} from "./YoloSettings"
 import { useEffect } from "react"
-import { isCompatibleBrowser, valueOrErrorAsync2 } from "../lib/util";
+import { isCompatibleBrowser, joinedStringFromDict, range, valueOrErrorAsync2 } from "../lib/util";
 import * as filetreecss from "../lib/filetree.module.css"
 import { Icon } from "../lib/Icon"
 import { API } from "../worker/Api"
@@ -27,10 +28,12 @@ function fileFilterForInfer(file: File): boolean | string {
   return true
 }
 
+type State ="loadingYoloSettings" | "selectmodel" | "uploading" | "converting" | "done"  | undefined
+
 export function Inferrer(): JSX.Element {
   const [files, setFiles] = useState<FileTreeBranch>(new Map())
   const [concurrency, setConcurrency] = useState(1)
-  const [state, setState] = useState<"uploading" | "selectmodel" | "converting" | "done">("uploading")
+  const [state, setState] = useState<State>()
   const [yoloSettings, setYoloSettings] = useState<YoloSettings | null>(null)
   const [destination, setDestination] = useState<FileSystemDirectoryHandle>()
 
@@ -88,7 +91,14 @@ export function Inferrer(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    void(loadCachedSettings().then(settings => setYoloSettings(settings)))
+    if (state === undefined) {
+      setState("loadingYoloSettings")
+      void(loadCachedSettings().then(settings => {
+        setYoloSettings(settings)
+        setState("uploading")
+      }
+      ))
+    }
   }, [])
 
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null)
@@ -153,39 +163,65 @@ export function Inferrer(): JSX.Element {
           Some infer sessions seem to have failed.
           Please consult <a target="_blank" href="../help/infer-faq.html">our infer FAQ</a> for possible reasons for the failure.
         </div>}
-        {yoloSettings ? <div className={css.explanation}>
-          Loaded model: {yoloSettings.modelFilename !== null ? yoloSettings.modelFilename : "<loading>"} ({yoloSettings.backend}) <button disabled={state!=="uploading"}
-            onClick={() => setState("selectmodel")}
-          >change</button>
-        </div> : <div className={css.explanation}>
-            At the moment no yolo model is selected. Please add a model in order to start.
-            <button disabled={state!=="uploading"}
-              onClick={() => setState("selectmodel")}
-            >add a model</button>
-          </div>}
         <div>
-          Concurrency:
-          <input type="range" value={concurrency} min={1} max={10} step={1}
-            onInput={e => setConcurrency(parseInt(e.currentTarget.value))} /> ({concurrency} file{concurrency ===1 ? " is"  : "s are"} getting processed at the same time) 
+          <div className={css.yoloSettingsBox}>
+            {state === undefined || state === "loadingYoloSettings"
+              ? <div className={css.looking_for_model}><span className={generalcss.spinner} /> Loading previously selected model</div>
+              :<>
+                <dl>
+                <dt>Loaded Model</dt>
+                <dd>
+                {yoloSettings
+                  ? <>{yoloSettings.modelFilename} ({yoloSettings.backend})</>
+                  : "<no model>"
+                }
+                </dd>
+                </dl>
+                <button disabled={state!=="uploading"}
+                  className={generalcss.buttonWhite}
+                  onClick={() => setState("selectmodel")}
+                >{yoloSettings ? "Change" : "Add"} Model</button>
+              </>}
+          </div>
+          <div className={joinedStringFromDict({
+            [css.infer_settings]: true,
+            [css.step_disabled]: !yoloSettings})}>
+            <div>
+              Concurrency: process <select value={concurrency}
+                onInput={e => setConcurrency(parseInt(e.currentTarget.value))}>
+                  {range(8).map(i => <option value={i + 1}>{i + 1}</option>)}
+                </select> file{concurrency !== 1 && "s"} at the same time
+            </div>
+            <div>
+              <button className={css.checkbox}
+                onClick={() => setPreventSleep(x => !x)}>
+                <Icon iconName={preventSleep ? "check_box" : "check_box_outline_blank"}
+                />
+              </button>
+              Prevent sleep while inference is running.
+            </div>
+          </div>
+          <div className={joinedStringFromDict({
+            [generalcss.files_dropper]: true,
+            [css.step_disabled]: !yoloSettings})}>
+            {files.size
+              ? <FileTree parentPath={[]} files={files} setFiles={setFiles} />
+              : <div className={generalcss.select_files_message}>
+                <Icon iconName="upload" />
+                <div>Drag & drop video files here or click below</div>
+                <Upload addFiles={addFiles} />
+              </div>}
+          </div>
         </div>
-        <div>
-          <button className={css.checkbox}
-            onClick={() => setPreventSleep(x => !x)}>
-            <Icon iconName={preventSleep ? "check_box" : "check_box_outline_blank"}
-            />
-          </button>
-          Prevent sleep while inference is running.
-        </div>
-        <div className={css.files}>
-          {files.size ? <FileTree parentPath={[]} files={files} setFiles={setFiles} /> : <span className={css.select_files_message}>Select files to infer, either drag them into this page, or press the "Add files" button below.</span>}
-        </div>
-        {state !== "converting" && <Upload addFiles={addFiles} />}
-        {state === "done"
-          ? <div>Inference done, feel free to add more files to convert more </div>
-          : <button disabled={!(state==="uploading" && files.size > 0 && yoloSettings)}
+        <div className={css.startInferenceButtonLine}>
+          <button
+            disabled={!(state==="uploading" && files.size > 0 && yoloSettings)}
+            className={generalcss.buttonBlack}
             onClick={doConvertAll}
-          >Start inference</button>
-        }
+          >{state === "done" ? "Inference Done"
+          : state === "converting" ? "Infering..."
+          : "Start Inference"}</button>
+        </div>
       </>)}
   </>
 }

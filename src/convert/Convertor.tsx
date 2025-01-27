@@ -2,10 +2,12 @@ import {Upload} from "../lib/Upload"
 import {FileTree, FileTreeBranch, hasNotWrongFiletypeErrors, hasWrongFiletypeErrors, readFileSystemHandle, setStateAndConvertNextIfPossible} from "../lib/FileTree"
 import * as css from "./convertor.module.css"
 import * as filetreecss from "../lib/filetree.module.css"
+import * as generalcss from "../lib/general.module.css"
 import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
 import { API } from "../worker/Api"
 import { isCompatibleBrowser, valueOrErrorAsync2 } from "../lib/util";
+import { Icon } from "../lib/Icon"
 
 const NR_WORKERS = 1
 
@@ -80,16 +82,24 @@ export function Convertor(): JSX.Element {
       It may be that we don't yet support the exact video format you are trying to convert, but we may be happy to add it if we know people need it.
       Read more <a target="_blank" href="../help/convert-faq.html">in our FAQ</a>.
     </div>}
-    <div className={css.files}>
-    {files.size ? <FileTree parentPath={[]} files={files} setFiles={setFiles} /> : <span className={css.select_files_message}>Select files to convert, either drag them into this page, or press the "Add files" button below.</span>}
+    <div className={generalcss.files_dropper}>
+      {files.size
+        ? <FileTree parentPath={[]} files={files} setFiles={setFiles} />
+        : <div className={generalcss.select_files_message}>
+          <Icon iconName="upload" />
+          <div>Drag & drop video files here or click below</div>
+          <Upload addFiles={addFiles} />
+        </div>}
     </div>
-    {state !== "converting" && <Upload addFiles={addFiles} />}
-    {state === "done"
-    ? <div>Conversion done, feel free to add more files to convert more </div>
-    : <button disabled={!(state==="uploading" && files.size > 0)}
-      onClick={doConvertAll}
-      >Start conversion</button>
-    }
+
+    <div className={css.startConversionButtonLine}>
+      <button disabled={!(state==="uploading" && files.size > 0)}
+        className={generalcss.buttonBlack}
+        onClick={doConvertAll}
+          >{state === "done" ? "Conversion Done"
+          : state === "converting" ? "Converting..."
+          : "Start Conversion"}</button>
+    </div>
   </>
 }
 

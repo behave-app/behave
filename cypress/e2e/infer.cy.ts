@@ -45,16 +45,16 @@ describe('Inference test', () => {
       cy.contains("No model selected")
     }
     cy.visitWithStubbedFileSystem("/app/infer.html")
-      .contains("At the moment no yolo model is selected. Please add a model in order to start")
-      .contains("button", "add a model")
+      .contains("<no model>")
+    cy.contains("button", "Add Model")
       .click()
     assertDefaultValues()
     cy.contains("button", "Select model").click()
     cy.contains("yolov8-little-auk-model.onnx")
     cy.contains("button", "Cancel").click()
 
-    cy.contains("At the moment no yolo model is selected. Please add a model in order to start")
-      .contains("button", "add a model")
+    cy.contains("<no model>")
+    cy.contains("button", "Add Model")
       .click()
     assertDefaultValues()
     cy.contains("button", "Select model").click()
@@ -64,7 +64,7 @@ describe('Inference test', () => {
 
     cy.contains("button:not(:disabled)", "Save", { timeout: 20 * 60 * 1000 })
       .click();
-    cy.contains("Loaded model: yolov8-little-auk-model.onnx (webgpu)")
+    cy.contains("yolov8-little-auk-model.onnx (webgpu)")
 
     cy.setShowOpenFilePickerResult([
       // NOTE: Make sure file.MTS is alphabetically first
@@ -75,8 +75,8 @@ describe('Inference test', () => {
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       "cypress/assets/other.txt",
     ])
-    cy.contains("button", "Start inference").should("be.disabled")
-    cy.contains("button", "Add files").click()
+    cy.contains("button", "Start Inference").should("be.disabled")
+    cy.contains("button", "Add Files").click()
     cy.contains(".filetree_filename2.filetree_ready2", /^file\.MTS$/)
     cy.contains(".filetree_filename2.filetree_ready2", /^file2\.mp4$/)
     cy.contains(".filetree_filename2.filetree_warning2", /^file2.82f16f09b8327ed1.behave.mp4$/)
@@ -97,12 +97,12 @@ describe('Inference test', () => {
         .as("directoryPickerCancelled")
     })
     cy.get("@directoryPickerCancelled").should("not.be.called")
-    cy.contains("button", "Start inference").should("not.be.disabled")
+    cy.contains("button", "Start Inference").should("not.be.disabled")
       .click()
     cy.get("@directoryPickerCancelled").should("be.called")
 
     cy.setShowDirectoryPickerResult([])
-    cy.contains("button", "Start inference").should("be.not.disabled").click()
+    cy.contains("button", "Start Inference").should("be.not.disabled").click()
     cy.contains(".filetree_filename2.filetree_converting2", /^file\.MTS$/)
     cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 20 * 60 * 1000})
     cy.contains(".filetree_filename2.filetree_converting2", /^file2\.mp4/)
@@ -162,8 +162,18 @@ describe('Inference test', () => {
     //   cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
     // })
     cy.contains("Some infer sessions seem to have failed.", {timeout: 20 * 60 * 1000})
-    cy.contains("button", "Add files").click()
-    cy.contains("button", "Start inference").should("not.be.disabled")
+    cy.visitWithStubbedFileSystem("/app/infer.html")
+    cy.setShowOpenFilePickerResult([
+      // NOTE: Make sure file.MTS is alphabetically first
+      {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/file2.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
+      {pickerPath: "test/file2.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
+      "cypress/assets/other.txt",
+    ])
+    cy.contains("button", "Add Files").click()
+    cy.contains("button", "Start Inference").should("not.be.disabled")
       .click()
     cy.contains(".filetree_filename2", /^file.MTS/)
       .pseudoElementContent("after").should("contain", "Target file already exists")

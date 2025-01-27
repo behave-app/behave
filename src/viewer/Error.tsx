@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact";
 import { AppError, MultipleActionsAssignedToPressedKeyException, appErrorCleared, selectIsWaitingForBehaviourShortcut, selectIsWaitingForSubjectShortcut } from "./appSlice";
 import * as css from "./error.module.css"
-import * as generalcss from "./general.module.css"
+import * as generalcss from "../lib/general.module.css"
 import { useAppDispatch } from "./store";
 import { ActionAlreadyInUseException, ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, exportPreset, importPreset, nameFromStateKey, } from "./shortcutsSlice";
 import { CONTROLS, ValidControlName } from "./controls";

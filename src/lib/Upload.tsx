@@ -1,4 +1,5 @@
 import * as css from './upload.module.css'
+import * as generalcss from './general.module.css'
 import {useRef, useState, useEffect} from 'preact/hooks'
 import { JSX } from "preact"
 
@@ -57,7 +58,7 @@ export function Upload({addFiles}: Props): JSX.Element {
     void(addFiles(files))
   }
   return <>
-    <div className={css.box}><button onClick={selectFilesToAdd}>Add files</button></div> 
+    <div className={css.box}><button className={generalcss.buttonBlack} onClick={selectFilesToAdd}>Add Files</button></div> 
     {dragState === "dragging" && <div className={css.fullScreenDropInfo}>Drop files here</div>}
   </>
 }

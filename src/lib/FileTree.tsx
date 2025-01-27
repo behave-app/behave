@@ -259,6 +259,7 @@ export function setStateAndConvertNextIfPossible(
       firstQueued = path
     }
   }
+  setState((nrRunning === 0 && !firstQueued) ? "done" : "converting")
   if (newFiles !== files) {
     setFiles(newFiles)
     return
@@ -269,9 +270,6 @@ export function setStateAndConvertNextIfPossible(
   if (firstQueued) {
     void(convertOne(files, firstQueued, destination, conversionAction, setFiles))
     return
-  }
-  if (nrRunning === 0) {
-    setState("done")
   }
 }
 

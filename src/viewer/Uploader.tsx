@@ -5,7 +5,7 @@ import { VideoFile, createSliceDataFromFile, selectVideoFilePotentiallyNull, vid
 import { useAppDispatch } from "./store";
 import { asyncSleep, isTruthy, valueOrError, valueOrErrorAsync, getBehaveVersion, TSAssertType } from "../lib/util";
 import * as css from "./uploader.module.css"
-import * as generalcss from "./general.module.css"
+import * as generalcss from "../lib/general.module.css"
 import { DetectionInfo, validateDataIsDetectionInfo } from "../lib/detections";
 import { detectionFileNameSet, detectionsInfoSet, detectionsInfoUnset, selectDetectionFilename } from "./detectionsSlice";
 import { behaviourInfoLinesSet, behaviourInfoUnset, csvToLines, selectBehaviourInfo, validateDataIsBehaviourLines } from "./behaviourSlice";

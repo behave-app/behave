@@ -29,8 +29,8 @@ describe('Conversion test', () => {
       {pickerPath: "test/file.mp4", localPath: "cypress/assets/other.txt"},
       "cypress/assets/other.txt",
     ])
-    cy.contains("button", "Start conversion").should("be.disabled")
-    cy.contains("button", "Add files").should("not.be.disabled")
+    cy.contains("button", "Start Conversion").should("be.disabled")
+    cy.contains("button", "Add Files").should("not.be.disabled")
       .click()
     cy.contains(".filetree_filename", /^file\.MTS$/)
     cy.contains(".filetree_filename", /^other\.txt/)
@@ -47,12 +47,12 @@ describe('Conversion test', () => {
         .as("directoryPickerCancelled")
     })
     cy.get("@directoryPickerCancelled").should("not.be.called")
-    cy.contains("button", "Start conversion").should("not.be.disabled")
+    cy.contains("button", "Start Conversion").should("not.be.disabled")
       .click()
     cy.get("@directoryPickerCancelled").should("be.called")
 
     cy.setShowDirectoryPickerResult([])
-    cy.contains("button", "Start conversion").should("not.be.disabled")
+    cy.contains("button", "Start Conversion").should("not.be.disabled")
       .click()
     cy.contains(".filetree_filename.filetree_converting", /^file\.MTS$/)
     cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
@@ -69,9 +69,10 @@ describe('Conversion test', () => {
     //   cy.wrap($body).its("parameters.filesize").should("equal", "XS (<100MB)")
     // })
 
-    cy.contains("button", "Add files").should("not.be.disabled")
+    cy.visitWithStubbedFileSystem("/app/convert.html")
+    cy.contains("button", "Add Files").should("not.be.disabled")
       .click()
-    cy.contains("button", "Start conversion").should("not.be.disabled")
+    cy.contains("button", "Start Conversion").should("not.be.disabled")
       .click()
     cy.contains(".filetree_filename", /^file.MTS/)
       .pseudoElementContent("after").should("contain", "Target file already exists")
@@ -84,11 +85,11 @@ describe('Conversion test', () => {
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/other.txt"},
     ])
-    cy.contains("button", "Start conversion").should("be.disabled")
-    cy.contains("button", "Add files").should("not.be.disabled")
+    cy.contains("button", "Start Conversion").should("be.disabled")
+    cy.contains("button", "Add Files").should("not.be.disabled")
       .click()
     cy.contains("You have added some files with an unsupported extension.").should("not.exist")
-    cy.contains("button", "Start conversion").should("not.be.disabled")
+    cy.contains("button", "Start Conversion").should("not.be.disabled")
       .click()
     cy.contains("Some converts seem to have failed.")
   })

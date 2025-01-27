@@ -2,7 +2,7 @@ import { JSX } from "preact"
 import {useState, useEffect} from 'preact/hooks'
 import {yoloBackends, YoloBackend, YoloSettings, YOLO_MODEL_DIRECTORY, getSavedModelFileHandleFromName} from "../lib/tfjs-shared"
 import * as infercss from "./inferrer.module.css"
-import * as generalcss from "../viewer/general.module.css"
+import * as generalcss from "../lib/general.module.css"
 import { BooleanChecker, Checker, LiteralChecker, StringChecker, getCheckerFromObject } from "../lib/typeCheck"
 import { API } from "../worker/Api"
 import { ObjectEntries, ObjectKeys, assert, formatRoundedTimeHumanFriendly, joinedStringFromDict, valueOrErrorAsync2 } from "../lib/util"

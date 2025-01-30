@@ -98,9 +98,109 @@ You are always welcome to reach out and have us look into the reasons that infer
 ### What video formats are supported / why is my format not supported / how can I get my video format supported?
 Please see the [format FAQ](formats-faq.html).
 
+
+### Can I run inference on one computer / on some central computer / in the could and BEHAVE UI on another machine?
+
+Yes, absolutely!
+
+If you have a colleague with a computer that is good at inference (we know that especially post-2020 apple-silicon macs are very good), it may make sense to ask them to infer a bunch of files.
+
+It may also be an option to buy a Mac Mini and use that as central inference hub.
+Although BEHAVE was designed in a way that it should work on most slightly-modern computers, there may be practical reasons to use another method.
+
 ### Is it better to run BEHAVE infer, or run infer in a third party tool?
 
-### What format is the file that infer writes?
+A certain model ran on a certain video frame will always return the same result, regardless in what tool it was run (there are some slight difference due to rounding errors).
+However the speed at which inference runs can differ between different setups.
+BEHAVE infer uses the Graphics Card (GPU) to speed up inference (if this is available and can be accessed by the browser).
+However some setups may have more dedicated hardware to do inference.
+Therefore it may be possible third party tools are faster than BEHAVE infer; there are also situations where BEHAVE infer will be faster.
+
+We expect that the situations where a third party tool is much faster than BEHAVE infer will be very few.
+A large advantage of using BEHAVE infer is that it makes the correct output format from the start, without post-processing.
+However feel free to experiment with different setups.
+
+One situation where a third party tool will be essential is when running a model that is not (yet) supported by BEHAVE infer.
+
+We would love to hear your experiences; for instance if it turns out that there are some much-used models that we don't support in BEHAVE infer, we can look into supporting them.
+
+### What format is the file that BEHAVE infer writes / BEHAVE UI expects?
+
+BEHAVE infer writes (and BEHAVE UI expects) a detection file in JSON format.
+
+```
+{
+    "version": 1,
+    "sourceFileName": "example.MTS",
+    "sourceFileXxHash64": "82f16f09b8327ed1",
+    "modelName": "yolo11n.onnx",
+    "modelKlasses": {
+        "0": "person".
+        "1": "animal",
+        ....,
+    },
+    "framesInfo": [
+        {
+            "detections": []
+        },
+        {
+            "detections": [
+                {
+                    "klass": 14,
+                    "cx": 0.64064970703125,
+                    "cy": 0.615576513671875,
+                    "width": 0.08330521850585937,
+                    "height": 0.15274920654296875,
+                    "confidence": 0.314255615234375
+                }
+            ]
+        },
+        ....,
+    ]
+}
+```
+
+#### version
+Version should always be 1
+
+#### sourceFileName
+The filename of the video file that was inferred.
+Used for information only, may be some other string (including empty string)
+
+#### sourceFileXxHash64
+In order to be able to match the correct video file, this contains the [xxh64 hash](https://xxhash.com) of the video file.
+In order to speed up matching, only the first and last 5 * 1024 * 1024 bytes are used for the hash (or the whole file if the file is < 10MB).
+If this hash does not match, a warning is shown in BEHAVE UI but you can still continue, so feel free to leave this an empty string.
+
+#### modelKlasses
+A dictionary of all classes defined in the model, key being class-number (as a string, since JSON only supports string keys) and name being the value.
+Make sure that there are no detections with numbers that are not in this list
+
+#### framesInfo
+An array, one entry per frame.
+The array length should be the number of frames in the video.
+Each entry in the array is a dictionary with a single key: `detections`
+Even if there are no detections, this key should exist.
+
+##### framesInfo[].detections
+An array of all detections in this frame.
+BEHAVE infer is set to add all detections with more than 0.25 confidence; BEHAVE UI can filter out detections under a certain confidence.
+
+Each element in the array has a dictionary with keys `klass`, `cx`, `cy`, `width`, `heigh`, and `confidence`.
+
+- `klass` is the class-number that was detected (as a number, not as a string)
+- `cx`, `cy` defined the middle-point of the bounding box. The coordinate-system uses (0, 0) for the top-left of the video frame and (1, 1) for the bottom right.
+- `width,`, `height` of the bounding box, in the same coordinate-system.
+- `confidence` number between 0 and 1
 
 ### How can I convert the output of my custom infer tool to BEHAVE UI's format?
 
+Please send us an example of the output that you have, and we can advise you how to convert it.
+
+### Could one use BEHAVE with detections generated in some other way than inference?
+Certainly, detections are nothing more than a list of frames that should be investigated in BEHAVE UI.
+If there are other data sources having this information (that can be matched to frame numbers) this will certainly also work in BEHAVE.
+
+Other data-sources could be infra-red movement detectors, NFC detectors, sound detection, etc.
+
+If you have such data and would like help with this, let us know!

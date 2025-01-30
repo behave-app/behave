@@ -110,6 +110,17 @@ In the end you will have to make the decision if the energy spent in training a 
 Feel free to contact us with questions about training your own model.
 We are far from experts in the field, but we have done this before.
 
+### Can you train my model for me if I just send you a bunch of videos?
+
+Setting up to train a model takes quite a bit of manpower.
+We don't intend to train models for other teams as a matter of course.
+At the same time we are not saying that we are always unable to help; feel free to reach out to us.
+
+### Can you help us with other AI related problems?
+
+You can always ask, and if it's something we can easily answer we will be happy to do so.
+At the same time, don't expect that we are the ultimate experts on all things AI and be prepared to get an answer that we just don't know :).
+
 ### Why do you support only Ultralytics YOLO architecture models?
 
 Ultralytics YOLO are some of the most versatile, most used models and best performing models.
@@ -131,3 +142,64 @@ The YOLO models are usually distributed as `.pt` files, whereas BEHAVE infer nee
 We convert between the formats using the [ultralytics python package](https://pypi.org/project/ultralytics/), but there may be other ways to do it.
 
 Feel free to contact us if you want a certain model converted, we would be happy to do it.
+
+### Can a model distinguish between different individuals within a species?
+
+It's an interesting question.
+There has certainly been [research](https://arxiv.org/abs/2304.09657) [into](https://pmc.ncbi.nlm.nih.gov/articles/PMC8490693/) [using AI](https://arxiv.org/abs/2206.02261) [to recognise individuals](https://arxiv.org/abs/1902.09324) (these links are not a full list, just the result of a quick Googling).
+Especially in cases when individuals are enhanced in order to improve recognition (e.g. coloured rings on birds), this may be possible to do.
+
+Whether it's worth the effort and whether you are not missing information, depends on the exact situation.
+For instance a nest camera in an area where there are always birds around, may benefit from being able to detect the exact individual.
+On the other hand, it should be remembered that AI will not alert you to suspicious/interesting behaviour that it was not trained for.
+
+As an example, just last year our group, while using BEHAVE to inspect videos of Little Auks, found [unexpected / unknown alloparental feeding behaviour](https://onlinelibrary.wiley.com/doi/full/10.1002/ece3.11188).
+We are using an AI model with BEHAVE that detects Little Auks; if instead we would have been using a model that would only recognise the "registered occupants" of a certain nesting site, its possible this behaviour would not have been noticed (because the alloparent would not have been detected as a subject of interest by the AI).
+
+### How accurate can a model be?
+
+This question is slightly related to the previous one.
+An ideal model would detect any subject/situation that you are interested in, while not detecting any other situation.
+It will however be impossible to specify exactly the situations you are interested in, especially because if some situation occurs that you did not anticipate, that may be super interesting (and worth an academic paper); so how do you train your model on situations you don't anticipate.
+
+In addition there is another problem.
+Often people discuss the accuracy of models (this is how different models are compared in papers or competitions), however this is always based on a very clear set of examples with a ground truth.
+There is a picture of a dog, and if the model labels it as a dog it gets 1 point, if it labels it as a cat, -1 point.
+
+In real life the situation is not always that clear.
+In many situations subjects of interest are either very far in the background (obviously if the subject is 1 pixel large, it makes sense that it does not get detected. But what about 5 pixels? Or 10? Or 20? There is no clear-cut point at which point the blob of pixels becomes a subject of interest. The same is true for partially occluded subjects, or subjects that are mostly out of the frame.
+
+Therefore we argue that its not even that easy to determine how to determine what model is "the most accurate".
+
+We don't really think it makes sense to talk about "ideal models" or "the most accurate model"; it's more important to find a model that is good enough (next question).
+
+### How accurate does a model have to be?
+
+A much more sensible question that the last one :).
+
+Let's quickly talk about what we need by accuracy.
+Basically, an accurate model detects whenever an item of a class it was trained on is in view.
+Whenever the model detects something that is not there (e.g. it thinks a stone is an animal), we call it a false positive.
+Whenever the model does not detect something that is there (e.g. a there is an animal but the model does not detect it), it's a false negative.
+Since the model detects things with a certain confidence (rather than saying "there is a dog there" it says "I'm 65% sure there is a dog there"), one can later (in BEHAVE UI) use a confidence cutoff to find the ideal balance between false positives and false negatives.
+
+What is an acceptable number of false positives and negatives depends on the situation.
+Even models that have high false negatives (e.g. they detect an animal only in half the cases that it's in the frame) may be acceptable for slower animals that always are in frame for at least 10 frames in a row (if only one of those frames are detected, the human doing the coding will look at the other ones as well). 
+On the other hand, for an animal that is only in frame for single frame, one might want a better true detection rate.
+
+False positives mean that the person doing BEHAVE UI will look at an image where nothing is happening.
+This is not a problem if it happens a couple of times per video.
+On the other hand, if this happens every other frame, the result is that the detections are useless.
+
+Having said all this, one of the things we learned while developing BEHAVE is that even a model with moderate accuracy was quite useful.
+For the first year we ran BEHAVE with the MegaDetector v5 model.
+Only when BEHAVE proved to be very useful, we started training our own model with a higher accuracy.
+
+### How would I determine if a model is good enough?
+
+Basically how we determined whether the MegaDetector v5 model was good enough for us was by behaviour coding some videos with BEHAVE with detections, and in the old-fashioned way (manually watching the whole video).
+This way it quickly became clear that we did not miss any behaviours when using the detections (meaning we did not have too many false negatives)
+At the same time it took much less time (and was more fun) to use BEHAVE (meaning there were also not too many false positives).
+
+
+It should be noted that MegaDetector v5 is not supported anymore, but MegaDetector v6 (which is both more accurate and faster) is supported.

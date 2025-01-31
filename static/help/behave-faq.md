@@ -22,13 +22,13 @@ We still think that BEHAVE adds a benefit over using just a video player and exc
 Most cases will be somewhere in between: skipping the sections without detections will speed things up, but time is still needed for watching and coding the sections with detections.
 
 Speedup can be influenced as well by the chosen model.
-If the model can very accurately detect the target species or target individual (also see [the model FAQ](./model-faq.html)), there will be fewer frames that have to be inspected that do not contain data you're interested in.
+If the model can very accurately detect the target species or target individual (also see [the model FAQ]($(BASEDIR)/help/model-faq.html)), there will be fewer frames that have to be inspected that do not contain data you're interested in.
 
 ### Is BEHAVE suited for my use-case?
 
 We mostly think BEHAVE is suited for situations where long continuous videos are taken where only occasionally there is activity.
 The more videos there are, the more it makes sense to have a dedicated app for behaviour coding.
-The more sections there are without activity, the more sense it makes to use AI to detect them (especially if there are AI Models that do a good job in detecting these sections; even if not, at a certain amount of videos it still makes sense to train a custom AI model; see [the model FAQ](./model-faq.html) for more info).
+The more sections there are without activity, the more sense it makes to use AI to detect them (especially if there are AI Models that do a good job in detecting these sections; even if not, at a certain amount of videos it still makes sense to train a custom AI model; see [the model FAQ]($(BASEDIR)/help/model-faq.html) for more info).
 
 There may be other use-cases that can benefit from BEHAVE that we did not consider yet, or that we have not implemented yet.
 We especially think that the low bar set by the "zero-install" mentality of BEHAVE may make it useful in many situations when only occasional AI inference is needed.
@@ -38,7 +38,7 @@ We cannot promise we can accommodate all requests, but we will always be happy t
 
 ### What kind of accuracy can I expect from the AI inference?
 
-We invite you to read the [infer FAQ](./infer-faq.html) and [model FAQ](./model-faq.html) for a more in-depth answer.
+We invite you to read the [infer FAQ]($(BASEDIR)/help/infer-faq.html) and [model FAQ]($(BASEDIR)/help/model-faq.html) for a more in-depth answer.
 
 Here we just want to explain that the used AI model is what determines the accuracy of the detections (no matter how you want to define the accuracy).
 BEHAVE does not provide any AI models.

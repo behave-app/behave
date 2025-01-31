@@ -44,4 +44,4 @@ This is something that may be changed in the near future, if we figure out how a
 You are always welcome to contact us, or to [file an issue on GitHub](https://github.com/behave-app/behave/issues/new?template=Blank+issue)
 
 ### What formats are supported / why is my format not supported / how can I get my video format supported?
-Please see the [format FAQ](formats-faq.html).
+Please see the [format FAQ]($(BASEDIR)/help/formats-faq.html).

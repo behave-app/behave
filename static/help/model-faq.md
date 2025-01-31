@@ -1,6 +1,6 @@
 # Model FAQ
 
-During the first step of the [infer task](./infer-faq.html), you will be asked to choose a model.
+During the first step of the [infer task]($(BASEDIR)/help/infer-faq.html), you will be asked to choose a model.
 If you want to deep-dive into models, we invite you to [read the Wikipedia article](https://en.wikipedia.org/wiki/Machine_learning#Models) and proceed from there.
 In this document we will try to explain how models are important to BEHAVE.
 
@@ -61,7 +61,7 @@ If each frame takes a second to infer, this means it takes 12.5 hours to process
 This may still be acceptable (over a weekend, one could infer 5 videos).
 If the model gets more complex and takes 5 seconds per image, 62.5 hours per video, it may be a lot less acceptable...
 
-The [infer FAQ](./infer-faq.md) has more information about the speed of a model and how this can be improved.
+The [infer FAQ]($(BASEDIR)/help/infer-faq.html) has more information about the speed of a model and how this can be improved.
 
 ### What model does BEHAVE ship with?
 
@@ -128,7 +128,7 @@ When we started the project 2 years ago, this was an obvious choice for us, also
 
 We are more than happy to also support other model architectures if there is a serious interest in them.
 
-Of course any other model architecture can still run infer outside of BEHAVE, and then import the results into BEHAVE UI. Please see the [infer FAQ](./infer-faq.html) for more info.
+Of course any other model architecture can still run infer outside of BEHAVE, and then import the results into BEHAVE UI. Please see the [infer FAQ]($(BASEDIR)/help/infer-faq.html) for more info.
 
 ### Why do all models only look at a single image?
 

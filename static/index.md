@@ -1,7 +1,7 @@
 BEHAVE is a collection of tools that makes it easy to extract behaviour (or: code behaviour) from videos, especially long continuous videos, by employing state-of-the-art AI in order to determine which sections of the video can safely be skipped. 
 
 [Learn more](#learnmore)
-[Quick start](help/quickstart.html)
+[Quick start](guides/quickstart.html)
 [BEHAVE now!](app/index.html)
 {.centeredButtons}
 

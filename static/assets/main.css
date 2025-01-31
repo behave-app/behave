@@ -8,9 +8,19 @@
   --header-height: calc(var(--logo-height) + 2 * var(--logo-vertical-margins));
   --logo-section-width: calc(var(--logo-width) + 2 * var(--logo-horizontal-margins));
   --footer-height: 1.3rem;
+  --toc-width: 10rem;
+  --toc-gap: 1.7rem;
 }
 body {
   margin: 0;
+}
+
+kbd {
+  border: 1px solid hsl(210, 0%, 30%);
+  border-radius: .2em;
+  background-color: hsl(210, 0%, 90%);
+  margin: 0 .1em;
+  padding: .2em;
 }
 
 .page_header {
@@ -59,16 +69,25 @@ body {
   margin-bottom: calc(var(--footer-height) + .7em);
   margin-left: 8px;
   margin-right: 8px;
+  width: 100%;
+  display: grid;
+  grid-template: [row1-start] ". mainbody ." auto [row1-end]
+  [row2-start] ". toc ." auto [row2-end]
+  / 1fr min(calc(100% - 16px), 800px) 1fr;
 }
 
-@media (width >= 816px) {
+.mainbody {
+  grid-area: mainbody;
+}
+
+@media (min-width: calc(816px + 10rem /* toc width */ + 1.7rem /*toc gap*/)) {
   .page_content {
-    width: 800px;
-    margin-left: calc(50% - 400px);
+    grid-template: [row1-start] ". toc . mainbody ." auto [row1-end]
+    / 1fr minmax(0, var(--toc-width)) var(--toc-gap) minmax(0, 800px) 1fr;
   }
 }
 
-.page_content > p > img {
+.page_content > .mainbody > p > img {
   width: 80%;
   margin: .7em 10%;
   border: 1px solid hsl(210, 90%, 45%);
@@ -121,3 +140,38 @@ body {
 .centeredButtons a:active {
   border-color: hsl(210, 90%, 80%);
 }
+
+
+.toc_menu {
+  grid-area: toc;
+  list-style-type: none;
+  padding: 0;
+}
+
+.toc_menu  > li {
+
+}
+
+.toc_menu .toc_app {
+  list-style-type: none;
+  padding: 0;
+}
+.toc_menu .toc_app a {
+  display: block;
+  padding: .7em;
+  margin: 1.3em 0;
+  background: linear-gradient(to top, hsl(210, 90%, 45%), hsl(240, 20%, 80%));
+  border-radius: .7em;
+  border: 1px solid white;
+  text-decoration: none;
+  color: black;
+  width: 8rem;
+}
+
+.toc_menu .toc_app a:hover {
+  border-color: hsl(210, 90%, 20%);
+}
+.toc_menu .toc_app a:active {
+  border-color: hsl(210, 90%, 80%);
+}
+

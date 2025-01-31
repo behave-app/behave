@@ -70,7 +70,7 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 
 $(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html public/app/tsc markdown.mjs determine_version_number.mjs
 	@mkdir -p "$$(dirname "$@")"
-	@node markdown.mjs "$<" static/ '$(BEHAVE_VERSION)' | sed -f public/app/tsc > "$@"
+	@node markdown.mjs "$<" static/ '$(BEHAVE_VERSION)' '$(STATIC_TARGET_MARKDOWN_FILES)' | sed -f public/app/tsc > "$@"
 
 clean:
 	@if [ -e public ]; then rm -r public; fi

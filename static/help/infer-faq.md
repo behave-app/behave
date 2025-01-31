@@ -22,7 +22,7 @@ There are three factors that influence how it takes to infer a single frame:
 - The chosen backend
 
 The model (architecture) has a huge influence on how long it takes to infer a single frame.
-As described in [the models FAQ]("./model-faq.html), a model can be thought of as one super-complex function that takes an image as input, and a number of detections as output.
+As described in [the models FAQ]($(BASEDIR)/help/model-faq.html), a model can be thought of as one super-complex function that takes an image as input, and a number of detections as output.
 A certain model may contain hundreds of millions of operations to get to its answer.
 Obviously this model is going to be slower than a model that takes only tens of millions of operations.
 
@@ -44,7 +44,7 @@ Personally we have very good experiences with using BEHAVE infer on M1 and M2 Ma
 
 ### How can I speed up infer
 
-The easiest answers are related to the previous answer: find a smaller model (we have some hints in the [model FAQ](./model-faq.html), get a better computer and make sure that your windows drivers support WebGPU.
+The easiest answers are related to the previous answer: find a smaller model (we have some hints in the [model FAQ]($(BASEDIR)/help/model-faq.html), get a better computer and make sure that your windows drivers support WebGPU.
 
 Another approach may be to do the inference on a different computer.
 Detection files (the result from the inference) are simple JSON files that can easily be moved between computers.
@@ -81,12 +81,12 @@ Whether this model is run in BEHAVE infer or in any other tool makes no differen
 
 BEHAVE does not provide a model, and therefore the choice of model (and the trade-offs between accuracy and speed) should be made by the user.
 
-Read the [model FAQ](./model-faq.html) for more information.
+Read the [model FAQ]($(BASEDIR)/help/model-faq.html) for more information.
 
 ### Infer failed, what could be the reason?
 
 There are a couple of reasons why infer may fail.
-If infer consistently fails on videos from a certain camera / in a certain format, while it works on other videos, then check the [format FAQ](formats-faq.html) to make sure your format is supported.
+If infer consistently fails on videos from a certain camera / in a certain format, while it works on other videos, then check the [format FAQ]($(BASEDIR)/help/formats-faq.html) to make sure your format is supported.
 
 Infer may fail because the computer runs out of memory during the infer.
 In this case, lowering the concurrency can resolve memory pressure.
@@ -96,7 +96,7 @@ This is a much more robust method to run inference (however also a lot slower of
 You are always welcome to reach out and have us look into the reasons that inference failed in your case.
 
 ### What video formats are supported / why is my format not supported / how can I get my video format supported?
-Please see the [format FAQ](formats-faq.html).
+Please see the [format FAQ]($(BASEDIR)/help/formats-faq.html).
 
 
 ### Can I run inference on one computer / on some central computer / in the could and BEHAVE UI on another machine?

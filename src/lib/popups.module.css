@@ -1,0 +1,13 @@
+.prompt, .confirm, .alert {
+  text-align: center;
+  .validation_error {
+      color: hsl(0, 70%, 30%);
+  }
+  input[type=text] {
+    width: 80%;
+    &.text_valid {}
+    &.text_invalid {
+      color: hsl(0, 70%, 30%);
+    }
+  }
+}

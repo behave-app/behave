@@ -60,6 +60,140 @@ describe('Behave UI test', () => {
     cy.contains("h3", "Detection file").next().contains("example.ffffffffffffffff.behave.det.json")
   }),
 
+  it("Can import/export ethogram", () => {
+    cy.visitWithStubbedFileSystem("/app/viewer.html")
+    cy.contains("h2", "Welcome to Behave")
+    cy.get("dialog").click(0, 0)
+    cy.get(".viewer_sidebar").within(() => {
+      cy.get(`button[title~="shortcuts"]`).click()
+    })
+    cy.setShowSaveFilePickerResult(null)
+    cy.window().then(win => {
+      cy.spy(win.console, "warn")
+        .withArgs("No file selected to save to")
+        .as("filePickerCancelled")
+    })
+    cy.get("@filePickerCancelled").should("not.be.called")
+    cy.contains("Using Subject List and Shortcuts").within(() => {
+      cy.contains("option", "example subjects").should("be.selected")
+      cy.get(`button[title~="Export"]`).click()
+    })
+    cy.get("@filePickerCancelled").should("be.called")
+    cy.setShowSaveFilePickerResult([{pickerPath: "example subjects.subject-preset-export.json", localPath: "cypress/assets/empty"}])
+    cy.contains("Using Subject List and Shortcuts").within(() => {
+      cy.contains("option", "example subjects").should("be.selected")
+      cy.get(`button[title~="Export"]`).click()
+    })
+    cy.window().then(async (win) => {
+      const opfsRoot = await win.navigator.storage.getDirectory()
+      const maindir = await opfsRoot.getDirectoryHandle("showSavePickerResult", {create: false})
+      const entries: FileSystemFileHandle[] = []
+      for await (const [_name, entry] of maindir.entries()) {
+        if (entry instanceof FileSystemDirectoryHandle) {
+          throw new Error("There should not be directories in showSaveFilePickerResult")
+        }
+        entries.push(entry);
+      }
+      if (entries.length !== 1) {
+          throw new Error("There should be exactly 1 entry in in showSaveFilePickerResult")
+      }
+      const text = await (await entries[0].getFile()).text()
+      cy.setShowOpenFilePickerResult([{
+        content: text, pickerPath: "example subjects.subject-preset-export.json"}])
+    })
+    cy.contains("Using Subject List and Shortcuts").within(() => {
+      cy.contains("option", "example subjects").should("be.selected")
+      cy.get("select").select("Import preset file...")
+      cy.contains("option", "example subjects (2)").should("be.selected")
+    })
+
+  })
+
+  it("Can update ethogram", () => {
+    cy.visit("/app/viewer.html")
+    cy.contains("h2", "Welcome to Behave")
+    cy.get("dialog").click(0, 0)
+    cy.get(".viewer_sidebar").within(() => {
+      cy.get(`button[title~="shortcuts"]`).click()
+    })
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "default").should("be.selected")
+      cy.get(`button[title~="Duplicate"]`).click()
+      cy.contains("option", "Copy of default").should("be.selected")
+      cy.get("select").select("default")
+      cy.contains("option", "default").should("be.selected")
+      cy.get(`button[title~="Duplicate"]`).click()
+      cy.contains("option", "Copy (2) of default").should("be.selected")
+      cy.get(`button[title~="Edit"]`).click()
+    })
+    cy.get("input").type("{backspace} BLA")
+    cy.contains("button", "cancel").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of default").should("be.selected")
+      cy.get(`button[title~="Edit"]`).click()
+    })
+    cy.get("input").type("{backspace} BLA {enter}")
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of defaul BLA").should("be.selected")
+      cy.get("select").select("default")
+      cy.contains("option", "default").should("be.selected")
+      cy.get(`button[title~="Duplicate"]`).click()
+      cy.contains("option", "Copy (2) of default").should("be.selected")
+      cy.get(`button[title~="Edit"]`).click()
+    })
+    cy.get("input").type("{backspace} BLA {enter}")
+    cy.contains("There is already a list with this name")
+    cy.contains("button", "cancel").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of default").should("be.selected")
+      cy.get(`button[title~="Delete"]`).click()
+    })
+    cy.contains("button", "no").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of default").should("be.selected")
+      cy.get(`button[title~="Delete"]`).click()
+    })
+    cy.contains("button", "yes").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of defaul BLA").should("be.selected")
+      cy.get("select").select("default")
+      cy.get(`button[title~="Delete"]`).click()
+    })
+    cy.contains("button", "yes").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy of default").should("be.selected")
+      cy.get(`button[title~="Delete"]`).click()
+    })
+    cy.contains("button", "yes").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of defaul BLA").should("be.selected")
+      cy.get(`button[title~="Delete"]`).click()
+    })
+    cy.contains("Delete not possible")
+    cy.contains("button", "ok").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of defaul BLA").should("be.selected")
+      cy.get("select").select("Create new...")
+    })
+    cy.get("input").type("my new item")
+    cy.contains("button", "cancel").click();
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "Copy (2) of defaul BLA").should("be.selected")
+      cy.get("select").select("Create new...")
+    })
+    cy.get("input").type("my new item")
+    cy.contains("button", "ok").click();
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "my new item").should("be.selected")
+      cy.get("select").select("Copy (2) of defaul BLA")
+      cy.get(`button[title~="Delete"]`).click()
+    })
+    cy.contains("button", "yes").click()
+    cy.contains("Using General Shortcuts").within(() => {
+      cy.contains("option", "my new item").should("be.selected")
+    })
+  })
+
   it("Can start a behave", () => {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
@@ -96,13 +230,13 @@ describe('Behave UI test', () => {
     cy.window().then(win => {
       cy.spy(win.console, "warn")
         .withArgs("Save file selection cancelled, not creating behaviour file")
-        .as("directoryPickerCancelled")
+        .as("filePickerCancelled")
     })
-    cy.get("@directoryPickerCancelled").should("not.be.called")
+    cy.get("@filePickerCancelled").should("not.be.called")
     cy.get("body")
       .contains("button", "Create new behaviour file")
       .click()
-    cy.get("@directoryPickerCancelled").should("be.called")
+    cy.get("@filePickerCancelled").should("be.called")
     cy.setShowSaveFilePickerResult([{pickerPath: "example.82f16f09b8327ed1.behave", localPath: "cypress/assets/empty"}])
     cy.get("body")
       .contains("button", "Create new behaviour file")

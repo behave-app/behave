@@ -221,31 +221,38 @@ export const shortcutsSlice = createSlice({
       index: number,
     }>) => {
       const {stateKey, index } = payload
-      assert(index !== state[stateKey].selectedIndex,
-        "Cannot delete active preset")
       assert(state[stateKey].presets.at(index),
       "Invalid index: " + index.toString())
+      assert(state[stateKey].presets.length > 1,
+      "Cannot delete when length = 1")
       state[stateKey].presets.splice(index, 1)
-      if (state[stateKey].selectedIndex > index) {
+      if (index === state[stateKey].presets.length ) {
+        state[stateKey].selectedIndex--;
+      }
+      if (state[stateKey].selectedIndex > index
+        || state[stateKey].selectedIndex > state[stateKey].presets.length - 1) {
         state[stateKey].selectedIndex--;
       }
     },
-    shortcutPresetAdded: (state, {payload}: PayloadAction<{
+    shortcutPresetAddedAndSelected: (state, {payload}: PayloadAction<{
       stateKey: keyof ShortcutsState,
-      name?: string
+      name: string
       shortcuts?: Shortcuts
     }>) => {
       const {stateKey, name, shortcuts} = payload
-      for (let i=0;; i++) {
-        const suggestedName = (name ?? "Untitled") + (i ? ` (${i})` : "")
-        if (!state[stateKey].presets.some(preset => preset.name === suggestedName)) {
-          state[stateKey].presets.push({
-            name: suggestedName,
-            shortcuts: shortcuts ?? {}
-          })
-          break
+      const uniqueName = (() => {
+        for (let i = 1;; i++) {
+          const testName = `${name}${i === 1 ? "" : ` (${i})`}`
+          if (state[stateKey].presets.every(p => p.name !== testName)) {
+            return testName;
+          }
         }
-      }
+      })()
+      state[stateKey].presets.push({
+        name: uniqueName,
+        shortcuts: shortcuts ?? {}
+      })
+      state[stateKey].selectedIndex = state[stateKey].presets.length - 1
     }
   }
 })
@@ -253,7 +260,7 @@ export const shortcutsSlice = createSlice({
 export const {
   shortcutKeyRemoved,
   shortcutActionRemoved,
-  shortcutPresetAdded,
+  shortcutPresetAddedAndSelected,
   shortcutPresetDeleted,
   shortcutPresetRenamed,
   shortcutSwitchActiveIndex,
@@ -310,15 +317,6 @@ export type ShortcutPresetExportFailedException = {
   callParams: {stateKey: keyof ShortcutsState, index: number},
 }
 
-function shortcutPresetExportFailedException(
-  exception: Omit<ShortcutPresetExportFailedException, "error">
-): ShortcutPresetExportFailedException {
-  return {
-    error: "ShortcutPresetExportFailedException",
-    ...exception
-  }
-}
-
 export function nameFromStateKey(key: keyof ShortcutsState): string {
   return key === "generalShortcuts" ? "General"
   : key === "subjectShortcuts" ? "Subject" : "Behaviour"
@@ -332,7 +330,7 @@ export const exportPreset = createAsyncThunk<
   void, ShortcutPresetExportFailedException["callParams"],
 ATConfig<ShortcutPresetExportFailedException>>(
   "settings/shortcuts/exportPreset",
-  async (callParams, {getState, rejectWithValue}) => {
+  async (callParams, {getState}) => {
     const {stateKey, index} = callParams
     const preset = getState().settings.shortcuts[stateKey]?.presets[index]
     assert(preset)
@@ -353,7 +351,8 @@ ATConfig<ShortcutPresetExportFailedException>>(
       })
     } catch (e) {
       if (e instanceof DOMException) {
-        throw rejectWithValue(shortcutPresetExportFailedException({callParams}))
+        console.warn("No file selected to save to")
+        return
       }
       throw e
     }
@@ -371,7 +370,7 @@ ATConfig<ShortcutPresetExportFailedException>>(
 export type ShortcutPresetImportFailedException = {
   error: "ShortcutPresetImportFailedException"
   callParams: {stateKey: keyof ShortcutsState},
-  reason: "no file" | "corrupt" | "wrong section",
+  reason: "corrupt" | "wrong section",
 }
 
 function shortcutPresetImportFailedException(
@@ -408,8 +407,8 @@ void, ShortcutPresetImportFailedException["callParams"], ATConfig<ShortcutPreset
       file = files[0]
     } catch (e) {
       if (e instanceof DOMException) {
-        throw rejectWithValue(shortcutPresetImportFailedException(
-          {callParams, reason: "no file"}))
+        console.warn("No file selected")
+        return
       } else {
         throw e
       }
@@ -439,7 +438,7 @@ void, ShortcutPresetImportFailedException["callParams"], ATConfig<ShortcutPreset
       throw rejectWithValue(shortcutPresetImportFailedException(
         {callParams, reason: "wrong section"}))
     }
-    dispatch(shortcutPresetAdded({stateKey, ...data.preset}))
+    dispatch(shortcutPresetAddedAndSelected({stateKey, ...data.preset}))
   }
 )
 

@@ -60,14 +60,13 @@ const ShortcutPresetImportFailedExceptionHandler: FunctionComponent<ErrorHandler
   const dispatch = useAppDispatch()
   return <div className={css.shortcut_preset_import_error}>
     <h2>Importing of preset group failed</h2>
-    {error.reason === "no file" ? <div>Please select a file to import</div>
-      : error.reason === "corrupt"
-        ? <div>It looks like the file is not a valid preset import file</div>
-        : error.reason === "wrong section"
-          ? <div>The preset file seems not to be for the {
-            nameFromStateKey(error.callParams.stateKey).toLocaleLowerCase()
-          } section</div>
-          : exhausted(error.reason)
+    {error.reason === "corrupt"
+      ? <div>It looks like the file is not a valid preset import file</div>
+      : error.reason === "wrong section"
+        ? <div>The preset file seems not to be for the {
+          nameFromStateKey(error.callParams.stateKey).toLocaleLowerCase()
+        } section</div>
+        : exhausted(error.reason)
     }
     <div className={generalcss.button_row}>
       <button onClick={() => {closeError(); void(dispatch(importPreset(error.callParams)))}}>

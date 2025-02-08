@@ -1,4 +1,7 @@
-export type Files = null | ReadonlyArray<string | {localPath: string, pickerPath: string}>
+export type Files = null | ReadonlyArray<string
+| {localPath: string, pickerPath: string, replacer?: {from: RegExp | string, to: string}}
+| {content: string, pickerPath: string, replacer?: {from: RegExp | string, to: string}}
+>
 
 const OPEN_PICKER_DIRNAME = "showOpenFilePickerResult"
 const SAVE_PICKER_DIRNAME = "showSavePickerResult"
@@ -109,9 +112,14 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
       console.log(`made ${dirname}`)
       const maindir = await opfsRoot.getDirectoryHandle(dirname, {create: true})
       for (const entry of files) {
-        const {localPath, pickerPath} = typeof entry === "object" ? entry : {
-          localPath: entry, pickerPath: entry}
-        cy.readFile(localPath, null).then(buffer => {
+        const contentChainable = typeof entry === "string"
+        ? cy.readFile(entry, null)
+        : "localPath" in entry
+        ? cy.readFile(entry.localPath, null)
+        : cy.wrap(Cypress.Buffer.from(entry.content, "utf8"))
+        const pickerPath = typeof entry === "string" ? entry : entry.pickerPath
+        const replacer = typeof entry === "string" ? undefined : entry.replacer
+        contentChainable.then(buffer => {
           cy.wrap(null).then(async () => {
             let dir = maindir
             let path = pickerPath.split("/")
@@ -119,9 +127,15 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
               dir = await dir.getDirectoryHandle(path[0], {create: true})
               path = path.slice(1)
             }
+            if (replacer) {
+                console.log(buffer.toString("utf8").replace(replacer.from, replacer.to))
+              buffer = Cypress.Buffer.from(
+                buffer.toString("utf8").replace(replacer.from, replacer.to),
+                "utf8")
+            }
             const file = await dir.getFileHandle(path[0], {create: true})
             const writableFile = await file.createWritable()
-              await writableFile.write(buffer)
+            await writableFile.write(buffer)
             await writableFile.close()
           })
         })

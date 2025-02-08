@@ -251,7 +251,10 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       </ul>
       <div className={generalcss.button_row}>
         <button onClick={() => setQuestions(null)}>cancel</button>
-        <button onClick={() => openFiles(questions)}>proceed</button>
+        <button onClick={() => {
+          openFiles(questions)
+          setQuestions(null)
+        }}>proceed</button>
       </div>
     </div>
   }

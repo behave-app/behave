@@ -6,6 +6,7 @@ describe('Behave UI test', () => {
     cy.document()
     .contains("h2", "Welcome to Behave")
   })
+
   it('Changes visuals on file drag', () => {
     cy.visit("/app/viewer.html")
     cy.get("body")
@@ -24,7 +25,8 @@ describe('Behave UI test', () => {
     cy.get("body")
       .should("not.contain", "Drop your files here")
   })
-  it("Can start a behave", () => {
+
+  it("Can deal with file errors/questions", () => {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "example.82f16f09b8327ed1.behave.det.json", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.det.json"},
@@ -35,6 +37,31 @@ describe('Behave UI test', () => {
     cy.contains("h2", "Error")
     cy.contains("You cannot open a file of type json")
     cy.contains("button", "close").click()
+
+
+    cy.setShowOpenFilePickerResult([
+      {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
+    ])
+    cy.contains("button", "Open video file").should("not.be.disabled")
+      .click()
+    cy.contains("example.82f16f09b8327ed1.behave.mp4", {timeout: 20 * 1000})
+    cy.contains("hash: 82f16f09b8327ed1")
+    cy.setShowOpenFilePickerResult([
+      {pickerPath: "example.ffffffffffffffff.behave.det.json", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.det.json", replacer: {from: "82f16f09b8327ed1", to: "ffffffffffffffff"}}])
+    cy.contains("button", "Open detection file").should("not.be.disabled")
+      .click()
+    cy.contains("h2", "Please check the following information")
+    cy.contains("button", "cancel").click()
+    cy.contains("h3", "Detection file").next().contains("<no detection file>")
+    cy.contains("button", "Open detection file").should("not.be.disabled")
+      .click()
+    cy.contains("h2", "Please check the following information")
+    cy.contains("button", "proceed").click()
+    cy.contains("h3", "Detection file").next().contains("example.ffffffffffffffff.behave.det.json")
+  }),
+
+  it("Can start a behave", () => {
+    cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
     ])

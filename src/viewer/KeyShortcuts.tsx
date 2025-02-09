@@ -1,6 +1,6 @@
 import { FunctionComponent } from "preact"
 import { useSelector } from "react-redux"
-import { useEffect, useState, useMemo } from "preact/hooks"
+import { useEffect, useState, useContext } from "preact/hooks"
 import { useAppDispatch } from "./store"
 import { keyFromEvent, Key, keyToStrings, keyToString, keyToElements } from "../lib/key"
 import { CONTROLS, ValidControlName } from "./controls"
@@ -10,11 +10,11 @@ import * as css from "./keyshortcuts.module.css"
 import { ObjectGet, ObjectKeys, joinedStringFromDict } from "../lib/util"
 import { Icon, ValidIconName } from "../lib/Icon"
 import { Dialog } from "../lib/Dialog"
-import { ShortcutPreset, ShortcutPresets, ShortcutsState, createOrUpdateAction, shortcutKeyAddedOrReplaced, exportPreset, importPreset, nameFromStateKey, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutActionRemoved, shortcutKeyRemoved, shortcutPresetAddedAndSelected, shortcutPresetDeleted, shortcutPresetRenamed, shortcutSwitchActiveIndex, selectActionByKeyString } from "./shortcutsSlice"
-import { Alert, Confirm, Prompt } from "../lib/Popups"
+import { ShortcutPreset, ShortcutPresets, ShortcutsState, shortcutKeyAddedOrReplaced, exportPreset, importPreset, nameFromStateKey, selectActiveBehaviourShortcutPreset, selectActiveGeneralShortcutPreset, selectActiveSubjectShortcutPreset, selectBehaviourShortcutPresets, selectGeneralShortcutPresets, selectSubjectShortcutPresets, shortcutActionRemoved, shortcutKeyRemoved, shortcutPresetAddedAndSelected, shortcutPresetDeleted, shortcutPresetRenamed, shortcutSwitchActiveIndex, selectActionByKeyString, shortcutActionAddedOrReplaced } from "./shortcutsSlice"
 import { MODIFIER_KEYS } from "../lib/defined_keys"
 import type { RootState } from "./store"
 import { executeShortcutAction } from "./reducers"
+import { ModularPopupSetter } from "../lib/Popups"
 
 const keyToStringsSpecial = (key: Partial<Key>): string[] => {
   const codeMissing = !("code" in key)
@@ -25,21 +25,20 @@ const keyToStringsSpecial = (key: Partial<Key>): string[] => {
 
 type ControlShortcutEditPopupProps<T extends keyof ShortcutsState> = {
   shortcutsStateKey: T
-  action: (T extends "generalShortcuts" ? ValidControlName : string) | null
+  action: (T extends "generalShortcuts" ? ValidControlName : string)
   onRequestClose: () => void
-  onCancelNewShortcut: () => void
   disabled: boolean
   activated: boolean
   keys: ReadonlyArray<Key>
   title: string
   iconName: ValidIconName
+  editName: () => void,
 }
-
 
 function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
   {
     shortcutsStateKey, action, onRequestClose, disabled, activated, keys,
-    title, iconName, onCancelNewShortcut
+    title, iconName, editName,
 
   }: ControlShortcutEditPopupProps<T>
 ) {
@@ -48,22 +47,11 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     index: number,
     key: {modifiers?: Key["modifiers"], code?: Key["code"]},
   }>(null)
-  const [editTitleInfo, setEditTitleInfo] = useState<null | {
-    title: string} >(null)
   const actionsByKey = useSelector(selectActionByKeyString)
   const duplicateActions = keys.map(key => keyToString(key)).flatMap(
     keyString => actionsByKey[keyString]!.filter(
       a => !(a.action === action && a.shortcutsStateKey === shortcutsStateKey)))
-
-  const shortcutsPreset = useSelector(
-    shortcutsStateKey === "generalShortcuts" ? selectActiveGeneralShortcutPreset
-    : shortcutsStateKey === "subjectShortcuts" ? selectActiveSubjectShortcutPreset
-    : selectActiveBehaviourShortcutPreset) as ShortcutPreset<T extends "generalShortcuts" ? ValidControlName : string>
-  useEffect(() => {
-    if (action === null) {
-      setEditTitleInfo({title: ""})
-    }
-  }, [action])
+  const modularPopupSetter = useContext(ModularPopupSetter)
 
   useEffect(() => {
     if (!editKeyInfo) {
@@ -127,62 +115,23 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
     keysWithEdit[editKeyInfo.index] = "edit"
   }
 
-  const usedActions = useMemo(() => new Set(ObjectKeys(shortcutsPreset.shortcuts)
-    .filter(s => s !== action).map(s => s.trim().toLocaleLowerCase())),
-    [shortcutsPreset]
-  )
-  const editTitleIsAllowed = editTitleInfo === null
-  || !usedActions.has(editTitleInfo.title.trim().toLocaleLowerCase())
-
-  const trySaveNewAction = (newAction: string) => {
-    void(dispatch(createOrUpdateAction({
-      stateKey: shortcutsStateKey as "subjectShortcuts" | "behaviourShortcuts",
-      newAction: newAction.trim(),
-      oldAction: action === null ? undefined : action})).unwrap().then(() => {
-        setEditTitleInfo(null)
-        if (action === null) {
-          onCancelNewShortcut()
-        }
-      }))
-  }
-
   return <Dialog className={css.edit_dialog} blur onRequestClose={onRequestClose}>
     <h2 className={generalcss.show_on_hover_buttons}>
       {iconName && <span className={css.icon}><Icon iconName={iconName} /></span>}
       {shortcutsStateKey === "generalShortcuts"
         ? <span className={css.title}>{title}</span>
-        : <>{editTitleInfo === null
-          ? <span className={css.title} onClick={() => {
+        : <>
+          <span className={css.title} onClick={() => {
             setEditKeyInfo(null);
-            setEditTitleInfo({title})}}>
+            editName()
+          }}>
             {title}
           </span>
-          : <input type="text" value={editTitleInfo.title}
-            placeholder="<empty>"
-            className={joinedStringFromDict({[css.title]: true,
-              [css.invalid_title]: !editTitleIsAllowed})}
-            onChange={e => setEditTitleInfo({title: e.currentTarget.value})} 
-            onKeyDown={e => {
-              e.stopPropagation()
-              if (e.code === "Enter") {
-                trySaveNewAction(editTitleInfo.title)
-              }
-              if (e.code === "Escape") {
-                if (action !== null) {
-                  setEditTitleInfo(null)
-                }
-                e.preventDefault()
-              }
-            }}
-          />}
           <button className={generalcss.show_on_hover} onClick={() => {
-            if (editTitleInfo === null) {
-              setEditKeyInfo(null)
-              setEditTitleInfo({title})
-            } else {
-              trySaveNewAction(editTitleInfo.title)
-            }}}>
-            <Icon iconName={editTitleInfo ? "check" : "edit"} />
+            setEditKeyInfo(null)
+            editName()
+          }}>
+            <Icon iconName="edit" />
           </button>
         </>}
     </h2>
@@ -223,16 +172,13 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
                 key === "edit" ? editKeyInfo!.key : key).map(
                   singleKey => <kbd>{singleKey}</kbd>)}
             </div>
-            <button disabled={!!editTitleInfo} 
-              onClick={() => {
-                if (editTitleInfo) return
-                setEditKeyInfo(key === "edit" ? null : {
-                  index, key: {}})}}>
+            <button onClick={() => {
+              setEditKeyInfo(key === "edit" ? null : {
+                index, key: {}})}}>
               <Icon iconName="edit" />
             </button>
-            <button disabled={!!editTitleInfo} 
+            <button
               onClick={() => {
-                if (editTitleInfo) return
                 dispatch(shortcutKeyRemoved({
                   key: key as Key,
                   stateKey: shortcutsStateKey,
@@ -243,62 +189,62 @@ function ControlShortcutEditPopup<T extends keyof ShortcutsState>(
             </button>
           </div>)}
       </div>
-        <button disabled={!!editTitleInfo} className={css.add_button_small}
-          onClick={() => {if (editTitleInfo) return; setEditKeyInfo({
+        <button className={css.add_button_small}
+          onClick={() => {setEditKeyInfo({
             index: keys.length, key: {}})}} >
           <Icon iconName="add" />
         </button>
       </>
-
-        : <button disabled={!!editTitleInfo || action === null}
-        onClick={() => {if (editTitleInfo) return; setEditKeyInfo({
-          index: keys.length, key: {}})}} >
-        <Icon iconName="add" /> Add your first keystroke
-      </button>
+        : <button 
+          onClick={() => {setEditKeyInfo({
+            index: keys.length, key: {}})}} >
+          <Icon iconName="add" /> Add your first keystroke
+        </button>
       }
       <hr />
     </div>
     <div className={generalcss.button_row}>
-      {editTitleInfo
-        ? <>
-          <button onClick={() => trySaveNewAction(editTitleInfo.title)}>
-            <Icon iconName="save" /> Save
-          </button>
-          <button onClick={() => action === null ? onCancelNewShortcut() : setEditTitleInfo(null)}>
-            Cancel
-          </button>
-        </> : <>
-          {shortcutsStateKey !== "generalShortcuts" &&
-            <button onClick={() => {
+      {shortcutsStateKey !== "generalShortcuts" &&
+        <button onClick={() => {
+          modularPopupSetter({
+            type: "confirm",
+            title: `Delete ${nameFromStateKey(shortcutsStateKey).toLowerCase()}`,
+            subtitle: `Are you sure you want to delete "${action}"?`,
+            yes: () => {
               onRequestClose()
               dispatch(shortcutActionRemoved({shortcutsStateKey, action: action!}));
-            }}>
-              <Icon iconName="delete" />
-              Delete {nameFromStateKey(shortcutsStateKey).toLowerCase()}
-            </button>
-          }
-          <button disabled={action === null} onClick={onRequestClose}>Close</button>
-        </>}
+              modularPopupSetter(null);
+            },
+            no: () => {
+              modularPopupSetter(null);
+            }
+          })
+        }}>
+          <Icon iconName="delete" />
+          Delete {nameFromStateKey(shortcutsStateKey).toLowerCase()}
+        </button>
+      }
+      <button disabled={action === null} onClick={onRequestClose}>Close</button>
     </div>
   </Dialog>
 }
 
 type ControlShortcutProps = {
   shortcutsStateKey: keyof ShortcutsState
-  actionIndex: number
+  action: string
+  editMode: boolean
+  setEditMode: (mode: boolean) => void,
+  editName: () => void,
   onRequestClose: () => void
-  onCancelNewShortcut: () => void
 }
 
 const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
-  shortcutsStateKey, actionIndex, onCancelNewShortcut, onRequestClose
+  shortcutsStateKey, action, editMode, setEditMode, editName, onRequestClose
 }) => {
   const shortcutsPreset = useSelector(
     shortcutsStateKey === "generalShortcuts" ? selectActiveGeneralShortcutPreset
     : shortcutsStateKey === "subjectShortcuts" ? selectActiveSubjectShortcutPreset
     : selectActiveBehaviourShortcutPreset) as ShortcutPreset<string>
-  const actionKeys = shortcutsStateKey === "generalShortcuts" ? ObjectKeys(CONTROLS) : ObjectKeys(shortcutsPreset.shortcuts)
-  const action = actionKeys.at(actionIndex) ?? null
   const keys = action === null ? [] : (shortcutsPreset.shortcuts[action] ?? [])
   const controlInfo = shortcutsStateKey === "generalShortcuts"
     ? CONTROLS[action as ValidControlName] : null
@@ -316,13 +262,6 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
   const activated = useSelector(controlInfo?.selectIsActivated ?? (() => false))
 
   const dispatch = useAppDispatch()
-  const [editPopup, setEditPopup] = useState(false)
-
-  useEffect(() => {
-    if (action === null) {
-      setEditPopup(true)
-    }
-  }, [action])
 
   const title = controlInfo ? controlInfo.description : action ?? ""
   const iconName: ValidIconName = (
@@ -357,13 +296,13 @@ const ControlShortcut: FunctionComponent<ControlShortcutProps> = ({
           singleKey => <kbd>{singleKey}</kbd>)}</div>)}
       </div>
     </button>
-    <button className={generalcss.show_on_hover} onClick={() => setEditPopup(true)}>
+    <button className={generalcss.show_on_hover} onClick={() => setEditMode(true)}>
       <Icon iconName="edit" />
     </button>
-    {editPopup && <ControlShortcutEditPopup
-      onRequestClose={() => setEditPopup(false)}
-      onCancelNewShortcut={onCancelNewShortcut}
+    {editMode && <ControlShortcutEditPopup
+      onRequestClose={() => setEditMode(false)}
       shortcutsStateKey={shortcutsStateKey}
+      editName={editName}
       action={action}
       disabled={disabled}
       activated={activated}
@@ -389,8 +328,9 @@ type ShortcutListProps = {
 const ShortcutList: FunctionComponent<ShortcutListProps> = (
   {onRequestClose, shortcutsStateKey}
 ) => {
-  const [isNewShortcut, setIsNewShortcut] = useState(false)
-  const [popup, setPopup] = useState<"new" | "editName" | "delete" | null>(null)
+  const [editAction, setEditAction] = useState<string | null>(null)
+  const modularPopupSetter = useContext(ModularPopupSetter)
+
   const presets: ShortcutPresets<string> = useSelector((state: RootState) =>
     shortcutsStateKey === "generalShortcuts"
       ? selectGeneralShortcutPresets(state)
@@ -398,11 +338,9 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
         ? selectSubjectShortcutPresets(state)
         : selectBehaviourShortcutPresets(state))
   const activePreset = presets.presets[presets.selectedIndex]
-  const actionList = [
-    ...(shortcutsStateKey === "generalShortcuts" ? 
-    ObjectKeys(CONTROLS) : ObjectKeys(presets.presets[presets.selectedIndex].shortcuts)),
-    ...(isNewShortcut ? [null] : []),
-  ]
+  const actionList = shortcutsStateKey === "generalShortcuts"
+    ? ObjectKeys(CONTROLS)
+    : ObjectKeys(presets.presets[presets.selectedIndex].shortcuts)
   const dispatch = useAppDispatch()
 
   const sectionTitle = shortcutsStateKey === "generalShortcuts"
@@ -421,55 +359,91 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
     : (selectIsWaitingForBehaviourShortcut(state) ? null : behaviourDisabledLine)
   )
 
-  return <div>
-    {popup === null
-      ? null
-      : popup === "delete"
-        ? (presets.presets.length === 1
-          ? <Alert
-            title="Delete not possible"
-            subtitle="You cannot delete the last item from the list. First create a new one before deleting this one"
-            ok={() => setPopup(null)}
-          />
-          : <Confirm
-            title="Confirm delete"
-            subtitle={`Are you sure you want to delete the ${sectionTitle} "${activePreset.name}"`}
-            yes={() => {
-              dispatch(shortcutPresetDeleted({stateKey: shortcutsStateKey, index: presets.selectedIndex}))
-              setPopup(null)
-            }}
-            no={() => setPopup(null)}
-          />
-        ): <Prompt
-          title={popup === "new" ? `Create new ${sectionTitle}` : `Rename list "${activePreset.name}"`}
-          subtitle="Name of the list"
-          value={popup === "new" ? "" : activePreset.name}
-          validator={name => {
-            const compName = name.trim().toLocaleLowerCase()
-            if (compName === "") {
-              return false
-            }
-            const foundIndex = presets.presets.findIndex(
-              p => p.name.toLocaleLowerCase() === compName)
-            if (foundIndex !== -1 && foundIndex !== presets.selectedIndex) {
-              return "There is already a list with this name"
-            }
-            return true
-          }}
-          ok={(name) => {
-            if (popup === "new") {
-              dispatch(shortcutPresetAddedAndSelected(
-                {stateKey: shortcutsStateKey, name: name.trim()}))
-            } else {
-              dispatch(shortcutPresetRenamed(
-                {stateKey: shortcutsStateKey, index: presets.selectedIndex, newName: name.trim()}))
+  const editListNamePopup = (type: "new" | "rename") => {
+    modularPopupSetter({
+      type: "prompt",
+      title: type === "new" ? `Create new ${sectionTitle}` : `Rename list "${activePreset.name}"`,
+      subtitle: "Name of the list",
+      value: type === "new" ? "" : activePreset.name,
+      validator: (name) => {
+        const compName = name.trim().toLocaleLowerCase()
+        if (compName === "") {
+          return false
+        }
+        const foundIndex = presets.presets.findIndex(
+          p => p.name.toLocaleLowerCase() === compName)
+        if (foundIndex !== -1 && foundIndex !== presets.selectedIndex) {
+          return "There is already a list with this name"
+        }
+        return true
+      },
+      ok: (name) => {
+        if (type === "new") {
+          dispatch(shortcutPresetAddedAndSelected(
+            {stateKey: shortcutsStateKey, name: name.trim()}))
+        } else {
+          dispatch(shortcutPresetRenamed(
+            {stateKey: shortcutsStateKey, index: presets.selectedIndex, newName: name.trim()}))
+        }
+        modularPopupSetter(null)
+      },
+      cancel: () => modularPopupSetter(null)
+    })
+  }
 
-          }
-          setPopup(null)
-        }}
-        cancel={() => setPopup(null)}
-      />
+  const deletePopup = () => {
+    if (presets.presets.length === 1) {
+      modularPopupSetter({
+        type: "alert",
+        title: "Delete not possible",
+        subtitle: "You cannot delete the last item from the list. First create a new one before deleting this one",
+        ok: () => modularPopupSetter(null)
+      })
+    } else {
+      modularPopupSetter({
+        type: "confirm",
+        title: "Confirm delete",
+        subtitle: `Are you sure you want to delete the ${sectionTitle} "${activePreset.name}"`,
+        yes: () => {
+          dispatch(shortcutPresetDeleted({stateKey: shortcutsStateKey, index: presets.selectedIndex}))
+          modularPopupSetter(null)
+        },
+        no: () => modularPopupSetter(null)
+      })
     }
+  }
+
+  const editShortcutNamePopup = (oldName: string | null) => {
+    const sectionName = nameFromStateKey(shortcutsStateKey).toLocaleLowerCase()
+    modularPopupSetter({
+      type: "prompt",
+      title: `${oldName === null ? "Create new" : "Rename"} ${sectionName}`,
+      subtitle: `Name of the ${sectionName}`,
+      value: oldName ?? "",
+      validator: (name) => {
+        const compName = name.trim()
+        if (compName !== oldName && compName in activePreset.shortcuts) {
+          return `There is already a ${sectionName} with this name`
+        }
+        return true
+      },
+      ok: (name) => {
+        const newAction = name.trim()
+        dispatch(shortcutActionAddedOrReplaced({
+          stateKey: shortcutsStateKey,
+          oldAction: oldName ?? undefined,
+          newAction
+        }))
+        setEditAction(newAction)
+        modularPopupSetter(null)
+      },
+      cancel: () => modularPopupSetter(null)
+
+    })
+
+  }
+
+  return <div>
     <h2>{sectionTitle}</h2>
     <div className={css.current_preset_select}>
       Using {sectionTitle}:
@@ -477,7 +451,7 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
         <select onChange={e => {
           switch(e.currentTarget.value) {
             case "new":
-              setPopup("new")
+              editListNamePopup("new")
               e.currentTarget.selectedIndex = presets.selectedIndex
               break;
             case "import":
@@ -497,7 +471,7 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
           <option value="import">Import preset file...</option>
         </select>
         <button title="Edit name" 
-          onClick={() => setPopup("editName")}>
+          onClick={() => editListNamePopup("rename")}>
           <Icon iconName="edit" /></button>
         <button title={`Duplicate "${activePreset.name}"`}
           onClick={() => {
@@ -519,22 +493,24 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
             {stateKey: shortcutsStateKey, index: presets.selectedIndex}))}>
           <Icon iconName="download" /></button>
         <button title="Delete preset"
-          onClick={() => {setPopup("delete")}}><Icon iconName="delete" /></button>
+          onClick={() => {deletePopup()}}><Icon iconName="delete" /></button>
       </div>
     </div>
     {intro && <div className={css.intro}>{intro}</div>}
     <div className={css.shortcut_list}>
-      {actionList.map((_, index) => <ControlShortcut
-        actionIndex={index}
+      {actionList.map((action) => <ControlShortcut
+        action={action}
         shortcutsStateKey={shortcutsStateKey}
         onRequestClose={onRequestClose}
-        onCancelNewShortcut={() => setIsNewShortcut(false)}
+        editMode={action === editAction}
+        setEditMode={(mode: boolean) => setEditAction(mode ? action : null)}
+        editName={() => editShortcutNamePopup(action)}
       />)}
     </div>
     {(shortcutsStateKey === "subjectShortcuts"
       || shortcutsStateKey === "behaviourShortcuts") && 
       <div className={generalcss.button_row}>
-        <button onClick={() => setIsNewShortcut(true)}>
+        <button onClick={() => editShortcutNamePopup(null)}>
           <Icon iconName="add" />Add new {
             nameFromStateKey(shortcutsStateKey).toLocaleLowerCase()}
         </button>
@@ -556,7 +532,6 @@ export const KeyShortcuts: FunctionComponent<Props> = ({onRequestClose}) => {
     }
     <div className={generalcss.button_row}>
       <button onClick={() => onRequestClose()}>Close</button>
-      <button onClick={() => alert("TODO")}>reset</button>
     </div>
   </div>
 }

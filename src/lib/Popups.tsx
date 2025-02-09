@@ -1,10 +1,11 @@
-import { FunctionComponent } from "preact"
+import { FunctionComponent, createContext } from "preact"
 import * as css from "./popups.module.css"
 import * as generalcss from "./general.module.css"
 import { Dialog } from "../lib/Dialog"
-import { useState } from "preact/hooks"
+import { StateUpdater, useState } from "preact/hooks"
+import { exhausted } from "./util"
 
-type PromptProps = {
+export type PromptProps = {
   title: string
   subtitle: string
   placeholder?: string
@@ -40,7 +41,7 @@ export const Prompt: FunctionComponent<PromptProps> = ({title, subtitle, placeho
   </Dialog>
 }
 
-type ConfirmProps = {
+export type ConfirmProps = {
   title: string
   subtitle: string
   yes: () => void,
@@ -58,7 +59,7 @@ export const Confirm: FunctionComponent<ConfirmProps> = ({title, subtitle, yes, 
   </Dialog>
 }
 
-type AlertProps = {
+export type AlertProps = {
   title: string
   subtitle: string
   ok: () => void,
@@ -73,3 +74,32 @@ export const Alert: FunctionComponent<AlertProps> = ({title, subtitle, ok}) => {
     </div>
   </Dialog>
 }
+
+export type ModularPopupProps =
+  ({type: "alert"} & AlertProps)
+  | ({type: "confirm"} & ConfirmProps)
+  | ({type: "prompt"} & PromptProps)
+
+export const ModularPopup: FunctionComponent<ModularPopupProps> = props => {
+  switch (props.type) {
+    case "alert": {
+        const {type: _type, ...rest} = props
+        return <Alert {...rest} />
+      }
+    case "confirm": {
+        const {type: _type, ...rest} = props
+        return <Confirm {...rest} />
+      }
+    case "prompt": {
+        const {type: _type, ...rest} = props
+        return <Prompt {...rest} />
+      }
+    default:
+      exhausted(props)
+  }
+  throw new Error("Switch should have been exahsutive")
+}
+export const ModularPopupSetter = createContext<StateUpdater<ModularPopupProps | null>>(() => {
+    throw new Error("Not provided")
+  }
+)

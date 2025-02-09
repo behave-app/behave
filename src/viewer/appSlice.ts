@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction, SerializedError } from '@reduxjs/toolkit'
 import type { ATConfig, RootState } from './store'
-import { type ActionAlreadyInUseException, createOrUpdateAction, exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
+import {exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
 import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditing, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
 
@@ -14,7 +14,7 @@ export type MultipleActionsAssignedToPressedKeyException = {
 }
 
 
-export type AppError = (SerializedError & {error: "SerializedError"}) | ActionAlreadyInUseException | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException | NoWritableBehaviourFileException
+export type AppError = (SerializedError & {error: "SerializedError"}) | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException | NoWritableBehaviourFileException
 
 export const appSlice = createSlice({
   name: "app",
@@ -48,13 +48,6 @@ export const appSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(createOrUpdateAction.rejected, (state, action) => {
-        if (action.payload === undefined) {
-          state.error = {error: "SerializedError", ...action.error}
-        } else {
-          state.error = action.payload
-        }
-      })
       .addCase(exportPreset.rejected, (state, action) => {
         if (action.payload === undefined) {
           state.error = {error: "SerializedError", ...action.error}

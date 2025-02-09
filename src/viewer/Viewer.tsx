@@ -1,4 +1,4 @@
-import { FunctionComponent } from "preact"
+import { FunctionComponent} from "preact"
 import * as css from "./viewer.module.css"
 import { SideBar } from "./SideBar";
 import { VideoPlayer } from "./VideoPlayer";
@@ -21,6 +21,8 @@ import { selectActionByKeyString } from "./shortcutsSlice";
 import { executeShortcutAction } from "./reducers";
 import { ErrorPopup } from "./Error";
 import { Sizer} from "./Sizer"
+import { ModularPopupProps, ModularPopup, ModularPopupSetter} from "../lib/Popups"
+import { useState } from "preact/hooks";
 
 export const Viewer: FunctionComponent = () => {
   const controlPaneShown = useSelector(selectControlPanelShown)
@@ -30,6 +32,7 @@ export const Viewer: FunctionComponent = () => {
   const behaviourBarSize = useSelector(selectBehaviourBarSize)
   const dispatch = useAppDispatch()
   const error = useSelector(selectAppError)
+  const [modularPopupProps, setModularPopupProps] = useState<ModularPopupProps | null>(null)
 
   useEffect(() => {
     if (!isCompatibleBrowser()) {
@@ -50,24 +53,27 @@ export const Viewer: FunctionComponent = () => {
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange)
   }, [])
 
-  return <div className={joinedStringFromDict({
-    [css.viewer]: true,
-    [css.no_controlpanel]: !controlPaneShown,
-    [css.no_detectionbar]: !detectionBarShown,
-    [css.no_behaviourbar]: !behaviourBarShown,
-  })} style={{
-      "--behaviourbar-height": `${behaviourBarSize.toFixed(1)}vh`,
-      "--detectionbar-height": `${detectionBarSize.toFixed(1)}vh`,
-    }}>
-    {error && <ErrorPopup error={error} />}
-    <ShortcutsHandler />
-    <Popup />
-    <SideBar />
-    <VideoPlayer />
-    {controlPaneShown && <ControlPanel />}
-    {detectionBarShown && <DetectionBar />}
-    {behaviourBarShown && <Behaviour />}
-  </div>
+  return <ModularPopupSetter.Provider value={setModularPopupProps}>
+    <div className={joinedStringFromDict({
+      [css.viewer]: true,
+      [css.no_controlpanel]: !controlPaneShown,
+      [css.no_detectionbar]: !detectionBarShown,
+      [css.no_behaviourbar]: !behaviourBarShown,
+    })} style={{
+        "--behaviourbar-height": `${behaviourBarSize.toFixed(1)}vh`,
+        "--detectionbar-height": `${detectionBarSize.toFixed(1)}vh`,
+      }}>
+      {error && <ErrorPopup error={error} />}
+      {modularPopupProps !== null && <ModularPopup {...modularPopupProps} />}
+      <ShortcutsHandler />
+      <Popup />
+      <SideBar />
+      <VideoPlayer />
+      {controlPaneShown && <ControlPanel />}
+      {detectionBarShown && <DetectionBar />}
+      {behaviourBarShown && <Behaviour />}
+    </div>
+  </ModularPopupSetter.Provider>
 }
 
 const Popup: FunctionComponent = () => {

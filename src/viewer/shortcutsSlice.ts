@@ -265,52 +265,8 @@ export const {
   shortcutPresetRenamed,
   shortcutSwitchActiveIndex,
   shortcutKeyAddedOrReplaced,
-} = shortcutsSlice.actions
-
-const {
   shortcutActionAddedOrReplaced,
 } = shortcutsSlice.actions
-
-export type ActionAlreadyInUseException = {
-  error: "ActionAlreadyInUseException"
-  callParams: {
-    stateKey: "subjectShortcuts" | "behaviourShortcuts"
-    newAction: string
-    oldAction?: string
-  }
-}
-
-function actionAlreadyInUseException(
-  exception: Omit<ActionAlreadyInUseException, "error">
-): ActionAlreadyInUseException {
-  return {
-    error: "ActionAlreadyInUseException",
-    ...exception
-  }
-}
-
-export const createOrUpdateAction = createAsyncThunk<
-boolean, ActionAlreadyInUseException["callParams"], ATConfig<ActionAlreadyInUseException>
->(
-  "settings/shortcuts/createOrUpdateAction",
-  async (callParams , {getState, dispatch, rejectWithValue}) =>  {
-    const {stateKey, newAction, oldAction} = callParams
-    if (oldAction !== null && oldAction === newAction) {
-      return false
-    }
-    assert(stateKey in {subjectShortcuts: 1, behaviourShortcuts: 1},
-      "Can only change actions for subject shortcuts and behaviour shortcuts")
-    const shortcutPresets = getState().settings.shortcuts[stateKey]
-    const activePreset = getActivePreset(shortcutPresets)
-    const usedActions = new Set(ObjectKeys(activePreset.shortcuts)
-      .filter(s => s !== oldAction).map(s => s.trim().toLocaleLowerCase()))
-    if (usedActions.has(newAction.trim().toLocaleLowerCase())) {
-      throw rejectWithValue(actionAlreadyInUseException({callParams}))
-    }
-    dispatch(shortcutActionAddedOrReplaced({stateKey, oldAction, newAction}))
-    return true
-  }
-)
 
 export type ShortcutPresetExportFailedException = {
   error: "ShortcutPresetExportFailedException"

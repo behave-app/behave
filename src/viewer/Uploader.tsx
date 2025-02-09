@@ -166,10 +166,10 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
     if (type === "video" || type === "all") {
       accept["video/mp4"] = [".mp4"]
     }
-    if (type === "video" || type === "all") {
+    if (type === "detection" || type === "all") {
       accept["application/json"] = [".json"]
     }
-    if (type === "video" || type === "all") {
+    if (type === "behaviour" || type === "all") {
       accept["text/csv"] = [".csv"]
     }
 

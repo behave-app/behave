@@ -107,7 +107,7 @@ export const CONTROLS = {
   play_pause: fillAndWrapDefaultControlInfo({
     iconName: "play_pause",
     action: dispatch => {void(dispatch(videoTogglePlayPause()))},
-    selectIsActivated: state => !state.videoPlayer.playerState?.paused,
+    selectIsActivated: state => state.videoPlayer.playerState?.paused === false,
     description: "Pause if playing, start playing if paused",
   }),
 

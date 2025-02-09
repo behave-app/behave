@@ -3,7 +3,7 @@ import { AppError, MultipleActionsAssignedToPressedKeyException, appErrorCleared
 import * as css from "./error.module.css"
 import * as generalcss from "../lib/general.module.css"
 import { useAppDispatch } from "./store";
-import { ActionAlreadyInUseException, ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, exportPreset, importPreset, nameFromStateKey, } from "./shortcutsSlice";
+import { ShortcutPresetExportFailedException, ShortcutPresetImportFailedException, ShortcutsState, exportPreset, importPreset, nameFromStateKey, } from "./shortcutsSlice";
 import { CONTROLS, ValidControlName } from "./controls";
 import { keyToElements} from "../lib/key";
 import { Dialog } from "../lib/Dialog";
@@ -18,27 +18,6 @@ type ErrorHandlerProps<T> = {
   error: AppError & T
   closeError: () => void
 }
-
-const ActionAlreadyInUseExceptionHandler: FunctionComponent<ErrorHandlerProps<ActionAlreadyInUseException>> = ({error, closeError}) => {
-  const {callParams: {stateKey, newAction}} = error
-  return <div className={css.action_already_in_use}>
-    <h2>Action name already in use</h2>
-    <div>
-      There is already a {stateKey === "subjectShortcuts" ? "subject" : "behaviour"} shortcut with the name <em>{newAction}</em>
-      It's not possible to make two shortcuts with the same content.
-    </div>
-    <div>
-      Note that two names are compared in a case-insensitive way, and spaces at the start or end are ignored.
-    </div>
-    <div>
-      Please change the name to a valid one.
-    </div>
-    <div className={generalcss.button_row}>
-      <button onClick={closeError}>close</button>
-    </div>
-  </div> 
-}
-
 
 const ShortcutPresetExportFailedExceptionHandler: FunctionComponent<ErrorHandlerProps<ShortcutPresetExportFailedException>> = ({error, closeError}) => {
   const dispatch = useAppDispatch()
@@ -162,8 +141,6 @@ export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {
     switch (error.error) {
       case "SerializedError":
         return <UnknownError {...{error, closeError}} />
-      case "ActionAlreadyInUseException":
-        return <ActionAlreadyInUseExceptionHandler {...{error, closeError}} />
       case "ShortcutPresetExportFailedException":
         return <ShortcutPresetExportFailedExceptionHandler {...{error, closeError}} />
       case "ShortcutPresetImportFailedException":

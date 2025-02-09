@@ -50,7 +50,7 @@ function createPopupControl<T>(props: {
   const {name, popupName, ...rest} = props
 
   return fillAndWrapDefaultControlInfo({
-    description: `Show ${name ?? popupName} popup`,
+    description: `Show "${name ?? popupName}"-popup`,
     action: dispatch => {
       void(dispatch(videoPause()))
       dispatch(sidebarPopupWasToggled(popupName))
@@ -64,14 +64,15 @@ function createPopupControl<T>(props: {
 export const CONTROLS = {
   show_info: createPopupControl({
     iconName: "info",
-    popupName: "info"
+    popupName: "info",
+    name: "Behave version and video info",
   }),
 
   class_sliders: createPopupControl({
     iconName: "sliders",
     popupName: "classSliders",
     selectIsDisabled: state => !selectDetectionInfoPotentiallyNull(state),
-    name: "settings for detections",
+    name: "Settings for detections",
   }),
 
   upload_files: createPopupControl({
@@ -88,7 +89,7 @@ export const CONTROLS = {
 
   key_shortcut_help_toggle: createPopupControl({
     iconName: "indeterminate_question_box",
-    name: "key shortcuts help and customization",
+    name: "Key shortcuts help and customization",
     popupName: "keyShortcuts",
   }),
 

@@ -59,7 +59,7 @@ const ShortcutPresetImportFailedExceptionHandler: FunctionComponent<ErrorHandler
 }
 
 
-const MAATPKButton: FunctionComponent<{shortcutsStateKey: keyof ShortcutsState, action: string}> = ({shortcutsStateKey, action}) => {
+const MAATPKButton: FunctionComponent<{shortcutsStateKey: keyof ShortcutsState, action: string, closeError: () => void}> = ({shortcutsStateKey, action, closeError}) => {
   const dispatch = useAppDispatch()
   const controlInfo = shortcutsStateKey === "generalShortcuts"
     ? CONTROLS[action as ValidControlName] : null
@@ -74,7 +74,7 @@ const MAATPKButton: FunctionComponent<{shortcutsStateKey: keyof ShortcutsState, 
 
   return <button disabled={disabled}
     className={joinedStringFromDict({[css.activated]: activated})}
-    onClick={() => dispatch(executeShortcutAction({shortcutsStateKey, action}))}>
+    onClick={() => {closeError(); void(dispatch(executeShortcutAction({shortcutsStateKey, action})))}}>
     {nameFromStateKey(shortcutsStateKey)} <Icon iconName="arrow_right"
     /> {controlInfo?.description ?? action}
   </button>}
@@ -97,7 +97,7 @@ const MultipleActionsAssignedToPressedKeyExceptionHandler: FunctionComponent<Err
     </div>
     <div className={css.multiple_action_choices}>
       {error.actions.map(({shortcutsStateKey, action}) =>
-        <MAATPKButton shortcutsStateKey={shortcutsStateKey} action={action} />)}
+        <MAATPKButton shortcutsStateKey={shortcutsStateKey} action={action} closeError={closeError}/>)}
     </div>
     <div className={generalcss.button_row}>
       <button onClick={closeError}>

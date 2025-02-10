@@ -9,7 +9,7 @@ Both the list of subjects and the list of behaviours (and the chosen shortcut ke
 ## Opening the shortcut settings
 
 The ethogram is defined on the shortcuts-settings page.
-In order to access this page, click the shortcut settings button <button class="icon">indeterminate_question_box</button> in the left bar of BEHAVE UI (you may need to close the "upload video file" window first by pressing <kbd>esc</kbd> or clicking next to its window).
+In order to access this page, click the shortcut settings button <button><span class="iconWrapper"><span class="icon">indeterminate_question_box</span></span></button> in the left bar of BEHAVE UI (you may need to close the "upload video file" window first by pressing <kbd>esc</kbd> or clicking next to its window).
 Note that in the controls and info pane is open as well (the default), the same button can also be found all the way on the right.
 
 ![Location the shortcut buttons can be found in the default layout]($(BASEDIR)/assets/shortcuts-button.webp)
@@ -59,10 +59,10 @@ This will work the same for behaviour actions.
 
 The four buttons on the right to the shortcut list drop-down, are actions that can be taken on the shortcut list:
 
-- <button class="icon">edit</button>: change the name of the shortcut list
-- <button class="icon">content_copy</button>: duplicate the current shortcut list
-- <button class="icon">download</button>: export the shortcut list to a file (inside the drop-down there is an "Import from file..." option to reimport it on the same or another computer)
-- <button class="icon">delete</button>: delete the shortcut list
+- <button><span class="iconWrapper"><span class="icon">edit</span></span></button>: change the name of the shortcut list
+- <button><span class="iconWrapper"><span class="icon">content_copy</span></span></button>: duplicate the current shortcut list
+- <button><span class="iconWrapper"><span class="icon">download</span></span></button>: export the shortcut list to a file (inside the drop-down there is an "Import from file..." option to reimport it on the same or another computer)
+- <button><span class="iconWrapper"><span class="icon">delete</span></span></button>: delete the shortcut list
 
 Feel free to play around a bit with creating new shortcut lists and removing old ones.
 
@@ -158,7 +158,7 @@ A possible rule could be to assign subjects only to the numbers, and use the rig
 
 Let's start by changing some shortcuts in the "General Shortcuts" sections.
 Remember that in this sections, the actions are fixed and cannot be changed; only the shortcuts can be changed.
-First make a duplicate of the "default" shortcut list by selecting the "default" list from the drop-down and clicking <button class="icon">content_copy</button> (it will be called "Copy of default").
+First make a duplicate of the "default" shortcut list by selecting the "default" list from the drop-down and clicking <button><span class="iconWrapper"><span class="icon">content_copy</span></span></button> (it will be called "Copy of default").
 By using a duplicate, we can play around without having to worry that the original shortcuts get changed.
 
 We can edit actions (including editing shortcuts) by clicking on the [edit]{.icon} icon that appears to the right side of an action when the mouse hovers over the action.
@@ -170,7 +170,7 @@ Clicking the button opens an action edit popup:
 ![Action edit popup]($(BASEDIR)/assets/shortcuts-edit-action-popup.webp)
 
 At the top we see the name of the action, then the status (in this case this action is disabled), and then a list of shortcuts keys (with a button to add a shortcut keystroke) and a "close" button.
-Click the <button><span class="icon">add</span> Add your first keystroke</button> button.
+Click the <button><span class="iconWrapper"><span class="icon">add</span></span> Add your first keystroke</button> button.
 The app will immediately start recording your keystrokes; let's record a keystroke <kbd>Shift</kbd>+<kbd>G</kbd>.
 Feel free to play around, record another keystroke, delete it, and once done, press "Close".
 The shortcut is now recorded on the action (however since the action is disabled, pressing the key has no effect).
@@ -185,7 +185,7 @@ These steps should be self-explanatory, feel free to play around a bit with them
 
 ## Exporting and importing shortcut lists
 
-A shortcut list can be exported to a file by clicking the <button class="icon">download</button> button next to the shortcut lists drop-down.
+A shortcut list can be exported to a file by clicking the <button><span class="iconWrapper"><span class="icon">download</span></span></button> button next to the shortcut lists drop-down.
 Try this now.
 
 This exports the list of actions, and the keyboard shortcuts associated with each action.

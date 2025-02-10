@@ -46,6 +46,14 @@ body {
   font-feature-settings: 'liga';
 }
 
+.iconWrapper {
+  position: relative;
+  top: .1em;
+  display: inline-block;
+  height: calc(1em - 1px);
+  overflow-y: hidden;
+}
+
 
 kbd {
   border: 1px solid hsl(210, 0%, 30%);

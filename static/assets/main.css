@@ -15,6 +15,38 @@ body {
   margin: 0;
 }
 
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  src:
+  url("../app/material-symbols-outlined-OUZOYCEU.woff2") format("woff2")
+}
+
+.icon {
+  font-family: 'Material Symbols Outlined';
+  height: 1.6125em;
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
+
 kbd {
   border: 1px solid hsl(210, 0%, 30%);
   border-radius: .2em;
@@ -87,7 +119,7 @@ kbd {
   }
 }
 
-.page_content > .mainbody > p > img {
+.page_content > .mainbody > div > p > img, .page_content > .mainbody > p > img {
   width: 80%;
   margin: .7em 10%;
   border: 1px solid hsl(210, 90%, 45%);
@@ -175,3 +207,20 @@ kbd {
   border-color: hsl(210, 90%, 80%);
 }
 
+
+.note_information {
+  background-color: hsl(210, 90%, 80%, .3);
+  border: .1em solid hsl(210, 90%, 30%);
+  padding: .5em 1.3em .5em 3.3em;
+  margin: .7em 0;
+  min-height: 2.5em;
+  box-sizing: content-box;
+  position: relative;
+  left: 0;
+  &::before {
+    content: "\2757";
+    position: absolute;
+    left: 10px;
+    font-size: 2em;
+  }
+}

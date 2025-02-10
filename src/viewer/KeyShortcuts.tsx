@@ -468,7 +468,7 @@ const ShortcutList: FunctionComponent<ShortcutListProps> = (
           )}
           <option disabled>&#x23AF;&#x23AF;&#x23AF;&#x23AF;&#x23AF;&#x23AF;</option>
           <option value="new">Create new...</option>
-          <option value="import">Import preset file...</option>
+          <option value="import">Import from file...</option>
         </select>
         <button title="Edit name" 
           onClick={() => editListNamePopup("rename")}>

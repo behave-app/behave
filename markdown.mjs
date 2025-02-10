@@ -87,7 +87,7 @@ function getToc(toc) {
       const header = exceptions_for_dir._header ?? dirname[0].toLocaleUpperCase() + dirname.slice(1)
       const classname = "toc_item " + exceptions_for_dir._class ?? ""
       const labelgenerator = exceptions_for_dir._label_generator ?? (s => {
-        let label = s.replace(/\.[^.]*$/, "")
+        let label = s.replace(/\.[^.]*$/, "").replace("_", " ")
         label = label[0].toLocaleUpperCase() + label.slice(1)
         return label;
       })

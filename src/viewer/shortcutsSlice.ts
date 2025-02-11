@@ -214,7 +214,6 @@ export const shortcutsSlice = createSlice({
       const preset = state[stateKey].presets.at(index)
       assert(preset, "Invalid index: " + index.toString())
       preset.name = newName
-      console.log({preset}, preset.name)
     },
     shortcutPresetDeleted: (state, {payload}: PayloadAction<{
       stateKey: keyof ShortcutsState,

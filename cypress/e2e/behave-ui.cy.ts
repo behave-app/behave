@@ -5,13 +5,14 @@ type FakeFileSystemFileHandle = FileSystemFileHandle & {
 }
 
 const writableFakeFileHandle = (initalData?: string) => {
-  const bytes = new TextEncoder().encode(initalData ?? "")
-  const _data = new ArrayBuffer(bytes.byteLength, {maxByteLength: 1 << 20})
-  new Uint8Array(_data).set(bytes)
+  const _data = new ArrayBuffer(0, {maxByteLength: 1 << 20})
   return {
     data: _data,
     getDataString: () => new TextDecoder().decode(_data),
     createWritable: async (): Promise<FileSystemWritableFileStream> => {
+      const bytes = new TextEncoder().encode(initalData ?? "")
+      _data.resize(bytes.byteLength)
+      new Uint8Array(_data).set(bytes)
       return {
         write: async(data: string): Promise<void> => {
           const bytes = new TextEncoder().encode(data)
@@ -125,7 +126,6 @@ describe('Behave UI test', function () {
     })
     cy.window().then(() => {
       const text = datafile.getDataString()
-      console.log({text})
       cy.setShowOpenFilePickerResult([{
         content: text, pickerPath: "example subjects.subject-preset-export.json"}])
     })
@@ -338,7 +338,7 @@ describe('Behave UI test', function () {
     [/^10$/, /^03-07-2021$/, /^00:55:13$/, /^Beatrice$/, /^Diving$/, /^$/])
 
     cy.log("Delete first line and reinsert it")
-    cy.then(() => datafile.getDataString().split("\n")).should("have.length", 4)
+    cy.then(() => datafile.getDataString().split("\n")).should("have.length", 3)
 
     cy.get(".viewer_controlpanel")
       .contains("Framenumber: 10")

@@ -125,7 +125,7 @@ const getShortcutsFromLocalStorageOrDefault = (): ShortcutsState => {
   let savedShortcuts: unknown
   try {
     savedShortcuts = JSON.parse(shortcutsJSON)
-  } catch (e) {
+  } catch (_e) {
     logDefault("JSON parse failed")
     return defaultInitialState
   }
@@ -287,7 +287,7 @@ ATConfig<ShortcutPresetExportFailedException>>(
   "settings/shortcuts/exportPreset",
   async (callParams, {getState}) => {
     const {stateKey, index} = callParams
-    const preset = getState().settings.shortcuts[stateKey]?.presets[index]
+    const preset = getState().settings.shortcuts[stateKey]?.presets.at(index)
     assert(preset)
     let file: FileSystemFileHandle
     try {
@@ -340,10 +340,8 @@ function shortcutPresetImportFailedException(
 export const importPreset = createAsyncThunk<
 void, ShortcutPresetImportFailedException["callParams"], ATConfig<ShortcutPresetImportFailedException>>(
   "settings/shortcuts/ImportPreset",
-  async (callParams, {getState, dispatch, rejectWithValue}) => {
+  async (callParams, {dispatch, rejectWithValue}) => {
     const {stateKey} = callParams
-    const presets = getState().settings.shortcuts[stateKey]?.presets
-    assert(presets)
     let file: FileSystemFileHandle
     try {
       if (document.fullscreenElement) {

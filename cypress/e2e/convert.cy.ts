@@ -1,12 +1,17 @@
-describe('Conversion test', () => {
-  it('Has a convert link', () => {
+describe('Conversion test', function () {
+  beforeEach(function () {
+    cy.intercept("https://getinsights.io/app/tics", {"ok":true}).as("postTic")
+  })
+
+  it('Has a convert link', function () {
     cy.visit('/app/index.html')
     .get('a[href="convert.html"]')
     .click()
     cy.document()
     .contains("h1", "Video file convertor")
   })
-  it('Changes visuals on file drag', () => {
+
+  it('Changes visuals on file drag', function () {
     cy.visit("/app/convert.html")
     .get("body")
     .should("not.contain", "Drop files here")
@@ -22,7 +27,8 @@ describe('Conversion test', () => {
     .trigger("dragleave")
     .should("not.contain", "Drop files here")
   })
-  it("Converts an MTS file", () => {
+
+  it("Converts an MTS file", function () {
     cy.visitWithStubbedFileSystem("/app/convert.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
@@ -80,7 +86,8 @@ describe('Conversion test', () => {
     cy.contains(".filetree_filename.filetree_converting", /^file\.MTS$/)
     cy.contains(".filetree_filename.filetree_done", /^file\.MTS$/, {timeout: 60000})
   })
-  it("Displays a convert error and explanantion if convert fails", () => {
+
+  it("Displays a convert error and explanantion if convert fails", function () {
     cy.visitWithStubbedFileSystem("/app/convert.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/file.MTS", localPath: "cypress/assets/other.txt"},

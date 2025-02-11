@@ -57,7 +57,7 @@ node_modules/tag: package.json
 
 lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
 	@tsc --noEmit
-	@npx eslint --max-warnings 0 src
+	@npx eslint --max-warnings 0 .
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES) determine_version_number.mjs copy_and_version.py
 	@./node_modules/esbuild/bin/esbuild ./src/worker/Worker.ts --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION='$(BEHAVE_VERSION)' --define:LIBAVJS_COMMIT=\"$(LIBAVJS_COMMIT)\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" && rm public/app/worker/Worker.css*

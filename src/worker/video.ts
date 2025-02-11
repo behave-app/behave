@@ -219,7 +219,6 @@ export class Video {
     }
     _rwthis.formatContext = fmt_ctx;
     _rwthis.videoStream = video_streams[0];
-    this.videoStream.codecpar
     _rwthis.ticksToUsFactor = 
       1e6 * this.videoStream.time_base_num / this.videoStream.time_base_den
 
@@ -821,7 +820,7 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     const creationTime  = [
       tags.format.tags.creation_time,
       ...tags.streams.map(s => s.tags.creation_time)
-    ].filter(ct => ct)
+    ].filter(ct => !!ct)
     .map(ct => "isodate:" + ct)
     .filter(ct => ISODATETIMESTRINGREGEX.test(ct))
     .at(0) as ISODateTimeString | undefined
@@ -1232,7 +1231,11 @@ export async function convert(
     }
     throw e
   } finally {
-    libav && libav.terminate()
-    video && await video.deinit()
+    if (libav) {
+      libav.terminate()
+    }
+    if (video) {
+      await video.deinit()
+    }
   }
 }

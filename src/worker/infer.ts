@@ -325,7 +325,6 @@ export async function infer(
     const completeDetectionInfo = {
       ...detectionInfo,
     }
-    completeDetectionInfo
     const stringDataIterator = detectionInfoToStrings(completeDetectionInfo)
     const textEncoder = new TextEncoder()
     for (const s of stringDataIterator) {
@@ -344,7 +343,9 @@ export async function infer(
     }
     throw e
   } finally {
-    video && await video.deinit()
+    if (video) {
+      await video.deinit()
+    }
   }
 }
 

@@ -2,7 +2,7 @@ import {Files} from "./commands"
 
 declare global {
   namespace Cypress {
-    interface Chainable<Subject = any> {
+    interface Chainable {
       /**
        * Custom command to set which files should be returned to a showOpenFilePicker()
        *
@@ -11,10 +11,8 @@ declare global {
       setShowOpenFilePickerResult(files: Files): Chainable<string>;
       /**
        * Custom command to set which file should be returned to a showSaveFilePicker()
-       *
-       * Give `null` as first paramter to simulate cancel of the showSaveFilePicker method
        */
-      setShowSaveFilePickerResult(files: Files): Chainable<string>;
+      setShowSaveFilePickerResult(method: typeof showSaveFilePicker);
       /**
        * Custom command to set which files should be returned to a showDirectoryPicker()
        *

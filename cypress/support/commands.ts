@@ -1,11 +1,11 @@
+import {OPEN_PICKER_DIRNAME, DIRECTORY_PICKER_DIRNAME} from "./constants"
+let showSaveFilePickerMethod: typeof showSaveFilePicker | null = null
+
 export type Files = null | ReadonlyArray<string
 | {localPath: string, pickerPath: string, replacer?: {from: RegExp | string, to: string}}
 | {content: string, pickerPath: string, replacer?: {from: RegExp | string, to: string}}
 >
 
-const OPEN_PICKER_DIRNAME = "showOpenFilePickerResult"
-const SAVE_PICKER_DIRNAME = "showSavePickerResult"
-const DIRECTORY_PICKER_DIRNAME = "showDirectoryPickerResult"
 Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
   let toedit: typeof options
   if (options === undefined) {
@@ -21,29 +21,12 @@ Cypress.Commands.add("visitWithStubbedFileSystem", (url, options) => {
   const oldBeforeLoad = ((toedit.onBeforeLoad !== undefined) || (() => {})) as CallableFunction
   toedit.onBeforeLoad = (win: typeof window) => {
     oldBeforeLoad(win)
-    cy.stub(win, "showSaveFilePicker").callsFake(async () => {
-      const opfsRoot = await win.navigator.storage.getDirectory()
-      let maindir: FileSystemDirectoryHandle
-      try {
-        maindir = await opfsRoot.getDirectoryHandle(SAVE_PICKER_DIRNAME, {create: false})
-      } catch (e) {
-        if (e instanceof win.DOMException && e.name === 'NotFoundError') {
-          throw new win.DOMException("Simulating abort", "AbortError")
-        } else {
-          assert.fail(`${e}`)
-        }
+    cy.stub(win, "showSaveFilePicker").callsFake(async (options) => {
+      if (showSaveFilePickerMethod === null) {
+        throw new win.DOMException("Simulating abort", "AbortError")
+      } else {
+        return showSaveFilePickerMethod(options)
       }
-      const entries: FileSystemFileHandle[] = []
-      for await (const [_name, entry] of maindir.entries()) {
-        if (entry instanceof FileSystemDirectoryHandle) {
-          throw new Error("There should not be directories in showSaveFilePickerResult")
-        }
-        entries.push(entry);
-      }
-      if (entries.length !== 1) {
-          throw new Error("There should be exactly 1 entry in in showSaveFilePickerResult")
-      }
-      return entries[0]
     })
     cy.stub(win, "showOpenFilePicker").callsFake(async () => {
       const getFilesRecursively = async(dir: FileSystemDirectoryHandle): Promise<FileSystemFileHandle[]> => {
@@ -163,7 +146,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "setShowDirectoryPickerResult", (files) => prepareOPFS(files, DIRECTORY_PICKER_DIRNAME))
 Cypress.Commands.add(
-  "setShowSaveFilePickerResult", (files) => prepareOPFS(files, SAVE_PICKER_DIRNAME))
+  "setShowSaveFilePickerResult", (method: typeof showSaveFilePicker) => {
+    showSaveFilePickerMethod = method
+  })
 
 Cypress.Commands.add(
   "assertFileExistsInPickedDirectory", (filename) => {

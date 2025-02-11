@@ -5,7 +5,7 @@
     "types": ["cypress", "node", "@types/wicg-file-system-access"],
     "rootDir": ".",
     "esModuleInterop": true,
-    "isolatedModules": true,
+    "isolatedModules": true
   },
   "include": ["**/*.ts"]
 }

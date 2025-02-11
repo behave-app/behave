@@ -99,7 +99,7 @@ export const ModularPopup: FunctionComponent<ModularPopupProps> = props => {
   }
   throw new Error("Switch should have been exahsutive")
 }
-export const ModularPopupSetter = createContext<StateUpdater<ModularPopupProps | null>>(() => {
+export const ModularPopupSetter = createContext<(param: StateUpdater<ModularPopupProps | null>) => void>(() => {
     throw new Error("Not provided")
   }
 )

@@ -1,14 +1,19 @@
 const ALLOWED_DIFFERENCE = 0.05
 
-describe('Inference test', () => {
-  it('Has an infer link', () => {
+describe('Inference test', function () {
+  beforeEach(function () {
+    cy.intercept("https://getinsights.io/app/tics", {"ok":true}).as("postTic")
+  })
+
+  it('Has an infer link', function () {
     cy.visit('/app/index.html')
       .get('a[href="infer.html"]')
       .click()
     cy.document()
       .contains("h1", "Infer videos (detect items)")
   })
-  it('Changes visuals on file drag', () => {
+
+  it('Changes visuals on file drag', function () {
     cy.visit("/app/infer.html")
     cy.get("body")
       .should("not.contain", "Drop files here")
@@ -29,7 +34,7 @@ describe('Inference test', () => {
       .should("not.contain", "Drop files here")
   })
 
-  it("Infers from MTS file", () => {
+  it("Infers from MTS file", function () {
     cy.window().then(win => cy.wrap(null).then(async () => {
       const opfs = await win.navigator.storage.getDirectory()
       for await (const [name, _entry] of opfs.entries()) {

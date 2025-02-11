@@ -1,5 +1,41 @@
-describe('Behave UI test', () => {
-  it('Can start Behave UI', () => {
+type FakeFileSystemFileHandle = FileSystemFileHandle & {
+  data: ArrayBuffer
+  getDataString: () => string
+  createWritable: () => Promise<FileSystemWritableFileStream>
+}
+
+const writableFakeFileHandle = (initalData?: string) => {
+  const bytes = new TextEncoder().encode(initalData ?? "")
+  const _data = new ArrayBuffer(bytes.byteLength, {maxByteLength: 1 << 20})
+  new Uint8Array(_data).set(bytes)
+  return {
+    data: _data,
+    getDataString: () => new TextDecoder().decode(_data),
+    createWritable: async (): Promise<FileSystemWritableFileStream> => {
+      return {
+        write: async(data: string): Promise<void> => {
+          const bytes = new TextEncoder().encode(data)
+          const oldLength = _data.byteLength 
+          _data.resize(oldLength + bytes.byteLength)
+          const view = new Uint8Array(_data, oldLength)
+          view.set(bytes)
+        },
+        close: async(): Promise<void> => {}
+      } as FileSystemWritableFileStream
+    }
+  } as FakeFileSystemFileHandle
+}
+
+const cancelPicker = (win: Window & typeof globalThis) => {
+  throw new win.DOMException("Simulating abort", "AbortError")
+}
+
+describe('Behave UI test', function () {
+  beforeEach(function () {
+    cy.intercept("https://getinsights.io/app/tics", {"ok":true}).as("postTic")
+  })
+
+  it('Can start Behave UI', function () {
     cy.visit('/app/index.html')
     .get('a[href="viewer.html"]')
     .click()
@@ -7,7 +43,7 @@ describe('Behave UI test', () => {
     .contains("h2", "Welcome to Behave")
   })
 
-  it('Changes visuals on file drag', () => {
+  it('Changes visuals on file drag', function () {
     cy.visit("/app/viewer.html")
     cy.get("body")
       .contains("h2", "Welcome to Behave")
@@ -26,7 +62,7 @@ describe('Behave UI test', () => {
       .should("not.contain", "Drop your files here")
   })
 
-  it("Can deal with file errors/questions", () => {
+  it("Can deal with file errors/questions", function () {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "example.82f16f09b8327ed1.behave.det.json", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.det.json"},
@@ -37,7 +73,6 @@ describe('Behave UI test', () => {
     cy.contains("h2", "Error")
     cy.contains("You cannot open a file of type json")
     cy.contains("button", "close").click()
-
 
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
@@ -58,16 +93,18 @@ describe('Behave UI test', () => {
     cy.contains("h2", "Please check the following information")
     cy.contains("button", "proceed").click()
     cy.contains("h3", "Detection file").next().contains("example.ffffffffffffffff.behave.det.json")
-  }),
+  })
 
-  it("Can import/export ethogram", () => {
+  it("Can import/export ethogram", function () {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.contains("h2", "Welcome to Behave")
     cy.get("dialog").click(0, 0)
     cy.get(".viewer_sidebar").within(() => {
       cy.get(`button[title~="shortcuts"]`).click()
     })
-    cy.setShowSaveFilePickerResult(null)
+    cy.window().then(win => {
+      cy.setShowSaveFilePickerResult(() => cancelPicker(win))
+    })
     cy.window().then(win => {
       cy.spy(win.console, "warn")
         .withArgs("No file selected to save to")
@@ -75,41 +112,32 @@ describe('Behave UI test', () => {
     })
     cy.get("@filePickerCancelled").should("not.be.called")
     cy.contains("Using Subject List and Shortcuts").within(() => {
+      cy.log("helloi")
       cy.contains("option", "example subjects").should("be.selected")
       cy.get(`button[title~="Export"]`).click()
     })
     cy.get("@filePickerCancelled").should("be.called")
-    cy.setShowSaveFilePickerResult([{pickerPath: "example subjects.subject-preset-export.json", localPath: "cypress/assets/empty"}])
+    const datafile = writableFakeFileHandle()
+    cy.setShowSaveFilePickerResult(async () => datafile)
     cy.contains("Using Subject List and Shortcuts").within(() => {
       cy.contains("option", "example subjects").should("be.selected")
       cy.get(`button[title~="Export"]`).click()
     })
-    cy.window().then(async (win) => {
-      const opfsRoot = await win.navigator.storage.getDirectory()
-      const maindir = await opfsRoot.getDirectoryHandle("showSavePickerResult", {create: false})
-      const entries: FileSystemFileHandle[] = []
-      for await (const [_name, entry] of maindir.entries()) {
-        if (entry instanceof FileSystemDirectoryHandle) {
-          throw new Error("There should not be directories in showSaveFilePickerResult")
-        }
-        entries.push(entry);
-      }
-      if (entries.length !== 1) {
-          throw new Error("There should be exactly 1 entry in in showSaveFilePickerResult")
-      }
-      const text = await (await entries[0].getFile()).text()
+    cy.window().then(() => {
+      const text = datafile.getDataString()
+      console.log({text})
       cy.setShowOpenFilePickerResult([{
         content: text, pickerPath: "example subjects.subject-preset-export.json"}])
     })
     cy.contains("Using Subject List and Shortcuts").within(() => {
       cy.contains("option", "example subjects").should("be.selected")
-      cy.get("select").select("Import preset file...")
+      cy.get("select").select("Import from file...")
       cy.contains("option", "example subjects (2)").should("be.selected")
     })
 
   })
 
-  it.only("Can update ethogram", () => {
+  it("Can update ethogram", function () {
     cy.visit("/app/viewer.html")
     cy.contains("h2", "Welcome to Behave")
     cy.get("dialog").click(0, 0)
@@ -241,7 +269,7 @@ describe('Behave UI test', () => {
       .should("not.exist")
   })
 
-  it("Can start a behave", () => {
+  it("Can start a behave", function () {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
@@ -273,7 +301,9 @@ describe('Behave UI test', () => {
       .contains("Subjects")
 
     cy.log("Trying cancelling choosing a directory for the behave file")
-    cy.setShowSaveFilePickerResult(null)
+    cy.window().then((win) => {
+      cy.setShowSaveFilePickerResult(() => cancelPicker(win))
+    })
     cy.window().then(win => {
       cy.spy(win.console, "warn")
         .withArgs("Save file selection cancelled, not creating behaviour file")
@@ -284,7 +314,8 @@ describe('Behave UI test', () => {
       .contains("button", "Create new behaviour file")
       .click()
     cy.get("@filePickerCancelled").should("be.called")
-    cy.setShowSaveFilePickerResult([{pickerPath: "example.82f16f09b8327ed1.behave", localPath: "cypress/assets/empty"}])
+    const datafile = writableFakeFileHandle()
+    cy.setShowSaveFilePickerResult(async () => datafile)
     cy.get("body")
       .contains("button", "Create new behaviour file")
       .click()
@@ -307,6 +338,7 @@ describe('Behave UI test', () => {
     [/^10$/, /^03-07-2021$/, /^00:55:13$/, /^Beatrice$/, /^Diving$/, /^$/])
 
     cy.log("Delete first line and reinsert it")
+    cy.then(() => datafile.getDataString().split("\n")).should("have.length", 4)
 
     cy.get(".viewer_controlpanel")
       .contains("Framenumber: 10")

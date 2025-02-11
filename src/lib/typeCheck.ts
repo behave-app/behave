@@ -349,7 +349,6 @@ export class UnionChecker<T extends unknown[]> extends Checker<ItemWithoutChecke
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class TypeChecker<T> extends Checker<T> {
   constructor(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -375,7 +374,7 @@ T extends Checker<infer C>
 : T
 )
 
-// eslint-disable-next-line @typescript-eslint/ban-types -- we need {} here
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- we need {} here
 export function getCheckerFromObject<T extends Record<string, unknown>>(obj: T): ObjectChecker<ItemWithoutCheckerRecursive<T>, {}>;
 export function getCheckerFromObject<T>(obj: T): Checker<ItemWithoutCheckerRecursive<T>>;
 export function getCheckerFromObject<T>(obj: T): Checker<ItemWithoutCheckerRecursive<T>> {

@@ -96,7 +96,7 @@ const getGeneralSettingsFromLocalStorageOrDefault = (): GeneralSettingsState => 
   let savedGeneralSettings: unknown
   try {
     savedGeneralSettings = JSON.parse(generalSettingsJSON)
-  } catch (e) {
+  } catch (_e) {
     logDefault("JSON parse failed")
     return defaultGeneralSettings
   }

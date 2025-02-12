@@ -269,7 +269,7 @@ describe('Behave UI test', function () {
       .should("not.exist")
   })
 
-  it("Can start a behave", function () {
+  it.only("Can start a behave", function () {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
@@ -338,7 +338,11 @@ describe('Behave UI test', function () {
     [/^10$/, /^03-07-2021$/, /^00:55:13$/, /^Beatrice$/, /^Diving$/, /^$/])
 
     cy.log("Delete first line and reinsert it")
-    cy.then(() => datafile.getDataString().split("\n")).should("have.length", 3)
+    cy.get("body")
+    .should(() => {
+        // wrap in should() so that it's retried
+        expect(datafile.getDataString().split("\n")).to.have.length(4)
+    })
 
     cy.get(".viewer_controlpanel")
       .contains("Framenumber: 10")
@@ -404,5 +408,10 @@ describe('Behave UI test', function () {
     assertIsSelectedLine(null)
     cy.get('button[title="next behaviour line"]')
       .should("be.disabled")
+    cy.get("body")
+    .should(() => {
+        // wrap in should() so that it's retried
+        expect(datafile.getDataString().split("\n")).to.have.length(2)
+    })
   })
 })

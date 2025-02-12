@@ -19,3 +19,10 @@
     }
   }
 }
+
+.behaviour_file_write_error {
+  width: 50vw;
+  div, details {
+    margin: 1.3em;
+  }
+}

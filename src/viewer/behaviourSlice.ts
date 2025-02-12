@@ -18,11 +18,13 @@ export type BehaviourInfo = {
 export type BehaviourData = {
   fileHandle: FileSystemFileHandle | null
   behaviourInfo: BehaviourInfo | null
+  retryCount: number // used to trigger save retries
 }
 
 const initialState: BehaviourData = {
   fileHandle: null,
   behaviourInfo: null,
+  retryCount: 0,
 }
 
 export function numberSort<T>(keyFunc: (item: T) => number): (a: T, b: T) => number;
@@ -160,6 +162,9 @@ export const behaviourSlice = createSlice({
       }
       line[action.payload.fieldIndex] = action.payload.newContent
     },
+    triggerSaveRetry: (state) => {
+      state.retryCount = state.retryCount + 1
+    },
     currentlySelectedLineUpdated: (state, action: PayloadAction<number>) => {
       assert(state.behaviourInfo)
       state.behaviourInfo.currentlySelectedLine = action.payload
@@ -192,6 +197,7 @@ export const {
   behaviourInfoSubjectUnselected,
   currentlySelectedLineUpdated,
   currentlySelectedLineUnset,
+  triggerSaveRetry,
 } = behaviourSlice.actions
 export default behaviourSlice.reducer
 
@@ -217,8 +223,9 @@ export const selectBehaviourLinesAsCSV = createSelector([
 
 export const selectBehaviourFileHandlerAndCsv = createSelector([
     (state: RootState) => state.behaviour.fileHandle,
+    (state: RootState) => state.behaviour.retryCount,
   selectBehaviourLinesAsCSV
-], ((fileHandle, csv) => ({
+], ((fileHandle, _retries, csv) => ({
   fileHandle, csv}))
 )
 
@@ -322,6 +329,20 @@ function noWritableBehaviourFileException (
 ): NoWritableBehaviourFileException {
   return {
     error: "NoWritableBehaviourFileException",
+    ...exception
+  }
+}
+
+export type BehaviourFileWriteException = {
+  error: "BehaviourFileWriteException"
+  reason: string,
+}
+
+export function behaviourFileWriteException (
+  exception: Omit<BehaviourFileWriteException, "error">
+): BehaviourFileWriteException {
+  return {
+    error: "BehaviourFileWriteException",
     ...exception
   }
 }

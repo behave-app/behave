@@ -4,8 +4,8 @@ import {useDispatch } from "react-redux"
 import {videoFileSlice} from "./videoFileSlice"
 import {videoPlayerSlice} from "./videoPlayerSlice"
 import {detectionsDirectorySlice} from './detectionsSlice'
-import {behaviourSlice, saveBehaviourToDisk, selectBehaviourFileHandlerAndCsv } from './behaviourSlice'
-import {appSlice} from './appSlice';
+import {behaviourFileWriteException, behaviourSlice, saveBehaviourToDisk, selectBehaviourFileHandlerAndCsv} from './behaviourSlice'
+import {appErrorSet, appSlice} from './appSlice';
 import {settingsReducer} from './settingsSlice';
 import { shortcutsToLocalStorage } from './shortcutsSlice';
 import { generalSettingsToLocalStorage } from './generalSettingsSlice';
@@ -57,8 +57,9 @@ export const store = configureStore({
 
 type Callback<T> = {
   selector: (state: RootState) => T
-  callbackFn: (selected: T) => void
+  callbackFn: (selected: T) => void | Promise<void>
   debouce: boolean
+  errorHandler?: (error: string) => void
   lastSavedState: T
   lastResult: unknown
   debouceTimeout: undefined | number
@@ -89,7 +90,11 @@ const callbacks = {
   behaviourToDisk: createCallback({
     selector: selectBehaviourFileHandlerAndCsv,
     callbackFn: saveBehaviourToDisk,
-    debouce: true
+    debouce: true,
+    errorHandler: (error) => {
+      console.log("erir")
+      store.dispatch(appErrorSet(behaviourFileWriteException({reason: error})))
+    }
   }),
 } as const
 
@@ -99,14 +104,21 @@ function checkCallback(callback: Callback<any>) {
     // already queued, doing nothing
     return
   }
-  const saveIfChanged = () => {
+  const saveIfChanged = async () => {
     callback.debouceTimeout = undefined
     const newState = callback.selector(store.getState())
     if (newState === callback.lastSavedState) {
       return
     }
     callback.lastSavedState = newState
-    callback.lastResult = callback.callbackFn(newState)
+    try {
+      callback.lastResult = await callback.callbackFn(newState)
+    } catch (error) {
+      console.log("error in callback", error)
+      if (callback.errorHandler) {
+        callback.errorHandler(`${error}`)
+      }
+    }
   }
 
   if (callback.debouce) {
@@ -121,14 +133,18 @@ function checkCallback(callback: Callback<any>) {
       }
     }))
   } else {
-    saveIfChanged()
+    void(saveIfChanged())
   }
+}
+
+const setWindowDotStateForDebugging = () => {
+  ;(window as unknown as {state: RootState}).state = store.getState()
 }
 
 store.subscribe(() => {
   Object.values(callbacks).forEach(c => checkCallback(c))
-  ;(window as unknown as {state: RootState}).state = store.getState()
+  setWindowDotStateForDebugging()
 })
-;(window as unknown as {state: RootState}).state = store.getState()
+setWindowDotStateForDebugging()
 
 export default store;

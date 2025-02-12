@@ -1,24 +1,35 @@
 type FakeFileSystemFileHandle = FileSystemFileHandle & {
   data: ArrayBuffer
+  simulateErrors: Map<"createWritable" | "write", boolean>
   getDataString: () => string
   createWritable: () => Promise<FileSystemWritableFileStream>
 }
 
 const writableFakeFileHandle = (initalData?: string) => {
-  const _data = new ArrayBuffer(0, {maxByteLength: 1 << 20})
   return {
-    data: _data,
-    getDataString: () => new TextDecoder().decode(_data),
-    createWritable: async (): Promise<FileSystemWritableFileStream> => {
+    data: new ArrayBuffer(0, {maxByteLength: 1 << 20}),
+    simulateErrors: new Map([
+      ["createWritable", false],
+      ["write", false],
+    ]),
+    getDataString: function () {return new TextDecoder().decode(this.data)},
+    createWritable: async function(): Promise<FileSystemWritableFileStream> {
+      if (this.simulateErrors.get("createWritable")) {
+        console.log(this)
+        throw new Error("Simulating createWritable fail")
+      }
       const bytes = new TextEncoder().encode(initalData ?? "")
-      _data.resize(bytes.byteLength)
-      new Uint8Array(_data).set(bytes)
+      this.data.resize(bytes.byteLength)
+      new Uint8Array(this.data).set(bytes)
       return {
         write: async(data: string): Promise<void> => {
+          if (this.simulateErrors.get("write")) {
+            throw new Error("Simulating write fail")
+          }
           const bytes = new TextEncoder().encode(data)
-          const oldLength = _data.byteLength 
-          _data.resize(oldLength + bytes.byteLength)
-          const view = new Uint8Array(_data, oldLength)
+          const oldLength = this.data.byteLength 
+          this.data.resize(oldLength + bytes.byteLength)
+          const view = new Uint8Array(this.data, oldLength)
           view.set(bytes)
         },
         close: async(): Promise<void> => {}
@@ -389,7 +400,6 @@ describe('Behave UI test', function () {
           .should("have.class", "behaviour_selectedLine")
       }
     }
-
     assertIsSelectedLine(3)
     cy.get(".behaviour_table tbody tr").eq(2).contains("span", /.*/).eq(0).click()
     assertIsSelectedLine(2)
@@ -412,6 +422,72 @@ describe('Behave UI test', function () {
     .should(() => {
         // wrap in should() so that it's retried
         expect(datafile.getDataString().split("\n")).to.have.length(2)
+    })
+  })
+
+  it("Deals gracefully with failing behaviour file writes", function () {
+    cy.visitWithStubbedFileSystem("/app/viewer.html")
+    cy.setShowOpenFilePickerResult([
+      {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
+    ])
+    cy.contains("button", "Open video file").should("not.be.disabled")
+      .click()
+    cy.contains("example.82f16f09b8327ed1.behave.mp4", {timeout: 20 * 1000})
+    cy.contains("hash: 82f16f09b8327ed1")
+    cy.contains("button", "Start behaviour coding").should("not.be.disabled")
+      .click()
+    cy.get("#myVideoPlayer").then(videos => {
+      const video = (videos.get(0) as HTMLVideoElement)
+      cy.wrap(video.readyState).should("be.gte", video.HAVE_CURRENT_DATA)
+    })
+
+    const datafile = writableFakeFileHandle()
+    cy.then(() => {
+      datafile.simulateErrors.set("write", true)
+    })
+
+    cy.setShowSaveFilePickerResult(async () => datafile)
+    cy.get("body")
+      .contains("button", "Create new behaviour file")
+      .click()
+    cy.get("body")
+    .should(() => {
+        expect(datafile.getDataString()).to.equal("")
+    })
+    cy.contains("h2", "Behaviour file write error")
+    cy.contains("button", "Close").click()
+    cy.get("body")
+    .should(() => {
+        expect(datafile.getDataString()).to.equal("")
+    })
+    cy.contains("h2", "Behaviour file write error").should("not.exist")
+    cy.get("body").type("{shift}AC")
+    cy.contains("h2", "Behaviour file write error")
+    cy.contains("button", "Try again").click()
+    cy.contains("h2", "Behaviour file write error")
+    cy.then(() => {
+      datafile.simulateErrors.set("write", false)
+    })
+    cy.contains("button", "Try again").click()
+    cy.get("body")
+    .should(() => {
+        expect(datafile.getDataString().split("\n")).to.have.length(3)
+    })
+
+    cy.then(() => {
+      datafile.simulateErrors.set("createWritable", true)
+    })
+    cy.get("body").type("{shift}AC")
+    cy.contains("h2", "Behaviour file write error")
+    cy.contains("button", "Try again").click()
+    cy.contains("h2", "Behaviour file write error")
+    cy.then(() => {
+      datafile.simulateErrors.set("createWritable", false)
+    })
+    cy.contains("button", "Try again").click()
+    cy.get("body")
+    .should(() => {
+        expect(datafile.getDataString().split("\n")).to.have.length(4)
     })
   })
 })

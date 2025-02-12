@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction, SerializedError } from '@
 import type { ATConfig, RootState } from './store'
 import {exportPreset, importPreset, type ShortcutPresetImportFailedException, type ShortcutPresetExportFailedException, type ShortcutsState } from './shortcutsSlice'
 import { Key } from '../lib/key'
-import { addBehaviourInfoLine, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditing, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
+import { addBehaviourInfoLine, BehaviourFileWriteException, editBehaviourInfoLineField, NoWritableBehaviourFileException, removeBehaviourInfoLine, setCurrentlyEditing, toggleBehaviourInfoCurrentlySelectedSubject } from './behaviourSlice'
 
 export type SidebarPopup = "info" | "classSliders" | "keyShortcuts" | "uploader" | "sizer"
 export const MAX_ZOOM = 5
@@ -14,7 +14,7 @@ export type MultipleActionsAssignedToPressedKeyException = {
 }
 
 
-export type AppError = (SerializedError & {error: "SerializedError"}) | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException | NoWritableBehaviourFileException
+export type AppError = (SerializedError & {error: "SerializedError"}) | ShortcutPresetImportFailedException | ShortcutPresetExportFailedException | MultipleActionsAssignedToPressedKeyException | NoWritableBehaviourFileException | BehaviourFileWriteException
 
 export const appSlice = createSlice({
   name: "app",

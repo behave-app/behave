@@ -12,7 +12,7 @@ import { createNewBehaviourFileOrCreateWritable, executeShortcutAction } from ".
 import { useSelector } from "react-redux";
 import type { RootState } from "./store"
 import { Icon } from "../lib/Icon";
-import { NoWritableBehaviourFileException } from "./behaviourSlice";
+import { BehaviourFileWriteException, NoWritableBehaviourFileException, triggerSaveRetry } from "./behaviourSlice";
 
 type ErrorHandlerProps<T> = {
   error: AppError & T
@@ -133,6 +133,37 @@ const NoWritableBehaviourFileExceptionHandler: FunctionComponent<ErrorHandlerPro
   </div>
 }
 
+const BehaviourFileWriteExceptionHandler: FunctionComponent<ErrorHandlerProps<BehaviourFileWriteException>> = ({error, closeError}) => {
+  const dispatch = useAppDispatch()
+
+  return <div className={css.behaviour_file_write_error}>
+    <h2>Behaviour file write error</h2>
+    <div>
+      BEHAVE was unable to write to the behaviour (.csv) file.
+      One of the reasons may be that the harddisk is full.
+    </div>
+    <div>
+      You can free some space and press "try again".
+      If you press "close", beware that your latest changes to the behaviour file may not have been saved to disk (or in extreme cases, the behaviour file may be completely empty).
+    </div>
+    <details>
+      <summary>Click here to see the (technical) error</summary>
+      {error.reason}
+    </details>
+    <div className={generalcss.button_row}>
+      <button onClick={() => {
+        closeError();
+        void(dispatch(triggerSaveRetry()))
+      }}>
+        Try again
+      </button>
+      <button onClick={closeError}>
+        Close
+      </button>
+    </div>
+  </div>
+}
+
 export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {
   const dispatch = useAppDispatch()
   const closeError = () => {dispatch(appErrorCleared())}
@@ -149,6 +180,8 @@ export const ErrorPopup: FunctionComponent<{error: AppError}> = ({error}) => {
         return <MultipleActionsAssignedToPressedKeyExceptionHandler {...{error, closeError}} />
       case "NoWritableBehaviourFileException":
         return <NoWritableBehaviourFileExceptionHandler {...{error, closeError}} />
+      case "BehaviourFileWriteException":
+        return <BehaviourFileWriteExceptionHandler {...{error, closeError}} />
       default:
         exhausted(error)
     }})()}

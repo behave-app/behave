@@ -269,7 +269,7 @@ describe('Behave UI test', function () {
       .should("not.exist")
   })
 
-  it.only("Can start a behave", function () {
+  it("Can start a behave", function () {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
       {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},

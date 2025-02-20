@@ -92,7 +92,6 @@ const callbacks = {
     callbackFn: saveBehaviourToDisk,
     debouce: true,
     errorHandler: (error) => {
-      console.log("erir")
       store.dispatch(appErrorSet(behaviourFileWriteException({reason: error})))
     }
   }),

@@ -283,6 +283,13 @@ describe('Behave UI test', function () {
   it("Can start a behave", function () {
     cy.visitWithStubbedFileSystem("/app/viewer.html")
     cy.setShowOpenFilePickerResult([
+      {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/other.txt"},
+    ])
+    cy.contains("button", "Open video file").should("not.be.disabled")
+      .click()
+    cy.contains("There was a problem opening the video file.")
+    cy.contains("button", "close").click()
+    cy.setShowOpenFilePickerResult([
       {pickerPath: "test/example.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
     ])
     cy.contains("button", "Open video file").should("not.be.disabled")

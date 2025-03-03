@@ -268,42 +268,52 @@ export const Uploader: FunctionComponent<Props> = ({onRequestClose}) => {
       }
       const errors: string[] = []
       const questions: string[] = []
-      const sliceData = newFiles.video ? await createSliceDataFromFile(newFiles.video) : null
-      const metadata = sliceData ? sliceData.metadata : videoFile?.metadata
-      if (!metadata) {
-        throw new Error("Either newFiles.video should be set or a video should have been loaded before.")
+      let sliceData: (VideoFile | null) = null
+      if (newFiles.video) {
+        try {
+          sliceData = await createSliceDataFromFile(newFiles.video)
+        } catch (e) {
+          errors.push("There was a problem opening the video file.")
+          console.error(e)
+        }
       }
       let detectionInfo = null
-      if (newFiles.detection) {
-        const detectionText = await newFiles.detection.text()
-        const detectionInfoOrError = valueOrError(JSON.parse)(detectionText)
-        if ("error" in detectionInfoOrError) {
-          errors.push("The detection file is corrupted, and cannot be opened")
-        } else {
-          detectionInfo = detectionInfoOrError.value
-          if (!validateDataIsDetectionInfo(detectionInfo)) {
+      let behaviourLines: null | string[][] = null
+      if (!errors.length) {
+        const metadata = sliceData ? sliceData.metadata : videoFile?.metadata
+        if (!metadata) {
+          throw new Error("Either newFiles.video should be set or a video should have been loaded before.")
+        }
+        if (newFiles.detection) {
+          const detectionText = await newFiles.detection.text()
+          const detectionInfoOrError = valueOrError(JSON.parse)(detectionText)
+          if ("error" in detectionInfoOrError) {
             errors.push("The detection file is corrupted, and cannot be opened")
           } else {
-            if (detectionInfo.sourceFileXxHash64 !== metadata.hash) {
-              questions.push("The detection file seems to have been made for a different video file, continue anyways?")
+            detectionInfo = detectionInfoOrError.value
+            if (!validateDataIsDetectionInfo(detectionInfo)) {
+              errors.push("The detection file is corrupted, and cannot be opened")
+            } else {
+              if (detectionInfo.sourceFileXxHash64 !== metadata.hash) {
+                questions.push("The detection file seems to have been made for a different video file, continue anyways?")
+              }
             }
           }
         }
-      }
-      TSAssertType<DetectionInfo | null>(detectionInfo)
-      let behaviourLines: null | string[][] = null
-      if (newFiles.behaviour) {
-        const behaviourCSV = await newFiles.behaviour.text()
-        const linesOrError = valueOrError(csvToLines)(behaviourCSV)
-        if ("error" in linesOrError || !validateDataIsBehaviourLines(
-          linesOrError.value, behaviourLayout)) {
-          errors.push("The behaviour file is corrupted, and cannot be opened")
-        } else {
-          const behaviourHash = extractHashFromFilename(newFiles.behaviour.name)
-          if (behaviourHash !== null && behaviourHash !== metadata.hash) {
-            questions.push("The behaviour file seems to have been made for a different video file, continue anyways?")
+        TSAssertType<DetectionInfo | null>(detectionInfo)
+        if (newFiles.behaviour) {
+          const behaviourCSV = await newFiles.behaviour.text()
+          const linesOrError = valueOrError(csvToLines)(behaviourCSV)
+          if ("error" in linesOrError || !validateDataIsBehaviourLines(
+            linesOrError.value, behaviourLayout)) {
+            errors.push("The behaviour file is corrupted, and cannot be opened")
+          } else {
+            const behaviourHash = extractHashFromFilename(newFiles.behaviour.name)
+            if (behaviourHash !== null && behaviourHash !== metadata.hash) {
+              questions.push("The behaviour file seems to have been made for a different video file, continue anyways?")
+            }
+            behaviourLines = linesOrError.value
           }
-          behaviourLines = linesOrError.value
         }
       }
       if (errors.length) {

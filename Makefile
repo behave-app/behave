@@ -12,6 +12,7 @@ LIBAVJS_BASE_FILES := \
 LIBAVJS_MAKE_FILES := $(addprefix dist/libav-$(LIBAVJS_VERSION)-, $(LIBAVJS_BASE_FILES)) dist/libav.types.d.ts dist/libav-behave.dbg.js dist/libav-behave.dbg.mjs 
 LIBAVJS_TARGET_FILES := $(addprefix public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/, $(LIBAVJS_MAKE_FILES))
 STATIC_MARKDOWN_FILES := $(shell find static -type f -name '*.md')
+STATIC_TARGET_MARKDOWN_FILES_WITHOUT_HASHES := $(STATIC_MARKDOWN_FILES:static/%.md=public/%.nohash.html)
 STATIC_TARGET_MARKDOWN_FILES := $(STATIC_MARKDOWN_FILES:static/%.md=public/%.html)
 STATIC_ASSET_FILES := $(shell find static/assets -type f)
 ENTRYPOINTS := \
@@ -65,12 +66,15 @@ public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIB
 	mv public/app/worker/Worker.js public/app/worker/Worker.$${WORKER_VERSION}.js; \
 	./node_modules/esbuild/bin/esbuild $(ENTRYPOINTS) --sourcemap --bundle --format=esm --outbase=src --outdir=public/app/ --define:BEHAVE_VERSION='$(BEHAVE_VERSION)' --define:WORKER_URL=\"worker/Worker.$${WORKER_VERSION}.js\" --define:process.env.NODE_ENV=\"$(ENVIRONMENT)\" --loader:.woff2=file
 	@(cd public $(foreach ext,js css,$(foreach outfilebase,$(OUTFILESBASE),&& if [ -f "$(outfilebase).$(ext)" ]; then MD5=$$(md5sum "$(outfilebase).$(ext)" | cut -c-10) && mv "$(outfilebase).$(ext)" "$(outfilebase).$${MD5}.$(ext)" && echo "s|$(outfilebase).$(ext)|$(outfilebase).$${MD5}.$(ext)|g"; fi))) > $@.part
-	@find static/assets -type f -exec python3 copy_and_version.py {} static public \; >> $@.part
-	@ mv $@.part $@
+	@python3 copy_and_version.py static/assets public/assets >> $@.part
+	@mv $@.part $@
 
-$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: static/%.md node_modules/tag static/header._html static/footer._html public/app/tsc markdown.mjs determine_version_number.mjs
+$(STATIC_TARGET_MARKDOWN_FILES_WITHOUT_HASHES): public/%.nohash.html: static/%.md node_modules/tag static/header._html static/footer._html markdown.mjs determine_version_number.mjs
 	@mkdir -p "$$(dirname "$@")"
-	@node markdown.mjs "$<" static/ '$(BEHAVE_VERSION)' '$(STATIC_TARGET_MARKDOWN_FILES)' | sed -f public/app/tsc > "$@"
+	@node markdown.mjs "$<" static/ '$(BEHAVE_VERSION)' '$(STATIC_TARGET_MARKDOWN_FILES)' > "$@"
+
+$(STATIC_TARGET_MARKDOWN_FILES): public/%.html: public/%.nohash.html public/app/tsc
+	@sed -f public/app/tsc "$<" > "$@"
 
 clean:
 	@if [ -e public ]; then rm -r public; fi

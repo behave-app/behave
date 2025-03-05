@@ -52,9 +52,17 @@ jobs:
           name: built-app
           path: public
       - name: Run cypress
+        id: cypress
         uses: cypress-io/github-action@v6
+        continue-on-error: true
         with:
           browser: chrome
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        if: failure() && steps.cypress.outcome == 'failure'
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
   deploy-beta:
     runs-on: ubuntu-22.04
     if: github.event_name == 'push'

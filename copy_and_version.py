@@ -15,7 +15,7 @@ MIME_MAP = {
 
 if __name__ == "__main__":
     [sourcepath, destpath] = map(pathlib.Path, sys.argv[1:])
-    filepaths = [f for f in sourcepath.glob("**") if f.is_file()]
+    filepaths = [f for f in sourcepath.rglob("*") if f.is_file()]
     for filepath in filepaths:
         filebytes = filepath.read_bytes()
         if filepath.suffix == ".svg":

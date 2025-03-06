@@ -54,7 +54,6 @@ jobs:
       - name: Run cypress
         id: cypress
         uses: cypress-io/github-action@v6
-        continue-on-error: true
         with:
           browser: chrome
       - name: Upload artifacts

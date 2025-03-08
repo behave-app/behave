@@ -4,11 +4,12 @@ import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString, ISODATETIMEST
 import { EXTENSIONS } from '../lib/constants'
 import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
-import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, promiseWithTimeout, asyncSleep, ObjectKeys} from "../lib/util"
+import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, ObjectKeys, enumerateAsyncGenerator} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
 import { VideoMetadata, videoMetadataChecker, definiteFrameTypeInfoChecker} from '../lib/video-shared'
 import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
 import { FrameInfo, extractFrameInfo } from "./frameinfo"
+import { parse as parseSPS, SPSInfo } from "h264-sps-parser"
 
 type VideoInfo = {
   // the pts of the first frame
@@ -20,155 +21,11 @@ type VideoInfo = {
   // number of ticks that one frame takes
   // this is a best guess, assuming the frame rate is constant. This is in TS
   readonly frameDurationTicks: number,
-  // observed gop length in first X frames
-  // Note: We mean nr of frames between 2 frames that ffmpeg sees as key frames
-  readonly maxGopLength: number,
   // The values below are calculated from those above (and stream info)
-  readonly startSecond: number,
-  readonly endSecond: number,
   readonly durationSeconds: number,
-  readonly frameDurationSeconds: number,
   readonly numberOfFramesInStream: number,
   readonly fps: number,
-  // true if packets are annexB encoded
-  readonly isAnnexB: boolean,
-}
-
-type FrameCacheItem = null | "loading" | "pastEOS" | VideoFrame
-
-class FrameCache {
-  private cache: FrameCacheItem[]
-  private _waiter: ReturnType<typeof promiseWithResolve<void>>
-  constructor(
-    private _currentFrameNumber: number,
-    public readonly  preCurrentSize: number,
-    public readonly postCurrentSize: number,
-  ) {
-    this.cache = new Array(preCurrentSize + 1 + postCurrentSize).fill(null)
-    this._waiter = promiseWithResolve()
-  }
-
-  isPartOfCacheSection(frameNumber: number): boolean {
-    if (frameNumber < 0 || !Number.isInteger(frameNumber)) {
-      throw new Error("Only non-negative ints are allowed, got " + frameNumber)
-    }
-    const diff = frameNumber - this._currentFrameNumber
-    if (diff > 0) {
-      return diff <= this.postCurrentSize
-    } else {
-      return -diff <= this.preCurrentSize
-    }
-  }
-
-  get(frameNumber: number): FrameCacheItem {
-    if (!this.isPartOfCacheSection(frameNumber)) {
-      throw new Error(
-        `Request for ${frameNumber} when current = ${this._currentFrameNumber}`)
-    }
-    return this.cache[frameNumber % this.cache.length]
-  }
-
-  setIfPartOfCacheSection(frameNumber: number, item: FrameCacheItem) {
-    if (this.isPartOfCacheSection(frameNumber)) {
-      this.set(frameNumber, item)
-    }
-  }
-
-  set(frameNumber: number, item: FrameCacheItem) {
-    if (!this.isPartOfCacheSection(frameNumber)) {
-      throw new Error(
-        `Request for ${frameNumber} when current = ${this._currentFrameNumber}`)
-    }
-    const index = frameNumber % this.cache.length
-    const oldItem = this.cache[index]
-    if (oldItem instanceof VideoFrame) {
-      oldItem.close()
-    }
-    this.cache[index] = item
-    this.fireChange()
-  }
-
-  get currentFrameNumber() {
-    return this._currentFrameNumber
-  }
-
-  findIndex(
-    predicate: (item: FrameCacheItem, frameNumber: number) => boolean,
-    startIndex?: number,
-    endIndexInclusive?: number,
-  ) {
-    startIndex = Math.max(0, startIndex ?? this.currentFrameNumber - this.preCurrentSize)
-    endIndexInclusive = endIndexInclusive ?? this.currentFrameNumber + this.postCurrentSize
-    if (!this.isPartOfCacheSection(startIndex)
-      || !this.isPartOfCacheSection(endIndexInclusive)) {
-      throw new Error(`[${startIndex}, ${endIndexInclusive}] not in range`)
-    }
-    for (let nr = startIndex; nr <= endIndexInclusive; nr++) {
-      if (predicate(this.cache[nr % this.cache.length], nr)) {
-        return nr
-      }
-    }
-    return -1
-  }
-
-  setCurrentFrameNumber(newFrameNumber: number) {
-    if (newFrameNumber === this._currentFrameNumber) {
-      return
-    }
-    let startIndexToWipe: number
-    let endIndexToWipe: number
-    if (Math.abs(newFrameNumber - this._currentFrameNumber) > this.cache.length) {
-      startIndexToWipe = 0;
-      endIndexToWipe = this.cache.length - 1
-    } else if (newFrameNumber > this._currentFrameNumber) {
-      startIndexToWipe = this._currentFrameNumber - this.preCurrentSize
-      endIndexToWipe = newFrameNumber - this.preCurrentSize - 1
-    } else {
-      startIndexToWipe = newFrameNumber + this.postCurrentSize + 1
-      endIndexToWipe = this._currentFrameNumber + this.postCurrentSize
-    }
-    for (let i = startIndexToWipe; i <= endIndexToWipe; i++) {
-      const index = i % this.cache.length
-      const item = this.cache[index]
-      if (item instanceof VideoFrame) {
-        item.close()
-      }
-      this.cache[index] = null
-    }
-    this._currentFrameNumber = newFrameNumber
-    this.fireChange()
-  }
-
-  get waitForChange() {
-    return this._waiter.promise
-  }
-
-  fireChange() {
-    this._waiter.resolve()
-    this._waiter = promiseWithResolve()
-  }
-
-  get state() {
-    return {
-      "null": this.cache.filter(x => x === null).length,
-      "loading": this.cache.filter(x => x === "loading").length,
-      "frame": this.cache.filter(x => x instanceof VideoFrame).length,
-    }
-  }
-}
-
-type PacketStreamState = {
-  state: "streaming", packetCache: LibAVTypes.Packet[], endOfStream: boolean, locked: boolean
-} | {
-  state: "stopped",
-} | {
-  state: "seeking",
-}
-
-type FrameStreamState = {
-  state: "streaming", frameCache: FrameCache,
-} | {
-  state: "closed"
+  readonly startsWithIDRFrame: boolean
 }
 
 export class Video {
@@ -178,7 +35,6 @@ export class Video {
     noworker: false,
     nothreads: false,
   } as const;
-  static FRAME_CACHE_MAX_SIZE = 5 as const;
   static VIDEO_DEQUEUE_QUEUE_MAX_SIZE = 24 as const;
   static FAKE_FIRST_FRAME_TIMESTAMP = Number.MIN_SAFE_INTEGER;
   public readonly libav: LibAVTypes.LibAV = null as unknown as LibAVTypes.LibAV;
@@ -186,13 +42,9 @@ export class Video {
   public readonly videoStream = null as unknown as LibAVTypes.Stream
   public readonly videoInfo = null as unknown as VideoInfo
   public readonly ticksToUsFactor: number = null as unknown as number;
-  private packetStreamState: PacketStreamState = {state: "stopped"}
-  private frameStreamState: FrameStreamState = null as unknown as FrameStreamState
-  private frameInfo: null | Map<number, FrameInfo>
-  private cacheFillerRunning = false
+  private playbackStarted: boolean = false
 
   constructor(public readonly input: File) {
-    this.frameInfo = null
   }
 
   private async openVideoFile() {
@@ -224,13 +76,9 @@ export class Video {
 
   }
 
-  async init(options?: {
-    keepFrameInfo?: boolean
-  }) {
-    if (options?.keepFrameInfo ?? false) {
-      this.frameInfo = new Map()
-    }
+  async init(_options: Record<never, never>) {
     await this.openVideoFile()
+    // TODO see if we can manage without setVideoInfo :)
     await this.setVideoInfo()
 
     // reinitialize the stream to make sure we seek to 0
@@ -241,16 +89,7 @@ export class Video {
 
     _rwthis.libav = null;
     await this.openVideoFile()
-
-    const frameCache = new FrameCache(0, 50, 50)
-    this.frameStreamState = {state: "streaming", frameCache}
-  }
-
-  public getInfoForFrame(frameNumber: number) {
-    if (!this.frameInfo) {
-      throw new Error("FrameInfo is switched off")
-    }
-    return this.frameInfo.get(frameNumber) ?? null
+    this.playbackStarted = false;
   }
 
   public async getInitialisedVideoDecoder(
@@ -273,97 +112,47 @@ export class Video {
     // TODO: first try hardware, if fails try software
     decoderConfig.hardwareAcceleration = "prefer-software";
     videoDecoder.configure(decoderConfig);
-    videoDecoder.decode(await createFakeKeyFrameChunk(
-      await this.libav.AVCodecParameters_width(this.videoStream.codecpar),
-      await this.libav.AVCodecParameters_height(this.videoStream.codecpar),
-      decoderConfig));
+    if (!this.videoInfo.startsWithIDRFrame) {
+      videoDecoder.decode(await createFakeKeyFrameChunk(
+        await this.libav.AVCodecParameters_width(this.videoStream.codecpar),
+        await this.libav.AVCodecParameters_height(this.videoStream.codecpar),
+        decoderConfig));
+    }
     return videoDecoder
   }
 
   private async setVideoInfo() {
-    // NOTE: this will not work if it's not called as the very first thing after
-    // the file is loaded
-    const NR_GOPS_TO_CHECK = 2
-
-    const keyFrameUs_s = new Set<number>()
-    let done = false
-
+    const MAX_GOPS_TO_CHECK = 2
     let startTick: number | undefined = undefined
     const frameDurationTicks_s: number[] = []
-    let maxGopLength: number | undefined = undefined
-    let gopLength: number = 0
     let gopCount = 0
     let lastFrameTimestamp: number | undefined = undefined
-    const videoDecoder = await this.getInitialisedVideoDecoder(frame => {
-      const isKey = keyFrameUs_s.has(frame.timestamp)
-      if (isKey) {
-        if (gopCount > 0) {
-          maxGopLength = Math.max(maxGopLength ?? 0, gopLength)
-        }
-        gopLength = 0
-        gopCount++
-      }
-      if (gopCount > NR_GOPS_TO_CHECK) {
-        done = true
-        frame.close()
-        return
-      }
-      if (startTick === undefined) {
-        startTick = frame.timestamp
-      }
-      if (lastFrameTimestamp !== undefined) {
-        const sinceLastFrameTicks = frame.timestamp - lastFrameTimestamp
-        frameDurationTicks_s.push(sinceLastFrameTicks)
-      }
-      frame.close()
-      gopLength++
-      lastFrameTimestamp = frame.timestamp
-    })
+    let startsWithIDRFrame: boolean | undefined = undefined
 
-    await (async () => {
-      while (!done) {
-        const {endOfFile, videoPackets} = await this.doReadMulti()
-        for (const packet of videoPackets) {
-          if ((packet.flags ?? 0) & Video.AV_PKT_FLAG_DISCARD) {
-            continue
-          }
-          while (videoDecoder.decodeQueueSize > 10) {
-            await getPromiseFromEvent(videoDecoder, "dequeue")
-          }
-          if (done) {
-            break;
-          }
-          const isKeyFrame = (packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY
-          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
-          if (isKeyFrame) {
-          keyFrameUs_s.add(pts)
-          }
-          if (keyFrameUs_s.size === 0) {
-            continue
-          }
-          const chunk = new EncodedVideoChunk({
-            type: isKeyFrame ? "key" : "delta",
-            timestamp: pts,
-            duration: 100,
-            data: packet.data.buffer as ArrayBuffer,
-          })
-          videoDecoder.decode(chunk)
-        }
-        if (endOfFile) {
-          throw new Error("Pfff, file with fewer than two GOPs....")
-        }
+    for await (const [framenr, frameInfo]
+    of enumerateAsyncGenerator(this.getFrameInfoInPtsOrder())) {
+      if (framenr === 0) {
+        startTick = frameInfo.pts
+        startsWithIDRFrame = frameInfo.type === "IDR"
+      } else {
+        frameDurationTicks_s.push(frameInfo.pts - lastFrameTimestamp!)
       }
-    })()
+      lastFrameTimestamp = frameInfo.pts
+      if (frameInfo.type === "IDR" || frameInfo.type === "I") {
+        gopCount++;
+      }
+      if (gopCount > MAX_GOPS_TO_CHECK) {
+        break;
+      }
+    }
 
-    // do not flush, we don't want any additional frames
-    videoDecoder.close()
 
     const frameDurationTicks = (new Set(frameDurationTicks_s).size === 1)
       ? frameDurationTicks_s[0] : "variable"
 
     assert(startTick !== undefined)
     assert(frameDurationTicks !== undefined)
-    assert(maxGopLength !== undefined)
+    assert(startsWithIDRFrame !== undefined)
     assert(frameDurationTicks !== "variable", "" + frameDurationTicks_s)
     const durationTicks = this.libav.i64tof64(
       await this.libav.AVStream_duration(this.videoStream.ptr),
@@ -371,23 +160,16 @@ export class Video {
     )
     const endTick = startTick + durationTicks
     // some magic to write to readonly property
-    const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
-      this.libav, this.videoStream) as VideoDecoderConfig;
-    const isAnnexB = !(decoderConfig.description ?? null)
     const _rwthis = this as {-readonly [K in keyof typeof this]: typeof this[K]}
     _rwthis.videoInfo = {
       startTick,
       endTick,
       durationTicks,
       frameDurationTicks,
-      maxGopLength,
-      startSecond: startTick * this.ticksToUsFactor / 1e6,
-      endSecond: endTick * this.ticksToUsFactor / 1e6,
       durationSeconds: durationTicks * this.ticksToUsFactor / 1e6,
-      frameDurationSeconds: frameDurationTicks * this.ticksToUsFactor / 1e6,
       numberOfFramesInStream: Math.round(durationTicks / frameDurationTicks),
       fps: 1e6 / (frameDurationTicks * this.ticksToUsFactor),
-      isAnnexB,
+      startsWithIDRFrame,
     }
   }
 
@@ -396,343 +178,143 @@ export class Video {
       await this.libav.unlink(this.input.name);
       this.libav.terminate();
     }
-    this.frameStreamState = {state: "closed"}
   }
 
-  async doReadMulti(
-  ): Promise<{endOfFile: boolean, videoPackets: LibAVTypes.Packet[]}> {
+  async *getPackets(): AsyncGenerator<LibAVTypes.Packet, void, void> {
+    if(this.playbackStarted) {
+      throw new Error("Playback already started")
+    }
+    this.playbackStarted = true;
+    let packets: LibAVTypes.Packet[] = []
+    let endOfFile = false
     const pkt = await this.libav.av_packet_alloc()
-    const [result, packets] = await this.libav.ff_read_frame_multi(
-      this.formatContext,
-      pkt,
-      { limit: .25 * 1024 * 1024 }
-    );
-    await this.libav.av_packet_free_js(pkt)
-    const endOfFile = result === this.libav.AVERROR_EOF
-    if (result !== 0 && result !== -this.libav.EAGAIN && !endOfFile) {
-      throw new Error("Result is error: " + result)
-    }
-    return {endOfFile, videoPackets: packets[this.videoStream.index] ?? []}
-  }
-
-  /**
-   * Returns the next packet in the stream.
-   * Note that this function may not be called at the same time as
-   * this funcions is running or while seeking is being done
-   *
-   */
-  async packetStreamNext(): Promise<LibAVTypes.Packet | null> {
-    if (this.packetStreamState.state !== "streaming") {
-      throw new Error("Should not happen")
-    }
-    if (this.packetStreamState.locked) {
-      throw new Error("Should not happen")
-    }
-    if (this.packetStreamState.packetCache.length) {
-      return this.packetStreamState.packetCache.pop()!
-    }
-    if (this.packetStreamState.endOfStream) {
-      return null
-    }
-    this.packetStreamState.locked = true
-    const result = await this.doReadMulti()
-    this.packetStreamState.endOfStream = result.endOfFile
-    this.packetStreamState.packetCache = [
-      ...result.videoPackets.reverse(),
-      ...this.packetStreamState.packetCache, // even though this should be empty
-    ]
-    this.packetStreamState.locked = false
-    return await this.packetStreamNext()
-  }
-
-  /**
-   * Seeks the current stream.
-   * The result will be that streaming will start on a keyframe before
-   * (or at) the requested frame
-   *
-   * Returns the pts that will be streamed from on subsequent streams
-   *
-   * Note that a lot of the code in here is to deal with mpegts.
-   * mp4 can seek to keyframe before pts = X; mpegts cannot :(
-   */
-  async packetStreamSeek(frameNumber: number): Promise<void> {
-    if (this.packetStreamState.state === "seeking" || (
-        this.packetStreamState.state === "streaming" && this.packetStreamState.locked)) {
-      throw new Error("One can only call this function on an unlocked streaming")
-    }
-    this.packetStreamState = {state: "seeking"}
+    let firstIframePTS: number | undefined = undefined
     try {
-      if (frameNumber === 0) {
-        const seekFlags = this.libav.AVSEEK_FLAG_BYTE
-        await this.libav.avformat_seek_file_max(
-          this.formatContext, this.videoStream.index, 0, 0, seekFlags)
-        return
-      }
-      const frameNumberPts = this.videoInfo.startTick
-        + frameNumber * this.videoInfo.frameDurationTicks
-      const [ptslo, ptshi] = this.libav.f64toi64(frameNumberPts)
-      const seekFlags = 0
-      await this.libav.avformat_seek_file_max(
-        this.formatContext, this.videoStream.index, ptslo, ptshi, seekFlags)
-    } finally {
-      this.packetStreamState = {
-        state: "streaming", packetCache: [], endOfStream: false, locked: false}
-    }
-  }
-
-  /**
-   * This method should be called (and not awaited) once.
-   * It will make sure the frameCache is being filled
-   *
-   * TODO: think of a way to close the VideoDecoder and kill this loop
-   * when we're ready to terminate
-   */
-  async frameCacheFiller(): Promise<void> {
-    const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
-      this.libav, this.videoStream) as VideoDecoderConfig;
-    const isAnnexB = this.videoInfo.isAnnexB
-    if (this.frameStreamState.state !== "streaming") {
-      throw new Error("already closed")
-    }
-    const PRE_CACHE_ITEMS = 12
-    const POST_CACHE_ITEMS = 12
-    const MAX_ITEMS_IN_DECODER_QUEUE = 10
-    const SMALL_DIFFERENCE = PRE_CACHE_ITEMS + POST_CACHE_ITEMS + 15
-    const frameCache = this.frameStreamState.frameCache
-    assert(PRE_CACHE_ITEMS <= frameCache.preCurrentSize / 2)
-    assert(POST_CACHE_ITEMS <= frameCache.postCurrentSize / 2)
-
-    const startTick = this.videoInfo.startTick
-    const frameDurationTicks = this.videoInfo.frameDurationTicks
-
-    const videoDecoder = await this.getInitialisedVideoDecoder(frame => {
-      const tick = Math.round(frame.timestamp / this.ticksToUsFactor)
-      const frameNumber = (tick - startTick) / frameDurationTicks
-      if (frameCache.isPartOfCacheSection(frameNumber)) {
-        frameCache.set(frameNumber, frame)
-      } else {
-        console.debug(`Dropping non cacheable frame`, frameNumber)
-        frame.close()
-      }
-    });
-
-
-    const findFrameNumberToProcess = (): number | null => {
-      const currentFrameNumber = frameCache.currentFrameNumber
-      const firstCurrentOrFutureMissing = frameCache.findIndex(
-        (item: FrameCacheItem) => item === null,
-        currentFrameNumber,
-        currentFrameNumber + POST_CACHE_ITEMS,
-      )
-      if (firstCurrentOrFutureMissing !== -1) {
-        return firstCurrentOrFutureMissing
-      }
-      const firstPastMissing = frameCache.findIndex(
-        (item: FrameCacheItem) => item === null,
-        Math.max(0, currentFrameNumber - PRE_CACHE_ITEMS),
-        Math.max(0, currentFrameNumber - 1),
-      )
-      if (firstPastMissing !== -1) {
-        return firstPastMissing
-      }
-      return null
-    }
-
-    let lastFrameNumberToAddToDecoder = undefined as number | undefined | "good enough"
-    while (this.frameStreamState.state === "streaming") {
-      if (videoDecoder.decodeQueueSize > MAX_ITEMS_IN_DECODER_QUEUE) {
-        await promiseWithTimeout(
-          getPromiseFromEvent(videoDecoder, "dequeue"), 500)
-        continue
-      }
-      const nextFrameNumberToLoad = findFrameNumberToProcess()
-        await asyncSleep(10)
-      if (frameCache.get(frameCache.currentFrameNumber) instanceof VideoFrame) {
-        await asyncSleep(1)
-      }
-      if (nextFrameNumberToLoad === null) {
-        await frameCache.waitForChange
-        continue
-      }
-      const diffBetweenToLoadAndLast = lastFrameNumberToAddToDecoder === "good enough" ? 0 : lastFrameNumberToAddToDecoder === undefined ? NaN : nextFrameNumberToLoad - lastFrameNumberToAddToDecoder
-      // NaN always compares to false
-      if (diffBetweenToLoadAndLast < SMALL_DIFFERENCE // bit in the future
-        && diffBetweenToLoadAndLast > -5 //  just a couple if in past because of out of order frames
-      ) {
-        // always add two packets in case of interlaced stream
-        // doesn't hurt in non-interlaced stream
-        for (let i=0; i < 2; i++) {
-          const packet = await this.packetStreamNext()
-          if (packet === null) {
-            frameCache.set(nextFrameNumberToLoad, "pastEOS")
-            await videoDecoder.flush()
-            continue
-          }
-          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
-          const framenr = (pts - startTick) / frameDurationTicks
-          if (framenr < 0) {
-            // these frames we should ignore
-            continue
-          }
-          if (Number.isInteger(framenr)) {
-            frameCache.setIfPartOfCacheSection(framenr, "loading")
-          }
-          if (this.frameInfo && !this.frameInfo.has(framenr)) {
-            const frameInfo = {
-              ...extractFrameInfo(packet, isAnnexB),
-              pts,
-              dts: this.libav.i64tof64(packet.dts!, packet.dtshi!)
-            }
-            this.frameInfo.set(framenr, frameInfo)
-          }
-          const chunk = new EncodedVideoChunk({
-            type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
-            timestamp: Math.round(this.libav.i64tof64(packet.pts!, packet.ptshi!) * this.ticksToUsFactor),
-            duration: 100,
-            data: packet.data.buffer as ArrayBuffer,
-          })
-          videoDecoder.decode(chunk)
-          lastFrameNumberToAddToDecoder = framenr
-        }
-        continue
-      } else {
-        console.log("flush before seek")
-        await videoDecoder.flush()
-        videoDecoder.decode(await createFakeKeyFrameChunk(
-          await this.libav.AVCodecParameters_width(this.videoStream.codecpar),
-          await this.libav.AVCodecParameters_height(this.videoStream.codecpar),
-          decoderConfig))
-        console.log("seek to framenr " + nextFrameNumberToLoad)
-        await this.packetStreamSeek(nextFrameNumberToLoad)
-        lastFrameNumberToAddToDecoder = "good enough"
-        continue
-      }
-    }
-    videoDecoder.close()
-  }
-
-  async *getFrames(): AsyncGenerator<readonly [number, VideoFrame], void, void> {
-    // extra code, much much faster esp if not in focus
-    const USE_TIMEOUT_FREE_GETFRAMES = true
-    if (USE_TIMEOUT_FREE_GETFRAMES) {
-      await this.packetStreamSeek(0)
-      const timestampToFramenumber: Record<number, number> = {}
-      const frames: (readonly [number, VideoFrame])[] = []
-      const videoDecoder = await this.getInitialisedVideoDecoder(frame => 
-        frames.push([timestampToFramenumber[frame.timestamp], frame] as const)
-      )
-      const isAnnexB = this.videoInfo.isAnnexB
-      const startTick = this.videoInfo.startTick
-      const frameDurationTicks = this.videoInfo.frameDurationTicks
-
       while (true) {
-        const {endOfFile, videoPackets} = await this.doReadMulti()
-        for (const packet of videoPackets) {
-          if ((packet.flags ?? 0) & Video.AV_PKT_FLAG_DISCARD) {
-            continue
-          }
-          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
-          const framenr = (pts - startTick) / frameDurationTicks
-          if (this.frameInfo && !this.frameInfo.has(framenr)) {
-            const frameInfo = {
-              ...extractFrameInfo(packet, isAnnexB),
-              pts,
-              dts: this.libav.i64tof64(packet.dts!, packet.dtshi!)
-            }
-            this.frameInfo.set(framenr, frameInfo)
-          }
-          const timestamp = Math.round(pts * this.ticksToUsFactor)
-          timestampToFramenumber[timestamp] = framenr
-          const chunk = new EncodedVideoChunk({
-            type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
-            timestamp,
-            duration: 100,
-            data: packet.data.buffer as ArrayBuffer,
-          })
-          videoDecoder.decode(chunk)
-          while (videoDecoder.decodeQueueSize > 10) {
-            await getPromiseFromEvent(videoDecoder, "dequeue")
-          }
-          while (frames.length) {
-            yield frames.shift()!
-          }
-        }
         if (endOfFile) {
-          await videoDecoder.flush()
-          while (frames.length) {
-            yield frames.shift()!
+          if (firstIframePTS === undefined) {
+            throw new Error("Could not find any iFrames")
           }
-          videoDecoder.close()
-          break
-        }
-      }
-      return
-    } else {
-      let frameNumber = 0
-      while (true) {
-        const frame = await this.getFrame(frameNumber)
-        if (frame === "EOF" || frame === null) {
+          assert(packets.length === 0)
           return
         }
-        yield [frameNumber, frame] as const
-        frameNumber++
+        const readMultiResult = await this.libav.ff_read_frame_multi(
+          this.formatContext,
+          pkt,
+          { limit: .25 * 1024 * 1024 }
+        );
+        const resultCode = readMultiResult[0]
+        endOfFile = resultCode === this.libav.AVERROR_EOF
+        if (resultCode !== 0 && resultCode !== -this.libav.EAGAIN && !endOfFile) {
+          throw new Error("Result is error: " + resultCode)
+        }
+        packets = [
+          ...(readMultiResult[1][this.videoStream.index] ?? [])
+          .filter(p => !((p.flags ?? 0) & Video.AV_PKT_FLAG_DISCARD))
+          .reverse(),
+          ...packets
+        ]
+        if (firstIframePTS === undefined) {
+          const iFrames = packets.filter(
+            p => !!((p.flags ?? 0) & Video.AV_PKT_FLAG_KEY))
+          if (iFrames.length) {
+            firstIframePTS = Math.min(...iFrames.map(p => 
+          this.libav.i64tof64(p.pts!, p.ptshi!)))
+          }
+        }
+        while (packets.length > 0) {
+          const packet = packets.pop()!
+          const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
+          if (pts < firstIframePTS!) {
+            console.debug(`dropping packet with pts before first iFrame: ${pts} < ${firstIframePTS}`)
+            continue
+          }
+          yield packet
+        }
       }
+    } finally {
+      await this.libav.av_packet_free_js(pkt)
     }
   }
 
-  async getFrame(frameNumber: number): Promise<VideoFrame | null | "EOF"> {
-    if (!this.cacheFillerRunning) {
-      void(this.frameCacheFiller())
-      this.cacheFillerRunning = true
+  async *getFrames(): AsyncGenerator<VideoFrame, void, void> {
+    const frames: VideoFrame[] = []
+    const videoDecoder = await this.getInitialisedVideoDecoder(frame => 
+      frames.push(frame)
+    )
+    for await (const packet of this.getPackets()) {
+      if ((packet.flags ?? 0) & Video.AV_PKT_FLAG_DISCARD) {
+        continue
+      }
+      const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
+      const timestamp = Math.round(pts * this.ticksToUsFactor)
+      const chunk = new EncodedVideoChunk({
+        type: ((packet.flags ?? 0) & Video.AV_PKT_FLAG_KEY) ? "key" : "delta",
+        timestamp,
+        duration: 100,
+        data: packet.data.buffer as ArrayBuffer,
+      })
+      videoDecoder.decode(chunk)
+      while (videoDecoder.decodeQueueSize > 10) {
+        await getPromiseFromEvent(videoDecoder, "dequeue")
+      }
+      while (frames.length) {
+        yield frames.shift()!
+      }
     }
-    if (this.frameStreamState.state !== "streaming") {
-      throw new Error("already closed")
+    await videoDecoder.flush()
+    while (frames.length) {
+      yield frames.shift()!
     }
-    this.frameStreamState.frameCache.setCurrentFrameNumber(frameNumber)
-    while (true) {
-      if (this.frameStreamState.frameCache.currentFrameNumber !== frameNumber) {
-      //console.log(this.frameStreamState.frameCache.state.frame)
-    console.log("abort getting ", frameNumber)
+    return
+  }
+
+ async *getFrameInfoInPtsOrder(): AsyncGenerator<FrameInfo, void, void> {
+    const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
+      this.libav, this.videoStream) as VideoDecoderConfig;
+
+    const getSPSFromDescription = (): SPSInfo | null => {
+      if (decoderConfig.description === undefined) {
         return null
       }
-      const item = this.frameStreamState.frameCache.get(frameNumber)
-      if (item === "pastEOS") {
-        return "EOF"
+      const description = (decoderConfig.description as Uint8Array)
+      // see https://aviadr1.blogspot.com/2010/05/h264-extradata-partially-explained-for.html
+      const spsData = description.slice(8, description[6] << 8 | description[7])
+      return parseSPS(spsData)
+    }
+
+    const isAnnexB = !(decoderConfig.description ?? null)
+    let currentSPS = getSPSFromDescription()
+    let waitingFrameInfos: FrameInfo[] = []
+    for await (const packet of this.getPackets()) {
+      const frameInfoAndSPS = extractFrameInfo(
+        this.libav, packet, isAnnexB, currentSPS)
+      currentSPS = frameInfoAndSPS.currentSPS
+      const frameInfo = frameInfoAndSPS.frameInfo
+      if (frameInfo.isInterlacedStream && frameInfo.isInterlacedBottomSlice) {
+        continue
       }
-      if (item instanceof VideoFrame) {
-        return item
+      waitingFrameInfos.push(frameInfo)
+      const frameInfosReadyToSend = waitingFrameInfos.filter(fi => fi.pts <= frameInfo.dts)
+      if (frameInfosReadyToSend.length) {
+        waitingFrameInfos = waitingFrameInfos.filter(fi => fi.pts > frameInfo.dts)
       }
-      await this.frameStreamState.frameCache.waitForChange
+      for (const fi of frameInfosReadyToSend.sort((a, b) => a.pts - b.pts)) {
+        yield(fi)
+      }
     }
   }
 
-  async getAllFrameInfo(
+ async getAllFrameInfo(
     progressCallback?: (progress: number) => void
   ): Promise<ReadonlyMap<number, FrameInfo>> {
     const result = new Map<number, FrameInfo>()
-    const isAnnexB = this.videoInfo.isAnnexB
-    const startTick = this.videoInfo.startTick
-    const frameDurationTicks = this.videoInfo.frameDurationTicks
-    const totalNumberOfFrames = this.videoInfo.numberOfFramesInStream
-    await this.packetStreamSeek(0)
-    for (let i=0; ; i++) {
-      const packet = await this.packetStreamNext()
-      if (!packet) break
-      const frameInfo = extractFrameInfo(packet, isAnnexB)
-      const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
-      const dts = this.libav.i64tof64(packet.dts!, packet.dtshi!)
-      const framenr = (pts - startTick) / frameDurationTicks
-      if (framenr % 1 !== 0) {
-        // half frame in interlaced or existing fraeme
-        continue
-      }
-      assert(!result.has(framenr))
-      const fullFrameInfo = {...frameInfo, pts, dts}
-      result.set(framenr, fullFrameInfo)
-      if (progressCallback && (i % 100) === 0) {
-        const pts = this.libav.i64tof64(packet.pts!, packet.ptshi!)
-        const framenr = (pts - startTick) / frameDurationTicks
-        progressCallback(framenr / totalNumberOfFrames)
+    for await (const [framenr, frameInfo]
+    of enumerateAsyncGenerator(this.getFrameInfoInPtsOrder())) {
+      //console.log(`nr ${framenr}: ${frameInfo.type}-frame at ${frameInfo.pts}`)
+      result.set(framenr, frameInfo)
+      if (progressCallback && (framenr % 100) === 0) {
+        progressCallback(framenr / this.videoInfo.numberOfFramesInStream)
       }
     }
     return result

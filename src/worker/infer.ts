@@ -4,7 +4,7 @@ import {nonEmptyFileExists, type FileTreeLeaf} from "../lib/FileTree"
 import {Video} from "./video"
 import { xxh64sum } from '../lib/fileutil'
 import { DetectionInfo, SingleFrameInfo, detectionInfoToStrings } from '../lib/detections'
-import { ObjectEntries, ObjectFromEntries, ObjectKeys, argMax, assert, enumerate, exhausted, range } from '../lib/util'
+import { ObjectEntries, ObjectFromEntries, ObjectKeys, argMax, assert, enumerate, enumerateAsyncGenerator, exhausted, range } from '../lib/util'
 import { EXTENSIONS } from '../lib/constants'
 import { YoloSettings, YoloBackend, getSavedModelFileHandleFromName } from '../lib/tfjs-shared'
 import {load} from "protobufjs"
@@ -300,12 +300,10 @@ export async function infer(
       framesInfo: []
     }
     let lastProgress = Date.now()
-    let frameCount = 0
     const modelKlasses = new Set<`${number}`>(
       ObjectKeys(detectionInfo.modelKlasses))
-    for await (const [framenr, videoFrame] of video.getFrames()) {
-      assert(frameCount > 0 || framenr == 0, "first frame should have nr 0", framenr)
-      frameCount++
+    for await (const [framenr, videoFrame] of
+    enumerateAsyncGenerator(video.getFrames())) {
       const singleFrameInfo = {
         detections: await inferSingleFrame(model, videoFrame)
       } as SingleFrameInfo

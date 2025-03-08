@@ -17,6 +17,7 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-mocha": "^10.5.0",
+    "h264-sps-parser": "^0.2.1",
     "hash-wasm": "^4.11.0",
     "libavjs-webcodecs-bridge": "github:Yahweasel/libavjs-webcodecs-bridge#98fb137f2b06029e376dc252c31d2f0b540a5919",
     "markdown-it": "^14.1.0",

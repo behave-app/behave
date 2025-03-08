@@ -1,5 +1,7 @@
+import { assert, range } from "../lib/util";
 import { ISODateTimeString } from "../lib/datetime";
 import type { LibAVTypes } from "../lib/libavjs";
+import { parse as parseSPS, SPSInfo } from "h264-sps-parser"
 
 const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
@@ -12,6 +14,8 @@ export type FrameInfo = {
   pts: number,
   dts: number,
   type: "I" | "IDR" | "P" | "B"
+  isInterlacedStream: boolean
+  isInterlacedBottomSlice: boolean
 }
 
 function removeEscapeSequences(inputNAL: Uint8Array): Uint8Array {
@@ -47,102 +51,162 @@ export function* getNALs(
   packet: LibAVTypes.Packet,
   isAnnexB: boolean,
   ): Generator<Uint8Array, void, void> {
-  if (!isAnnexB) {
-    throw new Error("is todo")
+  if (isAnnexB) {
+    let nrOfZeroes = 0
+    let nalStartedAt = NaN
+    for (let i = 0; i < packet.data.byteLength ; i++) {
+      const byte = packet.data.at(i)!
+      if (byte === 0) {
+        nrOfZeroes++;
+        continue
+      }
+      if (byte === 1) {
+        if (nrOfZeroes >= 2) {
+          if (Number.isFinite(nalStartedAt)) {
+            yield packet.data.slice(nalStartedAt,
+              i - nrOfZeroes)
+          }
+          const nalType = packet.data.at(i + 1)! & 0x1f
+          if (nalType === 0x01 || nalType === 0x05) {
+            // last NAL, no need to continue
+            yield packet.data.slice(i + 1)
+            return
+          }
+          nalStartedAt = i + 1
+        }
+      }
+      nrOfZeroes = 0
+    }
+    yield packet.data.slice(nalStartedAt)
+  } else {
+    const assumedLengthBytes = 4
+    let pointer = 0
+    while (true) {
+      if (pointer === packet.data.byteLength) {
+        return
+      }
+      assert(packet.data.byteLength > pointer + assumedLengthBytes)
+      const nalLength = range(assumedLengthBytes).reduce((acc, i) =>
+        acc + (packet.data[pointer + i] << (8 * (assumedLengthBytes - i - 1))))
+      assert(packet.data.byteLength >= pointer + assumedLengthBytes + nalLength)
+      yield packet.data.slice(
+        pointer + assumedLengthBytes, 
+        pointer + assumedLengthBytes + nalLength)
+      pointer += assumedLengthBytes + nalLength
+    }
+  }
+}
+
+class Parser {
+  public pos: {byte: number, bit: number}
+
+  constructor(private data: Uint8Array) {
+    this.pos = {byte: 0, bit: 0}
   }
 
-  let nrOfZeroes = 0
-  let nalStartedAt = NaN
-
-  for (let i = 0; i < packet.data.byteLength ; i++) {
-    const byte = packet.data.at(i)!
-    if (byte === 0) {
-      nrOfZeroes++;
-      continue
-    }
-    if (byte === 1) {
-      if (nrOfZeroes >= 2) {
-        if (Number.isFinite(nalStartedAt)) {
-          yield new Uint8Array(
-            packet.data.buffer,
-            packet.data.byteOffset + nalStartedAt,
-            i - nrOfZeroes - nalStartedAt)
-        }
-        const nalType = packet.data.at(i + 1)! & 0x1f
-        if (nalType === 0x01 || nalType === 0x05) {
-          // last NAL, no need to continue
-          yield new Uint8Array(
-            packet.data.buffer,
-            packet.data.byteOffset + i + 1,
-            packet.data.byteLength - (i + 1))
-          return
-        }
-        nalStartedAt = i + 1
+  u(nrBits: number): number {
+    let bitsToRead = nrBits
+    let result = 0 
+    while (true) {
+      const bitsInByte = 8 - this.pos.bit
+      const mask = (1 << bitsInByte) - 1
+      const readByte = this.data[this.pos.byte]
+      if (readByte === 3
+        && this.pos.byte > 2
+        && this.data[this.pos.byte - 1] === 0
+        && this.data[this.pos.byte - 2] === 0) {
+        // remove emulation prevention byte
+        this.pos.byte++
+        continue
+      }
+      if (bitsToRead > bitsInByte) {
+        result |= (readByte & mask) << (bitsToRead - bitsInByte)
+        this.pos.byte++
+        this.pos.bit = 0
+        bitsToRead -= bitsInByte
+      } else {
+        result |= (readByte & mask) >> (bitsInByte - bitsToRead)
+        this.pos.bit += bitsToRead
+        return result
       }
     }
-    nrOfZeroes = 0
   }
-  yield new Uint8Array(
-    packet.data.buffer,
-    packet.data.byteOffset + nalStartedAt,
-    packet.data.byteLength - nalStartedAt)
-}
 
-function get_exp_golomb(data: Uint8Array, startbit: number): [number, number] {
-    let bitPosition = startbit;
-    let zeroCount = 0;
-
-    // Count leading zeros
+  ue(): number {
+    let zeroCount = 0
     while (true) {
-        const bit = (data[bitPosition >> 3] >> (7 - (bitPosition & 7))) & 1;
-        if (bit === 1) break;
-        zeroCount++;
-        bitPosition++;
-        if (bitPosition >= data.length * 8) {
-            throw new Error("Bitstream exhausted while reading Exp-Golomb code.");
-        }
+      if (this.u(1) === 1) break;
+      zeroCount++;
     }
-
-    bitPosition++; // Skip the leading 1 bit
-
     // Read the remaining bits of the Exp-Golomb code
-    let value = 1 << zeroCount;
-    for (let i = 0; i < zeroCount; i++) {
-        const bit = (data[bitPosition >> 3] >> (7 - (bitPosition & 7))) & 1;
-        value |= bit << (zeroCount - 1 - i);
-        bitPosition++;
-        if (bitPosition >= data.length * 8) {
-            throw new Error("Bitstream exhausted while reading Exp-Golomb value.");
-        }
-    }
-
-    return [value - 1, bitPosition];
+    return (1 << zeroCount | this.u(zeroCount)) - 1;
+  }
 }
 
+type SliceHeader = {
+    first_mb_in_slice: number
+    slice_type: number
+    pic_parameter_set_id: number
+    frame_num: number
+    field_pic_flag: number
+    bottom_field_flag: number
+}
+
+const parseSliceHeader = (parser: Parser, currentSPS: SPSInfo | null): SliceHeader => {
+  if (currentSPS === null) {
+    throw new Error("Slice before first SPS")
+  }
+  const first_mb_in_slice = parser.ue()
+  const slice_type = parser.ue()
+  const pic_parameter_set_id = parser.ue()
+  if (currentSPS.color_plane_flag === 1) {
+    const _colour_pane_id = parser.u(2)
+  }
+  const frame_num = parser.u(currentSPS.log2_max_frame_num)
+  const field_pic_flag = currentSPS.frame_mbs_only_flag === 0 ? parser.u(1) : 0
+  const bottom_field_flag = field_pic_flag ? parser.u(1) : 0
+  return {
+    first_mb_in_slice,
+    slice_type,
+    pic_parameter_set_id,
+    frame_num,
+    field_pic_flag,
+    bottom_field_flag,
+  }
+}
+
+const DUMP_ALL_SLICE_INFO = false
 
 export function extractFrameInfo(
+  libav: LibAVTypes.LibAV,
   packet: LibAVTypes.Packet,
   isAnnexB: boolean,
-): Omit<FrameInfo, "pts" | "dts"> {
-  if (!isAnnexB) {
-    throw new Error("is todo")
+  currentSPS: SPSInfo | null
+): {frameInfo: FrameInfo, currentSPS: SPSInfo | null} {
+  const frameInfo: Partial<FrameInfo> = {
+    pts: libav.i64tof64(packet.pts!, packet.ptshi!),
+    dts: libav.i64tof64(packet.dts!, packet.dtshi!)
   }
-  const frameInfo: Partial<ReturnType<typeof extractFrameInfo>>= {}
 
   for (const nal of getNALs(packet, isAnnexB)) {
-    const firstbyte = nal.at(0)!
-    const ref = (firstbyte & 0xe0) >> 5
-    const nalType = firstbyte & 0x1f
+    const parser = new Parser(nal)
+    assert(parser.u(1) === 0)
+    const ref = parser.u(2)
+    const nalType = parser.u(5)
     switch (nalType) {
-      case 0x01: {
-        const [_first_mb_in_slice, pos] = get_exp_golomb(nal, 8);
-        const [slice_type, _pos] = get_exp_golomb(nal, pos)
+      case 0x01: {  // coded slice of a non-IDR picture
+        const sliceHeader = parseSliceHeader(parser, currentSPS)
+        const {slice_type, field_pic_flag, bottom_field_flag} = sliceHeader
+        frameInfo.isInterlacedStream =
+          currentSPS!.frame_mbs_only_flag === 0 && field_pic_flag === 1
+        frameInfo.isInterlacedBottomSlice =
+          frameInfo.isInterlacedStream && bottom_field_flag === 1
         switch (slice_type % 5) {
           case 0:
-            frameInfo.type = "B"
+            frameInfo.type = "P"
             break
           case 1:
-            frameInfo.type = "P"
+            frameInfo.type = "B"
             break
           case 2:
             frameInfo.type = "I"
@@ -150,28 +214,39 @@ export function extractFrameInfo(
           default:
             throw new Error(`Uknown ${ref} ${nalType}`)
         }
+        if (DUMP_ALL_SLICE_INFO) {
+          console.log(JSON.stringify({...frameInfo, ...sliceHeader}, null, 4))
+        }
       } break
-      case 0x05: {
+      case 0x05: {  // coded slice of an IDR picture
         frameInfo.type = "IDR"
+        const sliceHeader = parseSliceHeader(parser, currentSPS)
+        const {field_pic_flag, bottom_field_flag} = sliceHeader
+        frameInfo.isInterlacedStream =
+          currentSPS!.frame_mbs_only_flag === 0 && field_pic_flag === 1
+        frameInfo.isInterlacedBottomSlice =
+          frameInfo.isInterlacedStream && bottom_field_flag === 1
+        if (DUMP_ALL_SLICE_INFO) {
+          console.log(JSON.stringify({...frameInfo, ...sliceHeader}, null, 4))
+        }
       } break
-      case 0x06: {
-        const unescapedNal = isAnnexB ? removeEscapeSequences(nal) : nal
-        let rest = new Uint8Array(unescapedNal.buffer, unescapedNal.byteOffset + 1)
+      case 0x06: { // Supplemental Enhancement Information (SEI)
+        const unescapedNal = removeEscapeSequences(nal) // NOTE: also in non-annexB
+        let rest = unescapedNal.slice(1)
         while (rest.byteLength) {
           const current = rest
           const type = current.at(0)!
           if (type == 0x80) {
             // padding
-            rest = new Uint8Array(current.buffer, current.byteOffset + 1)
+            rest = current.slice(1)
             continue
           }
           const length = current.at(1)!
-          const newOffset = current.byteOffset + length + 2
-          if (newOffset > current.buffer.byteLength) {
-            console.log("problem with buffer: ", current.buffer)
+          if (length > current.byteLength) {
+            console.log("problem with buffer: ", current)
             throw new Error("problem with nal 6")
           }
-          rest = new Uint8Array(current.buffer, current.byteOffset + length + 2)
+          rest = current.slice(length + 2)
           if (type !== 5) {
             continue
           }
@@ -215,9 +290,15 @@ export function extractFrameInfo(
           }
         }
       } break
+      case 0x07: { // SPS
+        const unescapedNal = removeEscapeSequences(nal)
+        currentSPS = parseSPS(unescapedNal)
+      } break
     }
   }
-  return frameInfo as ReturnType<typeof extractFrameInfo>
+  return {
+    frameInfo: frameInfo as FrameInfo,
+    currentSPS}
 }
 
 

@@ -279,7 +279,7 @@ export class Video {
       }
       const description = (decoderConfig.description as Uint8Array)
       // see https://aviadr1.blogspot.com/2010/05/h264-extradata-partially-explained-for.html
-      const spsData = description.slice(8, description[6] << 8 | description[7])
+      const spsData = description.slice(8, 8 + description[6] << 8 | description[7])
       return parseSPS(spsData)
     }
 

@@ -78,7 +78,7 @@ export class Video {
 
   async init(_options: Record<never, never>) {
     await this.openVideoFile()
-    // TODO see if we can manage without setVideoInfo :)
+    // for later TODO see if we can manage without setVideoInfo :)
     await this.setVideoInfo()
 
     // reinitialize the stream to make sure we seek to 0
@@ -109,7 +109,7 @@ export class Video {
       this.libav,
       this.videoStream
     )) as VideoDecoderConfig;
-    // TODO: first try hardware, if fails try software
+    // for later TODO: first try hardware, if fails try software
     decoderConfig.hardwareAcceleration = "prefer-software";
     videoDecoder.configure(decoderConfig);
     if (!this.videoInfo.startsWithIDRFrame) {

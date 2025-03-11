@@ -208,7 +208,6 @@ export const Detection: FunctionComponent<DetectionProps> = (
   return <g
     className={joinedStringFromDict({
       [css.detection]: true,
-      [css.hide]: false, //TODO
       [css.hide_confidence]: confidenceLocation === "off",
       [css.top]: vertical === "top",
       [css.bottom]: vertical === "bottom",

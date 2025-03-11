@@ -47,6 +47,7 @@ export default [...fixupConfigRules(compat.extends(
     },
 
     rules: {
+      "no-warning-comments": "error",
       "@typescript-eslint/no-floating-promises": "error",
 
       "no-constant-condition": ["error", {

@@ -431,3 +431,26 @@ export function argMin(items: ReadonlyArray<number>): ArgMinMaxReturn {
     undefined as ArgMinMaxReturn
   )
 }
+export function hexDump(
+  data: Uint8Array,
+  maxlen?: number | undefined,
+  logger?: ((message: string) => void ) | undefined
+): void {
+  const hexLen = (num: number): number  =>
+    Math.ceil(num.toString(16).length / 2) * 2
+  const hexPrint = (num: number, length?: number | undefined): string =>
+    num.toString(16).padStart(length ?? hexLen(num), "0")
+
+  if (maxlen === undefined) {
+    maxlen = data.byteLength
+  }
+  const addressLength = hexLen(maxlen)
+  const byteLines: string[] = []
+  for (let i=0; i < maxlen; i+=16) {
+    const address = hexPrint(i, addressLength)
+    const bytes = [0, 8].map(j => [...data.slice(i + j, i + j + 8)].map(b => hexPrint(b)).join(" ")).join("    ")
+    byteLines.push(`${address}: ${bytes}`)
+  }
+  (logger ?? console.log)(`data length: ${data.byteLength} (0x${hexPrint(data.byteLength)}) bytes\n`
+  + byteLines.join("\n"))
+}

@@ -74,22 +74,22 @@ describe('Inference test', function () {
 
     cy.setShowOpenFilePickerResult([
       // NOTE: Make sure file.MTS is alphabetically first
-      {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
-      {pickerPath: "test/file2.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/example.MTS", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/example2.mp4", localPath: "cypress/assets/example2.mp4"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
-      {pickerPath: "test/file2.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/file.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       "cypress/assets/other.txt",
     ])
     cy.contains("button", "Start Inference").should("be.disabled")
     cy.contains("button", "Add Files").click()
-    cy.contains(".filetree_filename2.filetree_ready2", /^file\.MTS$/)
-    cy.contains(".filetree_filename2.filetree_ready2", /^file2\.mp4$/)
-    cy.contains(".filetree_filename2.filetree_warning2", /^file2.82f16f09b8327ed1.behave.mp4$/)
+    cy.contains(".filetree_filename2.filetree_ready2", /^example\.MTS$/)
+    cy.contains(".filetree_filename2.filetree_ready2", /^example2\.mp4$/)
+    cy.contains(".filetree_filename2.filetree_warning2", /^file.82f16f09b8327ed1.behave.mp4$/)
       .pseudoElementContent("after").should("contain", "Use the original")
-    cy.contains(".filetree_filename2", /^file2.82f16f09b8327ed1.behave.mp4$/)
+    cy.contains(".filetree_filename2", /^file.82f16f09b8327ed1.behave.mp4$/)
       .parent().find("button:last-child").click()
-    cy.contains(".filetree_filename2", /^file2.82f16f09b8327ed1.behave.mp4$/)
+    cy.contains(".filetree_filename2", /^file.82f16f09b8327ed1.behave.mp4$/)
       .should("not.exist")
     cy.contains(".filetree_filename2.filetree_error2", /^other\.txt/)
       .pseudoElementContent("after").should("contain", "Filetype not supported")
@@ -109,24 +109,34 @@ describe('Inference test', function () {
 
     cy.setShowDirectoryPickerResult([])
     cy.contains("button", "Start Inference").should("be.not.disabled").click()
-    cy.contains(".filetree_filename2.filetree_converting2", /^file\.MTS$/)
-    cy.contains(".filetree_filename2.filetree_done2", /^file\.MTS$/, {timeout: 20 * 60 * 1000})
-    cy.contains(".filetree_filename2.filetree_converting2", /^file2\.mp4/)
-    cy.contains(".filetree_filename2.filetree_done2", /^file2\.mp4$/, {timeout: 20 * 60 * 1000})
-    cy.assertFileExistsInPickedDirectory("file.82f16f09b8327ed1.behave.det.json")
-    cy.assertFileExistsInPickedDirectory("file2.82f16f09b8327ed1.behave.det.json")
-    let groundTruth: Record<string, unknown> & {
+    cy.contains(".filetree_filename2.filetree_converting2", /^example\.MTS$/)
+    cy.contains(".filetree_filename2.filetree_done2", /^example\.MTS$/, {timeout: 20 * 60 * 1000})
+    cy.contains(".filetree_filename2.filetree_converting2", /^example2\.mp4/)
+    cy.contains(".filetree_filename2.filetree_done2", /^example2\.mp4$/, {timeout: 20 * 60 * 1000})
+    const FILES = {
+      "example.MTS": "82f16f09b8327ed1",
+      "example2.mp4": "549ebe5b4acef5fd"
+    } as const
+
+    type FileName = keyof typeof FILES
+    type AllGroundTruths = Record<FileName, Record<string, unknown> & {
       framesInfo: ReadonlyArray<{
         detections: ReadonlyArray<Record<string, number>>
-      }>}
-    cy.readFile("cypress/assets/example.82f16f09b8327ed1.behave.det.json", "utf-8").then(res => {
-      groundTruth = res as typeof groundTruth
-    })
+      }>}>
+    const allGroundTruths: AllGroundTruths = {} as AllGroundTruths
+    for (const [filename, hash] of Object.entries(FILES)) {
+      const detFileName = filename.replace(/\.[^,]*$/, "") + `.${hash}.behave.det.json`
+      cy.assertFileExistsInPickedDirectory(detFileName)
+      cy.readFile(`cypress/assets/${detFileName}`, "utf-8").then(res => {
+        allGroundTruths[filename as FileName] = res as AllGroundTruths[FileName]
+      })
+    }
     cy.window().then(win => cy.wrap(null).then(async () => {
       const opfs = await win.navigator.storage.getDirectory()
       const dir = await opfs.getDirectoryHandle("showDirectoryPickerResult")
-      for (const filename of ["file.MTS", "file2.mp4"]) {
-        const detFileName = filename.replace(/\.[^,]*$/, "") + ".82f16f09b8327ed1.behave.det.json"
+      for (const [filename, hash] of Object.entries(FILES)) {
+        const groundTruth = allGroundTruths[filename as FileName]
+        const detFileName = filename.replace(/\.[^,]*$/, "") + `.${hash}.behave.det.json`
         const file = await (await dir.getFileHandle(detFileName)).getFile()
         const data = JSON.parse(await file.text()) as typeof groundTruth
         console.log(await file.text())
@@ -181,9 +191,9 @@ describe('Inference test', function () {
     cy.contains("button", "Add Files").click()
     cy.contains("button", "Start Inference").should("not.be.disabled")
       .click()
-    cy.contains(".filetree_filename2", /^file.MTS/)
+    cy.contains(".filetree_filename2", /^example.MTS/)
       .pseudoElementContent("after").should("contain", "Target file already exists")
-    cy.contains(".filetree_filename2", /^file2.mp4/)
+    cy.contains(".filetree_filename2", /^example2.mp4/)
       .pseudoElementContent("after").should("contain", "Target file already exists")
   })
 })

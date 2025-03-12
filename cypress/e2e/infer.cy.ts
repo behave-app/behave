@@ -181,8 +181,8 @@ describe('Inference test', function () {
     cy.visitWithStubbedFileSystem("/app/infer.html")
     cy.setShowOpenFilePickerResult([
       // NOTE: Make sure file.MTS is alphabetically first
-      {pickerPath: "test/file.MTS", localPath: "cypress/assets/example.MTS"},
-      {pickerPath: "test/file2.mp4", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/example.MTS", localPath: "cypress/assets/example.MTS"},
+      {pickerPath: "test/example2.mp4", localPath: "cypress/assets/example2.mp4"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       {pickerPath: "test/file2.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},

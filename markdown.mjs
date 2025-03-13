@@ -53,6 +53,9 @@ function getToc(toc) {
     guides: {
       _header: "Guides",
     },
+    contact: {
+      "bugs.html": "Report a bug",
+    },
     help: {
       _header: "FAQs",
       _label_generator: s => {

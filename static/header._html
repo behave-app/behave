@@ -4,6 +4,7 @@
     <title>Behave</title>
     <link rel="stylesheet" href="$(BASEDIR)/assets/main.css">
     <link rel="icon" type="image/svg" href="$(BASEDIR)/assets/favicon.svg">
+    <meta charset="UTF-8">
   </head>
   <body>
   <div class="page_header">

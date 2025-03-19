@@ -53,11 +53,10 @@ Comparison of native app vs webapp
 
 |         | native | webapp |
 |---------|---------|--------|
-| Install step | ✓ | 𐄂 |
-| Access to all files | ✓ | 𐄂 |
-| Can install other programs | ✓ | 𐄂 |
-| Can run other programs on the computer | ✓ | 𐄂 |
-| Access to explicitly selected files and directories | 𐄂 | ✓ |
+| Works without install step | 𐄂 | ✓ |
+| Secure (only access to files you give it access to) | 𐄂 | ✓ |
+| Secure (cannot install other programs) | 𐄂 | ✓ |
+| Secure (cannot run other programs on the computer) | 𐄂 | ✓ |
 | Works without internet | ✓ | ✓ |
 | Can use accellerated AI | ✓ | ✓ |
 | Always downloads latest version (if internet is availble) | 𐄂 | ✓ |

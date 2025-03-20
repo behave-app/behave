@@ -298,10 +298,10 @@ describe('Behave UI test', function () {
     cy.contains("hash: 82f16f09b8327ed1")
     cy.contains("button", "Start behaviour coding").should("not.be.disabled")
       .click()
-    cy.get("#myVideoPlayer").then(videos => {
-      const video = (videos.get(0) as HTMLVideoElement)
-      cy.wrap(video.readyState).should("be.gte", video.HAVE_CURRENT_DATA)
-    })
+    cy.get("#myVideoPlayer").should($videos => {
+      const video = $videos.get(0) as HTMLVideoElement;
+      expect(video.readyState).to.be.at.least(video.HAVE_CURRENT_DATA);
+    });
     cy.contains("span", "upload_file").click()
 
     cy.setShowOpenFilePickerResult([

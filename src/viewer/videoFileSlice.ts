@@ -47,11 +47,15 @@ export const selectMetadata = (state: RootState): VideoMetadata | null => {
   return state.videoFile?.metadata ?? null
 }
 
-export const selectFps = (state: RootState) => {
+export const selectAvgFps = (state: RootState) => {
   const metadata = selectMetadata(state)
-  return metadata?.playbackFps ?? null
+  return metadata?.avgPlaybackFps ?? null
 }
 
+export const selectExactPtsInSeconds_s = (state: RootState) => {
+  const metadata = selectMetadata(state)
+  return metadata?.exactPtsInSeconds_s ?? null
+}
 
 /**
  * Offest is the difference between the first frame shown in the <video> player

@@ -454,3 +454,24 @@ export function hexDump(
   (logger ?? console.log)(`data length: ${data.byteLength} (0x${hexPrint(data.byteLength)}) bytes\n`
   + byteLines.join("\n"))
 }
+
+
+export function clamp(value: number, limits: {min?: number, max?: number, int?: boolean}): number {
+  let newValue = value
+  if (limits.min !== undefined && newValue < limits.min) {
+    newValue = limits.min
+  }
+  if (limits.max !== undefined && newValue > limits.max) {
+    newValue = limits.max
+  }
+  if (limits.int && !Number.isInteger(newValue)) {
+    newValue = Math.round(newValue)
+  }
+  return newValue
+}
+
+export function clampedAt<T>(array: T[], index: number): T {
+  assert(array.length > 0)
+  return array.at(
+    clamp(index, {min: -array.length, max: array.length - 1, int: true}))!
+}

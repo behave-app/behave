@@ -10,6 +10,7 @@ import { VideoMetadata, videoMetadataChecker, definiteFrameTypeInfoChecker} from
 import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
 import { FrameInfo, extractFrameInfo } from "./frameinfo"
 import { parse as parseSPS, SPSInfo } from "h264-sps-parser"
+import { extractSttsAndCttsBox } from './mp4atoms'
 
 type VideoInfo = {
   // the pts of the first frame
@@ -20,12 +21,13 @@ type VideoInfo = {
   readonly durationTicks: number,
   // number of ticks that one frame takes
   // this is a best guess, assuming the frame rate is constant. This is in TS
-  readonly frameDurationTicks: number,
+  readonly avgFrameDurationTicks: number,
   // The values below are calculated from those above (and stream info)
   readonly durationSeconds: number,
   readonly numberOfFramesInStream: number,
-  readonly fps: number,
+  readonly avgFps: number,
   readonly startsWithIDRFrame: boolean
+  readonly exactPts_s: "N/A" | number[]
 }
 
 export class Video {
@@ -92,6 +94,41 @@ export class Video {
     this.playbackStarted = false;
   }
 
+
+  public async getPtsListForMp4(startPts: number): Promise<number[]> {
+    assert(this.input.name.toLowerCase().endsWith(
+      EXTENSIONS.videoFileMp4.toLowerCase()))
+    const {stts, ctts} = await extractSttsAndCttsBox(
+      this.input, {index: this.videoStream.index})
+    assert(stts)
+    const dts_base0_s: number[] = [0]
+    let last_value = 0
+    const data = new DataView(stts.entries)
+    for (let i = 0; i < data.byteLength; i += 8) {
+      const repeat = data.getUint32(i)
+      const value = data.getUint32(i + 4)
+      for (let j = 0; j < repeat; j++) {
+        last_value = last_value + value
+        dts_base0_s.push(last_value)
+      }
+    }
+    const pts: number[] = dts_base0_s.map(t => t + startPts)
+    if (ctts) {
+      const data = new DataView(ctts.entries)
+      let index = 0;
+      for (let i = 0; i < data.byteLength; i += 8) {
+        const repeat = data.getUint32(i)
+        const value = ctts.version === 1 ? data.getInt32(i + 4) : data.getUint32(i + 4)
+        for (let j = 0; j < repeat; j++) {
+          pts[index] += value
+          index++
+        }
+      }
+      pts.sort()
+    }
+    return pts
+  }
+
   public async getInitialisedVideoDecoder(
     callback: (frame: VideoFrame) => void
   ): Promise<VideoDecoder> {
@@ -146,30 +183,55 @@ export class Video {
       }
     }
 
-
-    const frameDurationTicks = (new Set(frameDurationTicks_s).size === 1)
-      ? frameDurationTicks_s[0] : "variable"
-
     assert(startTick !== undefined)
-    assert(frameDurationTicks !== undefined)
     assert(startsWithIDRFrame !== undefined)
-    assert(frameDurationTicks !== "variable", "" + frameDurationTicks_s)
-    const durationTicks = this.libav.i64tof64(
-      await this.libav.AVStream_duration(this.videoStream.ptr),
-      await this.libav.AVStream_durationhi(this.videoStream.ptr),
-    )
-    const endTick = startTick + durationTicks
-    // some magic to write to readonly property
-    const _rwthis = this as {-readonly [K in keyof typeof this]: typeof this[K]}
-    _rwthis.videoInfo = {
-      startTick,
-      endTick,
-      durationTicks,
-      frameDurationTicks,
-      durationSeconds: durationTicks * this.ticksToUsFactor / 1e6,
-      numberOfFramesInStream: Math.round(durationTicks / frameDurationTicks),
-      fps: 1e6 / (frameDurationTicks * this.ticksToUsFactor),
-      startsWithIDRFrame,
+    if (this.input.name.toLowerCase().endsWith(EXTENSIONS.videoFileMp4.toLowerCase())) {
+      // mp4 has this data explicit in stts and ctts box atoms
+      const pts_list = await this.getPtsListForMp4(startTick)
+      const numberOfFramesInStream = pts_list.length - 1
+      assert(numberOfFramesInStream >= 1)
+      const endTick = pts_list.at(-2)!
+      const durationTicks = endTick - startTick
+      const durationSeconds = durationTicks * this.ticksToUsFactor / 1e6
+      const avgFrameDurationTicks = (pts_list.at(-1)! - pts_list[0]) / numberOfFramesInStream
+      const avgFps = 1e6 / (avgFrameDurationTicks * this.ticksToUsFactor)
+      const _rwthis = this as {-readonly [K in keyof typeof this]: typeof this[K]}
+      _rwthis.videoInfo = {
+        startTick,
+        endTick,
+        durationTicks,
+        avgFrameDurationTicks,
+        durationSeconds,
+        numberOfFramesInStream,
+        avgFps,
+        startsWithIDRFrame,
+        exactPts_s: pts_list,
+      }
+    } else {
+      // for MTS we rely on the data from libavjs and get approximate values
+      const avgFrameDurationTicks = (new Set(frameDurationTicks_s).size === 1)
+        ? frameDurationTicks_s[0] : "variable"
+
+      assert(avgFrameDurationTicks !== undefined)
+      assert(avgFrameDurationTicks !== "variable", "" + frameDurationTicks_s)
+      const durationTicks = this.libav.i64tof64(
+        await this.libav.AVStream_duration(this.videoStream.ptr),
+        await this.libav.AVStream_durationhi(this.videoStream.ptr),
+      )
+      const endTick = startTick + durationTicks
+      // some magic to write to readonly property
+      const _rwthis = this as {-readonly [K in keyof typeof this]: typeof this[K]}
+      _rwthis.videoInfo = {
+        startTick,
+        endTick,
+        durationTicks,
+        avgFrameDurationTicks,
+        durationSeconds: durationTicks * this.ticksToUsFactor / 1e6,
+        numberOfFramesInStream: Math.round(durationTicks / avgFrameDurationTicks),
+        avgFps: 1e6 / (avgFrameDurationTicks * this.ticksToUsFactor),
+        startsWithIDRFrame,
+        exactPts_s: "N/A",
+      }
     }
   }
 
@@ -366,7 +428,9 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     const behaveData = await extractBehaveMetadata(file)
     if (ObjectKeys(behaveData).length) {
       const parsedBehaveData: {frameTypeInfo: Record<string, unknown>} & Record<string, unknown> = {
-        frameTypeInfo: {},
+        frameTypeInfo: {
+          exactPtsInSeconds_s: "N/A"
+        },
       }
       for (const [key, value] of ObjectEntries(behaveData)) {
         const parsedValue = JSON.parse(value)
@@ -376,6 +440,10 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
           case "idrFrameInterval":
           case "idrFrameStarts":
             parsedBehaveData.frameTypeInfo[key] = parsedValue
+            break
+          case "playbackFps":
+            // was renamed
+            parsedBehaveData.avgPlaybackFps = parsedValue
             break
           default:
             if (key in videoMetadataChecker.requiredItemChecker
@@ -398,7 +466,11 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     const video = new Video(file)
     await video.init({keepFrameInfo: false})
     const numberOfFrames = video.videoInfo.numberOfFramesInStream
-    const playbackFps = video.videoInfo.fps
+    const avgPlaybackFps = video.videoInfo.avgFps
+    const exactPts_s = video.videoInfo.exactPts_s
+    assert(exactPts_s !== "N/A")
+    const exactPtsInSeconds_s = exactPts_s.map(
+      pts => (pts - video.videoInfo.startTick) * video.ticksToUsFactor / 1e6)
     const creationTime  = [
       tags.format.tags.creation_time,
       ...tags.streams.map(s => s.tags.creation_time)
@@ -409,10 +481,11 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     const result: VideoMetadata = {
       hash,
       startTimestamps: creationTime !== undefined ? {"0": creationTime}: {},
-      recordFps: playbackFps,
+      recordFps: avgPlaybackFps,
       frameTypeInfo: null,
       numberOfFrames,
-      playbackFps,
+      avgPlaybackFps,
+      exactPtsInSeconds_s,
     }
     return result
   }
@@ -770,7 +843,7 @@ export async function convert(
 
     const metadata = {
       ...compressedFrameInfo,
-      playbackFps: video.videoInfo.fps,
+      avgPlaybackFps: video.videoInfo.avgFps,
       startTick: video.videoInfo.startTick,
       numberOfFrames: video.videoInfo.numberOfFramesInStream,
       hash,

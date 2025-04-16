@@ -5,9 +5,9 @@ import { SettingsForDetectionClass, getKeyFromModelKlasses, selectFramenumberInd
 import type { RootState } from './store';
 import { selectCurrentTime } from "./videoPlayerSlice";
 import { HSL } from "../lib/colour";
-import { ObjectEntries, ObjectKeys, range } from "../lib/util";
+import { clampedAt, ObjectEntries, ObjectKeys, range } from "../lib/util";
 import { DateTimeParts, getPartsFromTimestamp, offsetParts } from "../lib/datetime";
-import { selectDefaultOffset, selectFps, selectMetadata } from "./videoFileSlice";
+import { selectDefaultOffset, selectAvgFps, selectExactPtsInSeconds_s, selectMetadata } from "./videoFileSlice";
 
 
 const DEFAULT_COLOURS_FOR_CLASSES = new Map([
@@ -68,30 +68,47 @@ export const selectColoursForClasses: (
     })
 
 export const selectCurrentFrameNumber = createSelector(
-  [selectCurrentTime, selectFps, selectDefaultOffset],
-  (currentTime, fps, offset) => {
+  [selectCurrentTime, selectAvgFps, selectExactPtsInSeconds_s, selectDefaultOffset],
+  (currentTime, avgFps, exactPtsInSeconds_s, offset) => {
     if (currentTime === null
-      || fps === null
+      || avgFps === null
+      || exactPtsInSeconds_s === null
       || !Number.isFinite(currentTime)
-      || !Number.isFinite(fps)
+      || !Number.isFinite(avgFps)
       || !Number.isFinite(offset)) {
       return null
     }
-    return Math.round(currentTime! * fps) + offset
+    const estimatedFrameNumber = Math.round(currentTime * avgFps)
+    if (exactPtsInSeconds_s === "N/A") {
+      return estimatedFrameNumber + offset
+    }
+    const actualFrameTime = clampedAt(exactPtsInSeconds_s, estimatedFrameNumber)
+    if (actualFrameTime > currentTime) {
+      for (let i = estimatedFrameNumber - 1;; i--) {
+        if ((exactPtsInSeconds_s[i] ?? -1) <= currentTime) {
+          return i + offset
+        }
+      }
+    }
+    for (let i = estimatedFrameNumber + 1;; i++) {
+      if ((exactPtsInSeconds_s[i] ?? -1) > currentTime) {
+        return i - 1 + offset
+      }
+    }
   }
 )
 export const selectDateTimes = createSelector(
   [selectMetadata, selectTimeOffsetSeconds],
   (metadata, offsetSeconds): null | ReadonlyArray<DateTimeParts> => {
     if (metadata === null
-    || ObjectKeys(metadata.startTimestamps).length === 0
-    || metadata.recordFps === null) {
+      || ObjectKeys(metadata.startTimestamps).length === 0
+      || metadata.recordFps === null) {
       return null
     }
     const recordFps = metadata.recordFps
     // sort because ObjectEntries(and JSON.stringify) doesn't sort negative numbers nicely
     const entries = ObjectEntries(metadata.startTimestamps).toSorted((
-    [frameNrStringA], [frameNrStringB]) => parseInt(frameNrStringA) - parseInt(frameNrStringB))
+      [frameNrStringA], [frameNrStringB]) => parseInt(frameNrStringA) - parseInt(frameNrStringB))
     let lastExplicitParts = [parseInt(entries[0][0]), getPartsFromTimestamp(entries[0][1])] as const
     return range(metadata.numberOfFrames).reduce((parts_s, framenr) => {
       const explicitCurrentFrameTimestamp = metadata.startTimestamps[`${framenr}`]

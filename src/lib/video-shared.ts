@@ -1,4 +1,4 @@
-import { ArrayChecker, Checker, getCheckerFromObject, ObjectChecker, RecordChecker, StringChecker, UnionChecker } from "./typeCheck";
+import { ArrayChecker, Checker, getCheckerFromObject, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, UnionChecker } from "./typeCheck";
 import { ISODateTimeString, ISODATETIMESTRINGREGEX } from "./datetime";
 
 
@@ -15,7 +15,8 @@ export type VideoMetadata = {
   recordFps: number | null
   frameTypeInfo: DefiniteFrameTypeInfo | null
   numberOfFrames: number
-  playbackFps: number
+  avgPlaybackFps: number
+  exactPtsInSeconds_s: "N/A" | number[]
 }
 
 export const definiteFrameTypeInfoChecker: ObjectChecker<DefiniteFrameTypeInfo, Record<never, never>> = getCheckerFromObject({
@@ -35,5 +36,6 @@ export const videoMetadataChecker: ObjectChecker<VideoMetadata, Record<never, ne
   recordFps: new UnionChecker([1, null]),
   frameTypeInfo: new UnionChecker([definiteFrameTypeInfoChecker, null]),
   numberOfFrames: 1,
-  playbackFps: 1,
+  avgPlaybackFps: 1,
+  exactPtsInSeconds_s: new UnionChecker([new LiteralChecker("N/A"), new ArrayChecker(1)]),
 })

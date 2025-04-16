@@ -2,9 +2,9 @@ import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { RootState, } from './store'
 import { selectDetectionInfoPotentiallyNull, } from './detectionsSlice'
 import { selectConfidenceCutoffByClass, selectCurrentFrameNumber } from './selectors'
-import { assert } from '../lib/util'
+import { assert, clampedAt } from '../lib/util'
 import { PLAYBACK_RATES, selectPlaybackRate } from './videoPlayerSlice'
-import { selectDefaultOffset, selectFps, selectMetadata } from './videoFileSlice'
+import { selectDefaultOffset, selectAvgFps, selectExactPtsInSeconds_s, selectMetadata} from './videoFileSlice'
 
 // Warning: DO NOT EXPORT -- because people might be temped to keep a reference to the element itself
 const selectVideoPlayerElementId = (state: RootState) => state.videoPlayer.videoPlayerElementId
@@ -45,10 +45,22 @@ export const videoSeekToFrameNumberAndPause = createAsyncThunk("videoPlayer/vide
   ): Promise<void> => {
     const state = getState() as RootState
     const video = selectVideoPlayerElement(state)
-    const fps = selectFps(state) ?? NaN
+    const avgFps = selectAvgFps(state)
+    const exactPtsInSeconds_s = selectExactPtsInSeconds_s(state)
+    if (avgFps === null || exactPtsInSeconds_s === null) {
+      console.warn("Don't have enough data to seek")
+      return
+    }
     const offset = selectDefaultOffset(state)
     video.pause()
-    video.currentTime = (frameNumber - offset) / fps
+    if (exactPtsInSeconds_s === "N/A") {
+      video.currentTime = (frameNumber - offset) / avgFps
+    } else {
+      video.currentTime = (
+        clampedAt(exactPtsInSeconds_s, frameNumber - offset) + 
+          clampedAt(exactPtsInSeconds_s, frameNumber - offset + 1)
+      ) / 2
+    }
   })
 
 export const videoSeekToFrameNumberDiffAndPause = createAsyncThunk("videoPlayer/videoSeekToFrameNumberDiffAndPause", 

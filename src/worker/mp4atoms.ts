@@ -1,4 +1,5 @@
-import {assert} from "../lib/util"
+import { EXTENSIONS } from "../lib/constants"
+import {assert, enumerate} from "../lib/util"
 
 function getTrackId(data: DataView<ArrayBuffer>): number {
   const asciiDecoder = new TextDecoder("ascii")
@@ -12,23 +13,34 @@ function getTrackId(data: DataView<ArrayBuffer>): number {
   return trackId
 }
 
+type BoxInfo = {
+  boxStartPointer: number,
+  contentStartPointer: number,
+  endPointer: number,
+  name: string
+}
+
 async function getAtom(
   blob: Blob,
       startPointer: number,
       endPointer: number,
       to_get: ReadonlyArray<string>,
       getMultiple?: boolean | undefined,
-    ): Promise<ReadonlyArray<{pointer: number, endPointer: number, name: string}>> 
+    ): Promise<ReadonlyArray<BoxInfo>> 
     {
   const asciiDecoder = new TextDecoder("ascii")
-  const result: {pointer: number, endPointer: number, name: string}[] = []
+  const result: BoxInfo[] = []
   let pointer = startPointer
   while (pointer <= endPointer - 8) {
     const data = new DataView(await blob.slice(pointer, pointer + 8).arrayBuffer())
     const length = data.getUint32(0, /*is_little_endian*/ false)
     const name = asciiDecoder.decode(data.buffer.slice(4))
     if (to_get[0].indexOf(name) !== -1) {
-      result.push({pointer, endPointer: pointer + length, name})
+      result.push({
+        boxStartPointer: pointer,
+        contentStartPointer: pointer + 8,
+        endPointer: pointer + length,
+        name})
       if (getMultiple !== true) {
         return result
       }
@@ -63,43 +75,48 @@ function parseTTSBox(
 }
 
 export async function extractSttsAndCttsBox(
-  file: File, trackId: number
+  file: File, track: {trackId: number} | {index: number}
 ): Promise<{stts?: TTSBox, ctts?: TTSBox}> {
   const result: {stts?: TTSBox, ctts?: TTSBox} = {}
-  if (!file.name.toLowerCase().endsWith(".mp4")) {
-    throw new Error("Expected an mp4 file, got " + file.name)
-  }
+    assert(file.name.toLowerCase().endsWith(
+      EXTENSIONS.videoFileMp4.toLowerCase()))
   const moovData = await getAtom(file, 0, file.size, ["moov"])
   assert(moovData.length === 1)
   const tracksData = await getAtom(
-    file, moovData[0].pointer, moovData[0].endPointer, ["trak"], true)
-  for (const trackData of tracksData) {
-    const headerData = await getAtom(
-      file, trackData.pointer, trackData.endPointer, ["tkhd"])
-    assert(headerData.length === 1)
-    const foundTrackId = getTrackId(new DataView(
-      await file.slice(headerData[0].pointer, headerData[0].endPointer)
-      .arrayBuffer()
-    ))
-    if (foundTrackId !== trackId) {
-      continue
+    file, moovData[0].contentStartPointer, moovData[0].endPointer, ["trak"], true)
+  for (const [index, trackData] of enumerate(tracksData)) {
+    if ("index" in track) {
+      if (index !== track.index) {
+        continue
+      }
+    } else {
+      const headerData = await getAtom(
+        file, trackData.contentStartPointer, trackData.endPointer, ["tkhd"])
+      assert(headerData.length === 1)
+      const foundTrackId = getTrackId(new DataView(
+        await file.slice(headerData[0].contentStartPointer, headerData[0].endPointer)
+        .arrayBuffer()
+      ))
+      if (foundTrackId !== track.trackId) {
+        continue
+      }
     }
-    let boxData = headerData
+    let boxData = [trackData] as ReadonlyArray<typeof trackData>
     for (const atom of ["mdia", "minf", "stbl"]) {
       boxData = await getAtom(
-        file, boxData[0].pointer, boxData[0].endPointer, [atom])
+        file, boxData[0].contentStartPointer, boxData[0].endPointer, [atom])
       assert(boxData.length === 1, `missing ${atom} atom`)
     }
     const ttsBoxesData = await getAtom(
-      file, boxData[0].pointer, boxData[0].endPointer, ["stts", "ctts"], true)
+      file, boxData[0].contentStartPointer, boxData[0].endPointer, ["stts", "ctts"], true)
     for (const ttsBoxData of ttsBoxesData) {
       const data = new DataView(
-        await file.slice(ttsBoxData.pointer, ttsBoxData.endPointer).arrayBuffer())
+        await file.slice(ttsBoxData.boxStartPointer, ttsBoxData.endPointer).arrayBuffer())
       const {type, box} = parseTTSBox(data)
       assert(!(type in result))
       result[type] = box
     }
     return result
   }
-  throw new Error(`No track found with trackId ${trackId}`)
+  throw new Error(`No track found for ${JSON.stringify(track)}`)
 }

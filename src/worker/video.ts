@@ -428,9 +428,8 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
     const behaveData = await extractBehaveMetadata(file)
     if (ObjectKeys(behaveData).length) {
       const parsedBehaveData: {frameTypeInfo: Record<string, unknown>} & Record<string, unknown> = {
-        frameTypeInfo: {
-          exactPtsInSeconds_s: "N/A"
-        },
+        exactPtsInSeconds_s: "N/A",
+        frameTypeInfo: {},
       }
       for (const [key, value] of ObjectEntries(behaveData)) {
         const parsedValue = JSON.parse(value)

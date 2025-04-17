@@ -3,6 +3,11 @@ import {Files} from "./commands"
 declare global {
   namespace Cypress {
     interface Chainable {
+      task(
+        eventName: 'splitFileIntoParts',
+        args: { fileName: string; maxSize: number },
+        options?: Partial<Loggable & Timeoutable>
+      ): Chainable<ReadonlyArray<string>>;
       /**
        * Custom command to set which files should be returned to a showOpenFilePicker()
        *

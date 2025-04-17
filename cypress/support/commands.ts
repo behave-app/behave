@@ -1,4 +1,5 @@
 import {OPEN_PICKER_DIRNAME, DIRECTORY_PICKER_DIRNAME} from "./constants"
+const MB = 1024 * 1024
 let showSaveFilePickerMethod: typeof showSaveFilePicker | null = null
 
 export type Files = null | ReadonlyArray<string
@@ -88,42 +89,56 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
           throw e;
         }
       }
-      if (files === null) {
-        console.log("no dir")
-        return
-      }
-      console.log(`made ${dirname}`)
-      const maindir = await opfsRoot.getDirectoryHandle(dirname, {create: true})
-      for (const entry of files) {
-        const contentChainable = typeof entry === "string"
-        ? cy.readFile(entry, null)
-        : "localPath" in entry
-        ? cy.readFile(entry.localPath, null)
-        : cy.wrap(Cypress.Buffer.from(entry.content, "utf8"))
-        const pickerPath = typeof entry === "string" ? entry : entry.pickerPath
-        const replacer = typeof entry === "string" ? undefined : entry.replacer
-        contentChainable.then(buffer => {
-          cy.wrap(null).then(async () => {
-            let dir = maindir
-            let path = pickerPath.split("/")
-            while (path.length > 1) {
-              dir = await dir.getDirectoryHandle(path[0], {create: true})
-              path = path.slice(1)
-            }
-            if (replacer) {
-                console.log(buffer.toString("utf8").replace(replacer.from, replacer.to))
-              buffer = Cypress.Buffer.from(
-                buffer.toString("utf8").replace(replacer.from, replacer.to),
-                "utf8")
-            }
-            const file = await dir.getFileHandle(path[0], {create: true})
-            const writableFile = await file.createWritable()
-            await writableFile.write(buffer)
-            await writableFile.close()
-          })
-        })
-      }
     })
+    if (files === null) {
+      console.log("no dir")
+      return
+    }
+    cy.then(async () => {
+      const opfsRoot = await win.navigator.storage.getDirectory()
+      console.log(`made ${dirname}`)
+      return await opfsRoot.getDirectoryHandle(dirname, {create: true})
+    }).as("maindirWrapper")
+    for (const entry of files) {
+      const pickerPath = typeof entry === "string" ? entry : entry.pickerPath
+      cy.get<FileSystemDirectoryHandle>("@maindirWrapper").then(async (maindir) => {
+        let dir = maindir!
+        let path = pickerPath.split("/")
+        while (path.length > 1) {
+          dir = await dir.getDirectoryHandle(path[0], {create: true})
+          path = path.slice(1)
+        }
+        const file = await dir.getFileHandle(path[0], {create: true})
+        return await file.createWritable()
+      }).as("writableFileWrapper")
+      if (typeof entry === "object" && "content" in entry) {
+        cy.get<FileSystemWritableFileStream>("@writableFileWrapper").then(writableFile => writableFile.write(new TextEncoder().encode(entry.content)))
+      } else {
+        const replacer = typeof entry === "string" ? undefined : entry.replacer
+        cy.task("splitFileIntoParts", {
+          fileName: (typeof entry === "string" ? entry : entry.localPath),
+          maxSize: 50 * MB
+        }).then((parts) => {
+            if (replacer) {
+              if (parts.length > 1) {
+                throw new Error("Replacer not supported when more than 1 file part")
+              }
+            }
+            for (const part of parts) {
+              cy.readFile(part, null, {timeout: 100000}).then(buffer => {
+                if (replacer) {
+                  buffer = Cypress.Buffer.from(
+                    buffer.toString("utf8").replace(replacer.from, replacer.to),
+                    "utf8")
+                }
+                cy.get<FileSystemWritableFileStream>("@writableFileWrapper").then(writableFile => writableFile.write(buffer))
+              })
+            }
+          })
+      }
+      cy.get<FileSystemWritableFileStream>("@writableFileWrapper").then(writableFile => writableFile.close())
+      cy.task("splitCleanUp")
+    }
   })
 }
 

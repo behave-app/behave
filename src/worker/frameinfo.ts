@@ -233,7 +233,7 @@ export function extractFrameInfo(
       case 0x06: { // Supplemental Enhancement Information (SEI)
         const unescapedNal = removeEscapeSequences(nal) // NOTE: also in non-annexB
         let rest = unescapedNal.slice(1)
-        while (rest.byteLength) {
+        seimessage: while (rest.byteLength) {
           const current = rest
           const type = current.at(0)!
           if (type == 0x80) {
@@ -255,8 +255,9 @@ export function extractFrameInfo(
           }
           for (let i=0; i < UUID_ISO_IEC_11578_PLUS_MDPM.byteLength; i++) {
             if (UUID_ISO_IEC_11578_PLUS_MDPM.at(i)! !== current.at(i + 2)!) {
-              console.debug("found non-timekeeping SEI message")
-              continue
+              console.warn("found non-timekeeping SEI message")
+              hexDump(current.slice(0, length), undefined, console.warn.bind(console))
+              continue seimessage
             }
           }
           const nrItems = current.at(

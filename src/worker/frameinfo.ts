@@ -262,7 +262,8 @@ export function extractFrameInfo(
           const nrItems = current.at(
             2 + UUID_ISO_IEC_11578_PLUS_MDPM.byteLength)!
           if (length !== UUID_ISO_IEC_11578_PLUS_MDPM.byteLength + 1 + nrItems * 5) {
-            console.warn(`Seems that there is a different byteLength for the timekeeping record, ignoring it for now:\n${hexDump(current.slice(0, length))}`)
+            console.warn(`Seems that there is a different byteLength for the timekeeping record, ignoring it for now.`)
+            hexDump(current.slice(0, length), undefined, console.warn.bind(console))
             continue
           }
           const dataByType: Record<number, number[]> = {}

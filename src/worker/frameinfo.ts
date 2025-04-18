@@ -1,4 +1,4 @@
-import { assert, range } from "../lib/util";
+import { assert, hexDump, range } from "../lib/util";
 import { ISODateTimeString } from "../lib/datetime";
 import type { LibAVTypes } from "../lib/libavjs";
 import { parse as parseSPS, SPSInfo } from "h264-sps-parser"
@@ -255,14 +255,14 @@ export function extractFrameInfo(
           }
           for (let i=0; i < UUID_ISO_IEC_11578_PLUS_MDPM.byteLength; i++) {
             if (UUID_ISO_IEC_11578_PLUS_MDPM.at(i)! !== current.at(i + 2)!) {
-              console.warn("different nal")
+              console.debug("found non-timekeeping SEI message")
               continue
             }
           }
           const nrItems = current.at(
             2 + UUID_ISO_IEC_11578_PLUS_MDPM.byteLength)!
           if (length !== UUID_ISO_IEC_11578_PLUS_MDPM.byteLength + 1 + nrItems * 5) {
-            console.warn("Not sure...")
+            console.warn(`Seems that there is a different byteLength for the timekeeping record, ignoring it for now:\n${hexDump(current.slice(0, length))}`)
             continue
           }
           const dataByType: Record<number, number[]> = {}

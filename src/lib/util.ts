@@ -432,10 +432,13 @@ export function argMin(items: ReadonlyArray<number>): ArgMinMaxReturn {
   )
 }
 export function hexDump(
-  data: Uint8Array,
+  data: Uint8Array | ArrayBuffer,
   maxlen?: number | undefined,
   logger?: ((message: string) => void ) | undefined
 ): void {
+  if (data instanceof ArrayBuffer) {
+    data = new Uint8Array(data)
+  }
   const hexLen = (num: number): number  =>
     Math.ceil(num.toString(16).length / 2) * 2
   const hexPrint = (num: number, length?: number | undefined): string =>

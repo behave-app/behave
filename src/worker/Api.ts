@@ -13,7 +13,8 @@ export type WorkerConvertMethod = {
     method: "convert",
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
-    forceOverwrite: boolean
+    forceOverwrite: boolean,
+    keepAliveOnError: boolean,
   }
   message: {type: "progress", progress: FileTreeLeaf["progress"]}
   | {type: "done"}
@@ -26,7 +27,8 @@ export type WorkerInferMethod = {
     yoloSettings: YoloSettings
     input: {file: File},
     output: {dir: FileSystemDirectoryHandle},
-    forceOverwrite: boolean
+    forceOverwrite: boolean,
+    keepAliveOnError: boolean,
   }
   message: {type: "progress", progress: FileTreeLeaf["progress"]}
   | {type: "done"}
@@ -36,7 +38,8 @@ export type WorkerInferMethod = {
 export type WorkerCheckValidModel = {
   call: {
     method: "check_valid_model",
-    yoloSettings: YoloSettings
+    yoloSettings: YoloSettings,
+    keepAliveOnError: boolean,
   }
   message: {type: "done", result: {name: string}}
   | {type: "error", error: Error}
@@ -48,6 +51,7 @@ export type WorkerAutoConfigureAndTestModel = {
   call: {
     method: "auto_configure_and_test_model",
     modelFile: FileSystemFileHandle,
+    keepAliveOnError: boolean,
   }
   message: {type: "progress", progress: number}
   | {type: "done", result: AutoConfigureAndTestModelDone}
@@ -61,6 +65,7 @@ export type WorkerTestModel = {
     modelFile: FileSystemFileHandle,
     backend: YoloBackend,
     needsNms: boolean,
+    keepAliveOnError: boolean,
   }
   message: {type: "progress", progress: number}
   | {type: "done", result: TestModelDone}
@@ -71,6 +76,7 @@ export type WorkerExtractMetadata = {
   call: {
     method: "extract_metadata",
     file: File,
+    keepAliveOnError: boolean,
   }
   message: {type: "done", result: VideoMetadata}
   | {type: "error", error: Error}
@@ -86,6 +92,8 @@ type ValidModelWorker = LimitedWorker<WorkerCheckValidModel>
 type AutoConfigureAndTestModelWorker = LimitedWorker<WorkerAutoConfigureAndTestModel>
 type TestModelWorker = LimitedWorker<WorkerTestModel>
 type ExtractMetadataWorker = LimitedWorker<WorkerExtractMetadata>
+
+const keepAliveOnError = new URL(document.location.href).searchParams.get("keepAliveOnError") !== null
 
 export class API {
   static async convertToMp4(
@@ -113,7 +121,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "convert", input, output, forceOverwrite})
+    worker.postMessage({method: "convert", input, output, forceOverwrite, keepAliveOnError})
     return promise
   }
 
@@ -143,7 +151,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "infer", yoloSettings, input, output, forceOverwrite})
+    worker.postMessage({method: "infer", yoloSettings, input, output, forceOverwrite, keepAliveOnError})
     return promise
   }
 
@@ -165,7 +173,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "check_valid_model", yoloSettings})
+    worker.postMessage({method: "check_valid_model", yoloSettings, keepAliveOnError})
     return promise
   }
   static autoConfigureAndTestModel(
@@ -190,7 +198,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "auto_configure_and_test_model", modelFile})
+    worker.postMessage({method: "auto_configure_and_test_model", modelFile, keepAliveOnError})
     return promise
   }
 
@@ -218,7 +226,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "test_model", modelFile, backend, needsNms})
+    worker.postMessage({method: "test_model", modelFile, backend, needsNms, keepAliveOnError})
     return promise
   }
 
@@ -240,7 +248,7 @@ export class API {
           exhausted(data)
       }
     })
-    worker.postMessage({method: "extract_metadata", file})
+    worker.postMessage({method: "extract_metadata", file, keepAliveOnError})
     return promise
   }
 }

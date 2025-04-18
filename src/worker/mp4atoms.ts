@@ -31,10 +31,21 @@ async function getAtom(
   const asciiDecoder = new TextDecoder("ascii")
   const result: BoxInfo[] = []
   let pointer = startPointer
-  while (pointer <= endPointer - 8) {
-    const data = new DataView(await blob.slice(pointer, pointer + 8).arrayBuffer())
-    const length = data.getUint32(0, /*is_little_endian*/ false)
-    const name = asciiDecoder.decode(data.buffer.slice(4))
+  while (pointer !== endPointer) {
+    const bytesLeft = endPointer - pointer
+    assert (bytesLeft >=8, `${bytesLeft} bytes left`)
+    const data = new DataView(await blob.slice(pointer, pointer + Math.min(16, bytesLeft)).arrayBuffer())
+    let length = data.getUint32(0, /*is_little_endian*/ false)
+    const name = asciiDecoder.decode(data.buffer.slice(4, 8))
+    if (length === 1) {
+      assert (bytesLeft >=16, `${bytesLeft} bytes left`)
+      const biglength = data.getBigUint64(8)
+      assert(biglength <= Number.MAX_SAFE_INTEGER, `box length = ${biglength}`)
+      length = Number(biglength)
+    }
+    if (length === 0) {
+      length = endPointer - pointer
+    }
     if (to_get[0].indexOf(name) !== -1) {
       result.push({
         boxStartPointer: pointer,

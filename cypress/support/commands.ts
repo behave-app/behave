@@ -131,12 +131,16 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
 
 Cypress.Commands.addQuery('pseudoElementContent', (pseudo: 'before' | 'after') => {
   return function $pseudoContent(subject: JQuery<HTMLElement>) {
-    const el = subject.get(0)
-    // Get the computed style for the element and the specified pseudo-element
-    const computedStyle = window.getComputedStyle(el, `::${pseudo}`);
-    const content = computedStyle.getPropertyValue('content');
-
-    return JSON.parse(content);
+    return subject.toArray().map(el =>  {
+      // Get the computed style for the element and the specified pseudo-element
+      const computedStyle = window.getComputedStyle(el, `::${pseudo}`);
+      const content = computedStyle.getPropertyValue('content');
+      if (content === "none") {
+        return undefined
+      }
+      return JSON.parse(content);
+    }
+    )
   };
 });
 

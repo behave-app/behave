@@ -127,23 +127,77 @@ const prepareOPFS = (files: Parameters<typeof cy["setShowDirectoryPickerResult"]
   })
 }
 
-// cypress/support/commands.ts
+Cypress.Commands.addQuery('pseudoElementContaining', function $pseudoElementContaining(
+  pseudo: 'before' | 'after',
+  containing: string | RegExp,
+  options = {}
+) {
+    if (pseudo !== "before" && pseudo !== "after") {
 
-Cypress.Commands.addQuery('pseudoElementContent', (pseudo: 'before' | 'after') => {
-  return function $pseudoContent(subject: JQuery<HTMLElement>) {
-    return subject.toArray().map(el =>  {
-      // Get the computed style for the element and the specified pseudo-element
-      const computedStyle = window.getComputedStyle(el, `::${pseudo}`);
-      const content = computedStyle.getPropertyValue('content');
-      if (content === "none") {
-        return undefined
-      }
-      return JSON.parse(content);
+      const err = `pseudoElementContaining() first parameter should be "before" or "after", you put in \`${pseudo}\`.`
+      throw new TypeError(err)
     }
-    )
-  };
-});
+    if (typeof containing !== "string"
+      && (typeof containing !== "object" || !(containing instanceof RegExp))) {
 
+      const err = `pseudoElementContaining() second parameter should be a string or an regexp, you put in \`${containing}\`.`
+      throw new TypeError(err)
+    }
+    if (
+      options === null ||
+        typeof options !== 'object' ||
+        !(Object.getPrototypeOf(options) === Object.prototype ||
+          Object.getPrototypeOf(options) === null)
+    ) {
+      const err = `pseudoElementContaining() requires an \`options\` object. You passed in: \`{options}\``
+      throw new TypeError(err)
+    }
+    const log = options.log !== false && Cypress.log({ timeout: options.timeout })
+
+    // TS bug in Cypress v14: 'timeout' not typed on EnqueuedCommandAttributes
+    // @ts-expect-error See https://github.com/cypress-io/cypress/issues/30198
+    this.set('timeout', options.timeout)
+
+    return function pseudoElementContainingInner(subject: JQuery<HTMLElement>) {
+      const $el = subject.filter((_, el) => {
+        // Get the computed style for the element and the specified pseudo-element
+        const computedStyle = window.getComputedStyle(el, `::${pseudo}`);
+        const content = computedStyle.getPropertyValue('content');
+        if (content === "none") {
+          return false
+        }
+        const contentString = JSON.parse(content);
+        if (typeof contentString !== "string") {
+          return false
+        }
+        if (typeof containing === "string") {
+          return contentString.indexOf(containing) !== -1
+        }
+        return containing.test(contentString)
+      })
+
+      if (log !== false) {
+        log.set({
+          $el,
+          consoleProps: () => {
+            return {
+              Yielded: $el?.length ? $el[0] : '--nothing--',
+              Elements: $el.length,
+            }
+          },
+        })
+      }
+
+    if ($el.length === 0 && !(options?.allowEmpty)) {
+      throw new Error(
+      `No elements found for ::\`${pseudo}\` containing \`${containing}\``)
+    }
+      console.log($el)
+    return $el
+  }
+})
+
+// cypress/support/commands.ts
 
 Cypress.Commands.add(
   "setShowOpenFilePickerResult", (files) => prepareOPFS(files, OPEN_PICKER_DIRNAME))

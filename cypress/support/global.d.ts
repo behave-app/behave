@@ -28,14 +28,15 @@ declare global {
       visitWithStubbedFileSystem(url: string | {url: string} & Partial<Cypress.VisitOptions>, options?: Partial<Cypress.VisitOptions> | undefined): Chainable<string>;
 
       /**
-     * Custom query to get the content of :before or :after pseudo-element.
-     * This will return the content text of the pseudo-element.
+     * Custom query to get the elements with a certain after of before value
      * @param pseudo - Either 'before' or 'after' to select the pseudo-element.
-     * @example
-     *    cy.get('selector').pseudoElementContent('before').then(content => ...)
+     * @param containing - String to regex to match against
      */
-      pseudoElementContent(pseudo: 'before' | 'after'): Chainable<string>;
-
+      pseudoElementContaining(
+        pseudo: 'before' | 'after',
+        containing: string | RegExp,
+        options?: Partial<Cypress.Loggable & Cypress.Timeoutable & Cypress.Withinable & {allowEmpty: boolean}>
+      ): Chainable<JQuery<HTMLElement>>;
       /**
        * Check that a list of elements matches a list of regexs
        * @param listSelector - A string which, if given to `cy.get` returns a list of elements

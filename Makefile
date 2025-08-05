@@ -53,7 +53,7 @@ $(LIBAVJS_TARGET_FILES): libav.js/Dockerfile libav.js/commit.txt
 
 node_modules/tag: package.json
 	@npm install  --no-save .
-	@cd node_modules/libavjs-webcodecs-bridge && make all
+	@cd node_modules/libavjs-webcodecs-bridge && npm install typescript@5.1.6 && make all
 	@touch $@
 
 lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag

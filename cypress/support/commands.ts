@@ -192,7 +192,6 @@ Cypress.Commands.addQuery('pseudoElementContaining', function $pseudoElementCont
       throw new Error(
       `No elements found for ::\`${pseudo}\` containing \`${containing}\``)
     }
-      console.log($el)
     return $el
   }
 })

@@ -1,7 +1,7 @@
 import { assert, hexDump, range } from "../lib/util";
 import { ISODateTimeString } from "../lib/datetime";
 import type { LibAVTypes } from "../lib/libavjs";
-import { parse as parseSPS, SPSInfo } from "h264-sps-parser"
+import { parseSpsNalUnit, SpsCore } from "./avcc-parser";
 
 const UUID_ISO_IEC_11578_PLUS_MDPM = new Uint8Array([
   0x17, 0xee, 0x8c, 0x60, 0xf8, 0x4d, 0x11, 0xd9, 0x8c, 0xd6, 0x08, 0x00, 0x20,
@@ -152,17 +152,17 @@ type SliceHeader = {
     bottom_field_flag: number
 }
 
-const parseSliceHeader = (parser: Parser, currentSPS: SPSInfo | null): SliceHeader => {
+const parseSliceHeader = (parser: Parser, currentSPS: SpsCore | null): SliceHeader => {
   if (currentSPS === null) {
     throw new Error("Slice before first SPS")
   }
   const first_mb_in_slice = parser.ue()
   const slice_type = parser.ue()
   const pic_parameter_set_id = parser.ue()
-  if (currentSPS.color_plane_flag === 1) {
+  if (currentSPS.separate_colour_plane_flag === 1) {
     const _colour_pane_id = parser.u(2)
   }
-  const frame_num = parser.u(currentSPS.log2_max_frame_num)
+  const frame_num = parser.u(currentSPS.log2_max_frame_num_minus4 + 4)
   const field_pic_flag = currentSPS.frame_mbs_only_flag === 0 ? parser.u(1) : 0
   const bottom_field_flag = field_pic_flag ? parser.u(1) : 0
   return {
@@ -181,8 +181,8 @@ export function extractFrameInfo(
   libav: LibAVTypes.LibAV,
   packet: LibAVTypes.Packet,
   isAnnexB: boolean,
-  currentSPS: SPSInfo | null
-): {frameInfo: FrameInfo, currentSPS: SPSInfo | null} {
+  currentSPS: SpsCore | null
+): {frameInfo: FrameInfo, currentSPS: SpsCore | null} {
   const frameInfo: Partial<FrameInfo> = {
     pts: libav.i64tof64(packet.pts!, packet.ptshi!),
     dts: libav.i64tof64(packet.dts!, packet.dtshi!)
@@ -294,7 +294,7 @@ export function extractFrameInfo(
       } break
       case 0x07: { // SPS
         const unescapedNal = removeEscapeSequences(nal)
-        currentSPS = parseSPS(unescapedNal)
+        currentSPS = parseSpsNalUnit(unescapedNal)
       } break
     }
   }

@@ -4,12 +4,12 @@ import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString, ISODATETIMEST
 import { EXTENSIONS } from '../lib/constants'
 import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
-import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, ObjectKeys, enumerateAsyncGenerator} from "../lib/util"
+import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, ObjectKeys, enumerateAsyncGenerator, hexDump} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
 import { VideoMetadata, videoMetadataChecker, definiteFrameTypeInfoChecker} from '../lib/video-shared'
 import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
 import { FrameInfo, extractFrameInfo } from "./frameinfo"
-import { parse as parseSPS, SPSInfo } from "h264-sps-parser"
+import { parseAvcDecoderConfigurationRecord, parseSpsNalUnit, SpsCore  } from './avcc-parser';
 import { extractSttsAndCttsBox } from './mp4atoms'
 
 type VideoInfo = {
@@ -335,14 +335,21 @@ export class Video {
     const decoderConfig = await LibAVWebcodecsBridge.videoStreamToConfig(
       this.libav, this.videoStream) as VideoDecoderConfig;
 
-    const getSPSFromDescription = (): SPSInfo | null => {
+    const getSPSFromDescription = (): SpsCore | null => {
       if (decoderConfig.description === undefined) {
         return null
       }
       const description = (decoderConfig.description as Uint8Array)
       // see https://aviadr1.blogspot.com/2010/05/h264-extradata-partially-explained-for.html
-      const spsData = description.slice(8, 8 + description[6] << 8 | description[7])
-      return parseSPS(spsData)
+      hexDump(description)
+      const { record, remaining } = parseAvcDecoderConfigurationRecord(description);
+      if (remaining.length > 0) {
+        hexDump(description, 512)
+        hexDump(remaining, 512)
+        throw new Error("There should be no data remaining")
+      }
+      const spsCore = parseSpsNalUnit(record.sequenceParameterSets[0].data)
+      return spsCore
     }
 
     const isAnnexB = !(decoderConfig.description ?? null)

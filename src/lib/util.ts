@@ -444,12 +444,10 @@ export function hexDump(
   const hexPrint = (num: number, length?: number | undefined): string =>
     num.toString(16).padStart(length ?? hexLen(num), "0")
 
-  if (maxlen === undefined) {
-    maxlen = data.byteLength
-  }
-  const addressLength = hexLen(maxlen)
+  const printLength = Math.min(maxlen ?? data.byteLength, data.byteLength)
+  const addressLength = hexLen(printLength)
   const byteLines: string[] = []
-  for (let i=0; i < maxlen; i+=16) {
+  for (let i=0; i < printLength; i+=16) {
     const address = hexPrint(i, addressLength)
     const bytes = [0, 8].map(j => [...data.slice(i + j, i + j + 8)].map(b => hexPrint(b)).join(" ")).join("    ")
     byteLines.push(`${address}: ${bytes}`)

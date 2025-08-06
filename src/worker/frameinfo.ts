@@ -241,7 +241,13 @@ export function extractFrameInfo(
             rest = current.slice(1)
             continue
           }
-          const length = current.at(1)!
+          // variable length field: 0xff means: "255 + next byte"
+          let pos = 1
+          while (current.at(pos)! === 0xff) {
+            pos++
+          }
+          const length = current.at(pos)! + 0xff * (pos - 1)
+
           if (length > current.byteLength) {
             console.log("problem with buffer: ", current)
             throw new Error("problem with nal 6")

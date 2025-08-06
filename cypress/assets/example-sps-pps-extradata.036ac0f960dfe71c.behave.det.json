@@ -1,0 +1,54 @@
+{
+    "version": 1,
+    "sourceFileName": "example-sps-pps-extradata.mp4",
+    "sourceFileXxHash64": "036ac0f960dfe71c",
+    "modelName": "yolov8-little-auk-model.onnx",
+    "modelKlasses": {
+        "0": "little auk",
+        "1": "human",
+        "2": "fox",
+        "3": "other bird",
+        "4": "reindeer"
+    },
+    "framesInfo": [
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        },
+        {
+            "detections": []
+        }
+    ]
+}

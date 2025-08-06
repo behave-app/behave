@@ -76,6 +76,7 @@ describe('Inference test', function () {
       // NOTE: Make sure file.MTS is alphabetically first
       {pickerPath: "test/example.MTS", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/example2.mp4", localPath: "cypress/assets/example2.mp4"},
+      {pickerPath: "test/example-sps-pps-extradata.mp4", localPath: "cypress/assets/example-sps-pps-extradata.mp4"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       {pickerPath: "test/file.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.82f16f09b8327ed1.behave.mp4"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
@@ -109,13 +110,16 @@ describe('Inference test', function () {
 
     cy.setShowDirectoryPickerResult([])
     cy.contains("button", "Start Inference").should("be.not.disabled").click()
+    cy.contains(".filetree_filename2.filetree_converting2", /^example-sps-pps-extradata\.mp4/)
+    cy.contains(".filetree_filename2.filetree_done2", /^example-sps-pps-extradata\.mp4$/, {timeout: 20 * 60 * 1000})
     cy.contains(".filetree_filename2.filetree_converting2", /^example\.MTS$/)
     cy.contains(".filetree_filename2.filetree_done2", /^example\.MTS$/, {timeout: 20 * 60 * 1000})
     cy.contains(".filetree_filename2.filetree_converting2", /^example2\.mp4/)
     cy.contains(".filetree_filename2.filetree_done2", /^example2\.mp4$/, {timeout: 20 * 60 * 1000})
     const FILES = {
-      "example.MTS": "82f16f09b8327ed1",
-      "example2.mp4": "549ebe5b4acef5fd"
+      "example-sps-pps-extradata.mp4": "036ac0f960dfe71c",
+      "example.MTS":                   "82f16f09b8327ed1",
+      "example2.mp4":                  "549ebe5b4acef5fd",
     } as const
 
     type FileName = keyof typeof FILES
@@ -183,6 +187,7 @@ describe('Inference test', function () {
       // NOTE: Make sure file.MTS is alphabetically first
       {pickerPath: "test/example.MTS", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/example2.mp4", localPath: "cypress/assets/example2.mp4"},
+      {pickerPath: "test/example-sps-pps-extradata.mp4", localPath: "cypress/assets/example-sps-pps-extradata.mp4"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},
       {pickerPath: "test/file2.82f16f09b8327ed1.behave.mp4", localPath: "cypress/assets/example.MTS"},
       {pickerPath: "test/not-an-mts-file.MTS", localPath: "cypress/assets/other.txt"},

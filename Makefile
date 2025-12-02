@@ -1,4 +1,4 @@
-DOCKER ?= nerdctl.lima
+DOCKER ?= docker
 
 DOCKER_TMPDIR ?= /tmp/lima/
 ENVIRONMENT ?= development
@@ -57,7 +57,7 @@ node_modules/tag: package.json
 	@touch $@
 
 lint: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag
-	@tsc --noEmit
+	@npx tsc --noEmit
 	@npx eslint --max-warnings 0 .
 
 public/app/tsc: tsconfig.json $(shell find src) public/app/bundled/libavjs-$(LIBAVJS_COMMIT)/version.txt node_modules/tag $(STATIC_ASSET_FILES) determine_version_number.mjs copy_and_version.py

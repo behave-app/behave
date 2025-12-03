@@ -3,6 +3,8 @@
  * Expects the raw avcC payload (NOT including the MP4 box header).
  */
 
+import { assert, hexDump } from "../lib/util";
+
 /* =========================
  * Types
  * ========================= */
@@ -457,6 +459,16 @@ class BitReader {
     }
     return val >>> 0;
   }
+  readBytes(n: number | "all"): Uint8Array {
+    assert((this.getBitOffset() & 0x7) === 0, "Not on byte border")
+    if (n === "all") {
+      return this.buf.slice(this.getByteOffset())
+    }
+    if (n < 0) throw new Error(`readBytes(${n}) invalid`)
+    if (n > this.buf.byteLength - this.getByteOffset()) throw new SpsTruncatedError(`Not enough bytes: need ${n}, have ${this.buf.length - this.getByteOffset()}.`);
+    return this.buf.slice(this.getByteOffset(), this.getByteOffset() + n)
+  }
+
   readUE(): number {
     let zeros = 0;
     while (this.bitsLeft() > 0) {
@@ -475,6 +487,15 @@ class BitReader {
     const ue = this.readUE();
     const sign = (ue & 1) ? 1 : -1;
     return sign * ((ue + 1) >>> 1);
+  }
+
+  dump(
+    maxBytes?: number,
+    logger?: ((message: string) => void) | undefined): void {
+    const bytepos = this.bitPos >>> 3
+    const inBytePos = this.bitPos & 7
+    const todump = this.buf.slice(bytepos)
+    hexDump(todump, maxBytes, message => ((logger ?? console.log)(`bytePos: ${inBytePos} ${message}`)))
   }
 }
 
@@ -697,9 +718,14 @@ export function parseSpsNalUnit(spsNal: Uint8Array): SpsCore {
     }
   }
   if (br.bitsLeft() !== 0) {
-    throw new SpsRbspTrailingBitsError(`Extra bits present after rbsp_trailing_bits(): ${br.bitsLeft()} bit(s).`, {
-      partial, remaining: new Uint8Array(0), bitOffset: br.getBitOffset(),
-    });
+    assert((br.bitsLeft() & 0x7) === 0, "On byte border")
+    const bytes = br.readBytes("all")
+    if (bytes.every(b => b === 0)) {
+      console.info(`Illegal SPS padding found, (${bytes.byteLength} bytes, all 0x00), ignoring`)
+    } else {
+      console.warn("Illegal SPS padding found, not all 0x00 bytes, still ignoring")
+      hexDump(bytes)
+    }
   }
 
   // ---- Derived dimensions (use chroma_format_idc for crop multipliers) ----

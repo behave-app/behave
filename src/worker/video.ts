@@ -341,7 +341,6 @@ export class Video {
       }
       const description = (decoderConfig.description as Uint8Array)
       // see https://aviadr1.blogspot.com/2010/05/h264-extradata-partially-explained-for.html
-      hexDump(description)
       const { record, remaining } = parseAvcDecoderConfigurationRecord(description);
       if (remaining.length > 0) {
         hexDump(description, 512)

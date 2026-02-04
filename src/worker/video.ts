@@ -4,10 +4,10 @@ import { getPartsFromTimestamp, partsToIsoDate, ISODateTimeString, ISODATETIMEST
 import { EXTENSIONS } from '../lib/constants'
 import { getLibAV, type LibAVTypes } from "../lib/libavjs"
 
-import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, ObjectKeys, enumerateAsyncGenerator, hexDump} from "../lib/util"
+import {ObjectEntries, ObjectFromEntries, assert, promiseWithResolve, getPromiseFromEvent, ObjectKeys, enumerateAsyncGenerator, hexDump, enumerate} from "../lib/util"
 import * as LibAVWebcodecsBridge from "libavjs-webcodecs-bridge";
 import { VideoMetadata, videoMetadataChecker, definiteFrameTypeInfoChecker} from '../lib/video-shared'
-import { ArrayChecker, Checker, LiteralChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
+import { ArrayChecker, Checker, LiteralChecker, ObjectChecker, RecordChecker, StringChecker, UnknownChecker, getCheckerFromObject } from '../lib/typeCheck'
 import { FrameInfo, extractFrameInfo } from "./frameinfo"
 import { parseAvcDecoderConfigurationRecord, parseSpsNalUnit, SpsCore  } from './avcc-parser';
 import { extractSttsAndCttsBox } from './mp4atoms'
@@ -64,15 +64,28 @@ export class Video {
       this.input.name
     );
     const video_streams: LibAVTypes.Stream[] = streams.filter(
-      (s) => s.codec_type === this.libav.AVMEDIA_TYPE_VIDEO
-    );
-    if (video_streams.length !== 1) {
+      (s) => s.codec_type === this.libav.AVMEDIA_TYPE_VIDEO)
+    if (video_streams.length === 0) {
       throw new Error(
-        `Problem with file ${this.input.name}, contains ${video_streams.length} video streams: ${video_streams}`
-      );
+        `Problem with file ${this.input.name}, contains no video streams`)
+    }
+    let selected_stream = 0
+    if (video_streams.length > 1) {
+      console.info("More than one video stream, get the one with the highest resolution")
+      let max_width = 0
+      let max_height = 0
+      for (const [i, s] of enumerate(video_streams)) {
+        const width = await this.libav.AVCodecParameters_width(s.codecpar)
+        const height = await this.libav.AVCodecParameters_height(s.codecpar)
+        if (width > max_width && height > max_height) {
+          selected_stream = i
+          max_height = height
+          max_width = width
+        }
+      }
     }
     _rwthis.formatContext = fmt_ctx;
-    _rwthis.videoStream = video_streams[0];
+    _rwthis.videoStream = video_streams[selected_stream];
     _rwthis.ticksToUsFactor = 
       1e6 * this.videoStream.time_base_num / this.videoStream.time_base_den
 
@@ -478,8 +491,8 @@ export async function extractMetadata(file: File): Promise<VideoMetadata> {
       pts => (pts - video.videoInfo.startTick) * video.ticksToUsFactor / 1e6)
     const creationTime  = [
       tags.format.tags.creation_time,
-      ...tags.streams.map(s => s.tags.creation_time)
-    ].filter(ct => !!ct)
+      ...tags.streams.map(s => s.tags?.creation_time)
+    ].filter(ct => typeof(ct) === "string" && ct !== "")
     .map(ct => "isodate:" + ct)
     .filter(ct => ISODATETIMESTRINGREGEX.test(ct))
     .at(0) as ISODateTimeString | undefined
@@ -502,7 +515,7 @@ export type Tags = {
   streams: Array<{
     index: number
     codec_type: "video" | "audio" | "data" | "subtitle"
-    tags: Record<string, string>
+    tags?: Record<string, string>
   }>
   format: {
     tags: Record<string, string>
@@ -510,11 +523,14 @@ export type Tags = {
 }
 const validateTags: Checker<Tags> = getCheckerFromObject({
   programs: new ArrayChecker(new UnknownChecker()),
-  streams: new ArrayChecker({
-    index: 1,
-    codec_type: new LiteralChecker(["video", "audio", "data", "subtitle"]),
-    tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
-  }),
+  streams: new ArrayChecker(new ObjectChecker({
+    required: {
+      index: 1,
+      codec_type: new LiteralChecker(["video", "audio", "data", "subtitle"]),
+    },
+    optional: {
+      tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
+    }})),
   format: {
     tags: new RecordChecker({keyChecker: new StringChecker(), valueChecker: new StringChecker()}),
   }

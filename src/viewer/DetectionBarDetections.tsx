@@ -231,6 +231,31 @@ export const DetectionBarDetections: FunctionComponent = () => {
             moveToMouseFrame(ev);
           }
         }} >
+        {/* We need some hacky css in here (rather than external) because of https://issues.chromium.org/issues/478890189. I'm sure there is a better / correct solution for this, but at least this is a working solution...*/}
+        <style>
+          .{css.detections} {"{"}
+            stroke: var(--line-colour);
+            fill: var(--line-colour);
+          {"}"}
+          .{css.cursor} {"{"}
+            stroke: hsl(0 0% 30%);
+            fill: hsl(0 0% 30%);
+            transform: scaleY(var(--top-and-bottom-view-height));
+          {"}"}
+          .{css.cursor} path {"{"}
+            vector-effect: non-scaling-stroke;
+          {"}"}
+          .{css.horizontalRulers} line {"{"}
+            vector-effect: non-scaling-stroke;
+            stroke: hsl(0 0% 30% / 40%);
+          {"}"}
+          .{css.horizontalRulers} text {"{"}
+            fill: hsl(0 0% 20% / 80%);
+            font-family: monospace;
+            font-size: .7em;
+          {"}"}
+
+        </style>
         <defs>
           <g id="detection-lines" className={css.detectionLines}>
             {[...heightLines.entries()].map(
